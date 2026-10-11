@@ -47,7 +47,7 @@ a{color:var(--blau);text-decoration:none}a:hover{text-decoration:underline}
 
 /* To-dos */
 .todos{position:fixed;left:1.6rem;top:5.4rem;width:17rem;z-index:15;padding:1rem 1rem .8rem;border-radius:1.1rem;
-  background:rgba(10,20,40,.55);border:1px solid var(--kante);backdrop-filter:blur(22px) saturate(140%);-webkit-backdrop-filter:blur(22px) saturate(140%)}
+  background:rgba(10,20,40,.92);border:1px solid var(--kante)}
 .todos h3{font-size:.78rem;font-weight:600;color:var(--text2);letter-spacing:.02em;margin-bottom:.6rem}
 .todos ul{list-style:none;display:flex;flex-direction:column;gap:.5rem}
 .todos li{display:flex;gap:.6rem;font-size:.88rem;line-height:1.35}
@@ -63,13 +63,12 @@ a{color:var(--blau);text-decoration:none}a:hover{text-decoration:underline}
   position:absolute;left:50%;top:50%;
   width:min(62vw, 100rem);height:min(calc(100% - 2.5rem), 58rem);
   border-radius:1.4rem;
-  background:linear-gradient(160deg,rgba(255,255,255,.10),rgba(255,255,255,.03) 40%,rgba(255,255,255,.05));
+  background:linear-gradient(160deg,rgba(38,58,96,.96),rgba(16,28,52,.97) 45%,rgba(20,34,62,.97));
   border:1px solid var(--kante);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 2rem 5rem rgba(0,0,0,.55);
-  backdrop-filter:blur(26px) saturate(150%);-webkit-backdrop-filter:blur(26px) saturate(150%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 2rem 5rem rgba(0,0,0,.5);
   display:flex;flex-direction:column;overflow:hidden;
-  transition:transform .9s cubic-bezier(.2,.8,.2,1),opacity .9s,filter .9s;
-  transform-style:preserve-3d;cursor:pointer;
+  transition:transform .55s cubic-bezier(.22,.9,.24,1),opacity .55s;
+  will-change:transform,opacity;backface-visibility:hidden;cursor:pointer;
 }
 .fenster.vorn{cursor:default;border-color:var(--kante-hell)}
 .fenster.braucht{border-color:rgba(243,210,122,.55)}
@@ -214,7 +213,7 @@ details.mehr-text > div{margin-top:.8rem}
 .hinweis{font-size:1rem;color:var(--text2);text-align:center;min-height:1.4rem}
 .nav{display:flex;gap:.9rem;align-items:center;font-size:.8rem;color:var(--text3)}
 .nav button{width:2.1rem;height:2.1rem;border-radius:50%;display:grid;place-items:center;background:var(--glas);border:1px solid var(--kante);font-size:1.1rem}
-.eingabe{width:100%;display:flex;gap:.6rem;align-items:center;padding:.5rem .5rem .5rem 1.2rem;border-radius:999px;background:rgba(10,20,40,.65);border:1px solid var(--kante);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.eingabe{width:100%;display:flex;gap:.6rem;align-items:center;padding:.5rem .5rem .5rem 1.2rem;border-radius:999px;background:rgba(10,20,40,.94);border:1px solid var(--kante)}
 .eingabe input{flex:1;min-width:0;background:none;border:0;outline:0;color:var(--text);font:inherit;font-size:1rem}
 .eingabe input::placeholder{color:var(--text3)}
 .eingabe .ziel{font-size:.8rem;color:var(--text3);white-space:nowrap;max-width:14rem;overflow:hidden;text-overflow:ellipsis}
@@ -447,10 +446,10 @@ function drehen(){
     let d = i - vorn; if (d > n/2) d -= n; if (d < -n/2) d += n;
     const a = Math.abs(d);
     el.style.transform = `translate(-50%,-50%) translate3d(${d*44}%,0,${-a*22}rem) rotateY(${-d*30}deg)`;
-    el.style.opacity = a > 2 ? 0 : 1 - a*0.35;
-    el.style.filter = a ? `blur(${a*2}px) brightness(${1-a*.25})` : "none";
+    el.style.opacity = a > 1 ? 0 : 1 - a*0.55;
+    el.style.visibility = a > 1 ? "hidden" : "visible";
     el.style.zIndex = 10 - a;
-    el.style.pointerEvents = a > 2 ? "none" : "auto";
+    el.style.pointerEvents = a > 1 ? "none" : "auto";
     el.classList.toggle("vorn", a===0);
   });
   const f = F[vorn];
