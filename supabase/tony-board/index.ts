@@ -51,6 +51,13 @@ const TOOLS = [
       properties: {
         id: { type: "string", description: "Kurze feste Kennung der Aufgabe, z. B. 'mail-mueller-angebot'." },
         titel: { type: "string", description: "Titel der Aufgabe, z. B. 'Antwort an Herrn Mueller'." },
+        auftrag: { type: "string", description: "PFLICHT: Der Auftrag in einem Satz, so wie Marcel ihn gegeben hat." },
+        kernaussage: {
+          type: "string",
+          description:
+            "PFLICHT, wird als 'Stand' angezeigt: was jetzt gilt, in hoechstens 12 Woertern, die Marcel in 5 Sekunden erfasst. Wichtigste Woerter mit **fett**. Trenne ehrlich zwischen erledigt und nur vorbereitet. Beispiel: '**3 Versprechen** auf der Website ohne Beleg, **Impressum** veraltet.'",
+        },
+        von_dir: { type: "string", description: "Die EINE Entscheidung oder Frage, die du von Marcel brauchst, als Frage formuliert. Leer lassen (\"\"), wenn nichts noetig ist." },
         app: { type: "string", enum: APPS, description: "Logo oben links im Fenster." },
         art: { type: "string", enum: ["mail", "text", "code", "chat"], description: "mail = Kopfzeilen An/Betreff + Text; code = Monospace; chat = Verlauf steht im Vordergrund." },
         kopf: {
@@ -58,7 +65,7 @@ const TOOLS = [
           description: "Kopfzeilen, bei Mails z. B. {\"An\": \"...\", \"Betreff\": \"...\"}.",
           additionalProperties: { type: "string" },
         },
-        inhalt: { type: "string", description: "Der Inhalt im Fenster (Mailtext, Nachricht, Notiz). Markdown-Ueberschriften und Listen sind erlaubt." },
+        inhalt: { type: "string", description: "Details zum Nachlesen (Mailtext, Notiz, Begruendung). Wird eingeklappt angezeigt, ausser bei Mails. Kurz halten; was sich als Widget zeigen laesst, gehoert ins Widget." },
         status: { type: "string", enum: STATUS, description: "arbeitet | braucht_dich | wartet | fertig" },
         schritte: {
           type: "array",
@@ -91,7 +98,7 @@ const TOOLS = [
         widgets: {
           type: "array",
           description:
-            "Visuelle Bausteine neben dem Text. Nutze sie grosszuegig, damit Marcel Ergebnisse auf einen Blick sieht. Typen und daten: " +
+            "Das Herz des Fensters: visuelle Bausteine, die Marcel ohne Lesen versteht. Jedes Ergebnis-Fenster braucht mindestens ein Widget. Zahlen als kennzahlen oder balken, Gegenueberstellungen als vergleich, Quellen als links, Status als checkliste. Typen und daten: " +
             "kennzahlen {werte:[{label,wert,hinweis?}]}; " +
             "tabelle {spalten:[..], zeilen:[[..]]}; " +
             "checkliste {punkte:[{text,erledigt}]}; " +
@@ -186,9 +193,22 @@ const TOOLS = [
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
   },
   {
+    name: "archiv_suchen",
+    title: "Archiv durchsuchen",
+    description:
+      "Durchsucht archivierte (geschlossene) Fenster nach einem Suchbegriff in Titel, Kernaussage und Inhalt. Nutze es, bevor du etwas neu recherchierst oder schreibst, das Marcel schon einmal hatte. Ein gefundenes Fenster holst du mit fenster_zeigen und derselben id zurueck aufs Board.",
+    inputSchema: {
+      type: "object",
+      properties: { suchbegriff: { type: "string" } },
+      required: ["suchbegriff"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+  },
+  {
     name: "fenster_schliessen",
-    title: "Fenster schliessen",
-    description: "Nimmt ein erledigtes Fenster vom Board.",
+    title: "Fenster archivieren",
+    description: "Nimmt ein erledigtes Fenster vom Board ins Archiv. Es bleibt ueber archiv_suchen auffindbar.",
     inputSchema: {
       type: "object",
       properties: { id: { type: "string" } },
@@ -200,13 +220,14 @@ const TOOLS = [
 ];
 
 async function zustandLesen() {
-  const [{ data: fenster }, { data: z }, { data: eingang }, { data: absprache }] = await Promise.all([
+  const [{ data: fenster }, { data: z }, { data: eingang }, { data: absprache }, { data: archiv }] = await Promise.all([
     db.from("tony_board_fenster").select("*").eq("geschlossen", false).order("erstellt"),
     db.from("tony_board_zustand").select("fokus, ansicht, todos, geaendert").eq("id", 1).single(),
     db.from("tony_board_eingang").select("*").order("id", { ascending: false }).limit(30),
     db.from("tony_board_absprache").select("*").order("id", { ascending: false }).limit(30),
+    db.from("tony_board_fenster").select("id, titel, kernaussage, app, geaendert").eq("geschlossen", true).order("geaendert", { ascending: false }).limit(100),
   ]);
-  return { fenster: fenster ?? [], fokus: z?.fokus ?? null, ansicht: z?.ansicht ?? "rondell", todos: z?.todos ?? [], eingang: eingang ?? [], absprache: absprache ?? [] };
+  return { fenster: fenster ?? [], fokus: z?.fokus ?? null, ansicht: z?.ansicht ?? "rondell", todos: z?.todos ?? [], eingang: eingang ?? [], absprache: absprache ?? [], archiv: archiv ?? [] };
 }
 
 // Ungelesene Nachrichten eines Absenders holen und als gelesen markieren
@@ -247,7 +268,7 @@ async function werkzeug(name: string, a: Record<string, any>): Promise<unknown> 
       if (!a.id) throw new Error("id fehlt");
       const { data: alt } = await db.from("tony_board_fenster").select("id").eq("id", a.id).maybeSingle();
       const felder: Record<string, unknown> = { geaendert: new Date().toISOString(), geschlossen: false };
-      for (const k of ["titel", "app", "art", "kopf", "inhalt", "status", "schritte", "hinweis", "verlauf", "widgets"]) {
+      for (const k of ["titel", "auftrag", "kernaussage", "von_dir", "app", "art", "kopf", "inhalt", "status", "schritte", "hinweis", "verlauf", "widgets"]) {
         if (a[k] !== undefined) felder[k] = a[k];
       }
       if (felder.app && !APPS.includes(felder.app as string)) felder.app = "notiz";
@@ -294,6 +315,17 @@ async function werkzeug(name: string, a: Record<string, any>): Promise<unknown> 
       if (error) throw new Error(error.message);
       return { ok: true, hinweis: "Claude schaut innerhalb von etwa einer Minute nach. Antwort spaeter mit board_lesen holen." };
     }
+    case "archiv_suchen": {
+      const q = String(a.suchbegriff ?? "").replace(/[%,()]/g, " ").trim();
+      if (!q) throw new Error("suchbegriff fehlt");
+      const { data, error } = await db.from("tony_board_fenster")
+        .select("id, titel, kernaussage, app, inhalt, widgets, geaendert")
+        .eq("geschlossen", true)
+        .or(`titel.ilike.%${q}%,kernaussage.ilike.%${q}%,inhalt.ilike.%${q}%`)
+        .order("geaendert", { ascending: false }).limit(10);
+      if (error) throw new Error(error.message);
+      return { treffer: data ?? [] };
+    }
     case "fenster_schliessen": {
       const { error } = await db.from("tony_board_fenster").update({ geschlossen: true, geaendert: new Date().toISOString() }).eq("id", a.id);
       if (error) throw new Error(error.message);
@@ -312,9 +344,9 @@ async function mcp(msg: any): Promise<any | null> {
       return ok({
         protocolVersion: params?.protocolVersion ?? "2025-06-18",
         capabilities: { tools: { listChanged: false } },
-        serverInfo: { name: "tony-board", title: "Tony Board", version: "1.1.0" },
+        serverInfo: { name: "tony-board", title: "Tony Board", version: "1.3.0" },
         instructions:
-          "Tony Board ist Marcels Bildschirm fuer deine Arbeit. Lege fuer jede Aufgabe, an der du arbeitest, ein Fenster an (fenster_zeigen) und halte Inhalt, Schritte und Status aktuell. Bereite Ergebnisse visuell auf: Kennzahlen, Tabellen, Vergleiche, Link-Karten oder kleine Mockups als widgets, Mailwechsel als verlauf. Hole das Fenster nach vorne, ueber das ihr gerade sprecht. Vor dem Senden einer Mail: freigabe_anfragen, dann board_lesen bis freigegeben. Lies mit board_lesen regelmaessig, was Marcel eingegeben und Claude geantwortet hat. Code-, App-, Daten- und Deploy-Themen gibst du mit an_claude an Claude weiter.",
+          "Tony Board ist Marcels Bildschirm fuer deine Arbeit. Oberste Regel: Marcel muss jedes Fenster in 5 Sekunden verstehen, ohne zu lesen. Darum beginnt jedes Fenster mit auftrag (ein Satz), kernaussage als Stand (hoechstens 12 Woerter, Schluesselwoerter fett) und von_dir (die eine Frage an Marcel, sonst leer), dazu mindestens ein Widget; Fliesstext ist nur Detail. Lege fuer jede Aufgabe, an der du arbeitest, ein Fenster an (fenster_zeigen) und halte Inhalt, Schritte und Status aktuell. Bereite Ergebnisse visuell auf: Kennzahlen, Tabellen, Vergleiche, Link-Karten oder kleine Mockups als widgets, Mailwechsel als verlauf. Hole das Fenster nach vorne, ueber das ihr gerade sprecht. Vor dem Senden einer Mail: freigabe_anfragen, dann board_lesen bis freigegeben. Lies mit board_lesen regelmaessig, was Marcel eingegeben und Claude geantwortet hat. Code-, App-, Daten- und Deploy-Themen gibst du mit an_claude an Claude weiter.",
       });
     case "ping":
       return ok({});
@@ -393,6 +425,15 @@ Deno.serve(async (req) => {
     const text = String(b.text ?? "").trim();
     if (!text) return json({ error: "leer" }, 400);
     await db.from("tony_board_absprache").insert({ von: "claude", text: text.slice(0, 20000), fenster_id: b.fenster_id ?? null });
+    return json({ ok: true });
+  }
+
+  // Board: Fenster archivieren oder zurueckholen
+  if (bereich === "api" && aktion === "archivieren" && req.method === "POST") {
+    const b = await req.json().catch(() => ({}));
+    if (!b.id) return json({ error: "id fehlt" }, 400);
+    await db.from("tony_board_fenster").update({ geschlossen: !b.zurueck, geaendert: new Date().toISOString() }).eq("id", b.id);
+    if (b.zurueck) await setzeZustand({ fokus: b.id });
     return json({ ok: true });
   }
 

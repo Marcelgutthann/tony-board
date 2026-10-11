@@ -9,11 +9,11 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#0b0b16; --bg2:#151327;
+  --bg:#060c18; --bg2:#0c1830;
   --glas:rgba(255,255,255,.055); --glas-stark:rgba(255,255,255,.09);
   --kante:rgba(255,255,255,.14); --kante-hell:rgba(255,255,255,.3);
   --text:#f1f0f8; --text2:rgba(241,240,248,.72); --text3:rgba(241,240,248,.55);
-  --gruen:#7fe0b0; --gelb:#f3d27a; --violett:#b9a6ff; --blau:#8fb8ff;
+  --gruen:#7fe0b0; --gelb:#f3d27a; --violett:#7fb2ff; --blau:#8fb8ff;
 }
 /* Alles skaliert mit der Bildschirmbreite: 16 px am Laptop, bis 30 px auf 4K */
 html{font-size:clamp(15px, .6vw + 8px, 32px)}
@@ -22,8 +22,8 @@ html,body{height:100%}
 body{
   font-family:Inter,system-ui,sans-serif;color:var(--text);line-height:1.5;
   background:
-    radial-gradient(70vw 45vw at 50% 55%, rgba(122,92,255,.15), transparent 60%),
-    radial-gradient(50vw 30vw at 85% 8%, rgba(80,170,255,.07), transparent 60%),
+    radial-gradient(70vw 45vw at 50% 55%, rgba(56,120,255,.16), transparent 60%),
+    radial-gradient(50vw 30vw at 85% 8%, rgba(60,200,255,.07), transparent 60%),
     linear-gradient(180deg,var(--bg2),var(--bg));
   overflow:hidden;-webkit-font-smoothing:antialiased;
 }
@@ -43,11 +43,11 @@ a{color:var(--blau);text-decoration:none}a:hover{text-decoration:underline}
 .umschalter button{padding:.5rem 1.05rem;border-radius:999px;font-size:.85rem;color:var(--text2);display:flex;gap:.45rem;align-items:center}
 .umschalter button svg{width:.95rem;height:.95rem}
 .umschalter button.an{background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,.06));color:var(--text);box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 .3rem .9rem rgba(0,0,0,.35)}
-.umschalter .zahl{font-size:.7rem;min-width:1.1rem;padding:0 .3rem;border-radius:999px;background:rgba(185,166,255,.25);color:var(--text)}
+.umschalter .zahl{font-size:.7rem;min-width:1.1rem;padding:0 .3rem;border-radius:999px;background:rgba(127,178,255,.25);color:var(--text)}
 
 /* To-dos */
 .todos{position:fixed;left:1.6rem;top:5.4rem;width:17rem;z-index:15;padding:1rem 1rem .8rem;border-radius:1.1rem;
-  background:rgba(20,18,38,.55);border:1px solid var(--kante);backdrop-filter:blur(22px) saturate(140%);-webkit-backdrop-filter:blur(22px) saturate(140%)}
+  background:rgba(10,20,40,.55);border:1px solid var(--kante);backdrop-filter:blur(22px) saturate(140%);-webkit-backdrop-filter:blur(22px) saturate(140%)}
 .todos h3{font-size:.78rem;font-weight:600;color:var(--text2);letter-spacing:.02em;margin-bottom:.6rem}
 .todos ul{list-style:none;display:flex;flex-direction:column;gap:.5rem}
 .todos li{display:flex;gap:.6rem;font-size:.88rem;line-height:1.35}
@@ -85,10 +85,40 @@ a{color:var(--blau);text-decoration:none}a:hover{text-decoration:underline}
 .status.fertig i{background:var(--gruen)}
 .status.wartet i{background:var(--text3)}
 
-.f-koerper{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr);overflow:hidden}
-.f-koerper.mit-widgets{grid-template-columns:minmax(0,1.05fr) minmax(0,1fr)}
-.f-spalte{min-height:0;overflow:auto;padding:1.2rem 1.5rem}
-.f-spalte + .f-spalte{border-left:1px solid rgba(255,255,255,.07);background:rgba(0,0,0,.08)}
+/* Lage wie Claudes Antwortkopf: Auftrag, Stand, Von dir */
+.lage{padding:1rem 1.5rem 1.1rem;border-bottom:1px solid rgba(255,255,255,.08);display:flex;flex-direction:column;gap:.55rem}
+.lage .z{display:grid;grid-template-columns:5.2rem 1fr;gap:1rem;align-items:baseline}
+.lage .z span{font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text3)}
+.lage .z p{font-size:1rem;color:var(--text2);line-height:1.4}
+.lage .z b{color:var(--text);font-weight:700}
+.lage .stand p{font-size:1.65rem;line-height:1.28;font-weight:500;letter-spacing:-.015em;color:var(--text2)}
+.lage .vondir{margin-top:.2rem;padding:.65rem .9rem;border-radius:.8rem;background:rgba(243,210,122,.1);border:1px solid rgba(243,210,122,.35);grid-template-columns:4.2rem 1fr}
+.lage .vondir span{color:var(--gelb)}
+.lage .vondir p{color:var(--text);font-size:1.08rem;font-weight:500}
+.f-koerper{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain}
+.f-spalte{padding:1.2rem 1.5rem}
+.f-koerper::-webkit-scrollbar{width:.4rem}.f-koerper::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:.4rem}
+.widgets{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,24rem),1fr));gap:1rem;align-items:start}
+.widgets .w.breit{grid-column:1/-1}
+details.mehr-text{margin-top:1.1rem;border-top:1px solid rgba(255,255,255,.08);padding-top:.9rem}
+details.mehr-text summary{cursor:pointer;color:var(--text2);font-size:.9rem;list-style:none;display:flex;align-items:center;gap:.5rem}
+details.mehr-text summary::before{content:"\203A";display:inline-block;transition:transform .2s;font-size:1.1rem}
+details.mehr-text[open] summary::before{transform:rotate(90deg)}
+details.mehr-text > div{margin-top:.8rem}
+.leise-knopf{font-size:.85rem;color:var(--text2);padding:.45rem .9rem;border-radius:999px;border:1px solid var(--kante)}
+.leise-knopf:hover{color:var(--text);border-color:var(--kante-hell)}
+.archiv{position:absolute;inset:0;display:none;justify-content:center;overflow:auto;padding:0 1.6rem 1.2rem}
+.archiv.an{display:flex}
+.archiv .spalte{width:min(100%,70rem);display:flex;flex-direction:column;gap:.8rem;padding-top:.5rem}
+.archiv h2{font-size:1.35rem;font-weight:600}
+.archiv input{padding:.8rem 1.1rem;border-radius:.9rem;background:var(--glas);border:1px solid var(--kante);color:var(--text);font:inherit;font-size:1rem;outline:0}
+.archiv .liste{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,30rem),1fr));gap:.8rem}
+.akarte{display:flex;gap:.9rem;align-items:flex-start;text-align:left;padding:1rem 1.1rem;border-radius:1rem;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09)}
+.akarte:hover{background:rgba(255,255,255,.09)}
+.akarte .logo{width:2.3rem;height:2.3rem;border-radius:.7rem}.akarte .logo svg{width:1.4rem;height:1.4rem}
+.akarte b{display:block;font-size:1.02rem}
+.akarte span{display:block;font-size:.92rem;color:var(--text2);margin-top:.15rem}
+.akarte small{display:block;font-size:.78rem;color:var(--text3);margin-top:.3rem}
 .f-spalte::-webkit-scrollbar{width:.4rem}.f-spalte::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:.4rem}
 .f-meta{display:grid;grid-template-columns:auto 1fr;gap:.3rem 1.2rem;font-size:.95rem;margin-bottom:1rem;padding-bottom:1rem;border-bottom:1px solid rgba(255,255,255,.07)}
 .f-meta dt{color:var(--text3)}
@@ -106,13 +136,12 @@ a{color:var(--blau);text-decoration:none}a:hover{text-decoration:underline}
 /* Chatverlauf */
 .verlauf{display:flex;flex-direction:column;gap:.7rem;margin-bottom:1.2rem}
 .blase{max-width:82%;padding:.75rem 1rem;border-radius:1.1rem 1.1rem 1.1rem .3rem;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.08);font-size:1rem;line-height:1.5}
-.blase.eigen{align-self:flex-end;border-radius:1.1rem 1.1rem .3rem 1.1rem;background:rgba(185,166,255,.2);border-color:rgba(185,166,255,.3)}
+.blase.eigen{align-self:flex-end;border-radius:1.1rem 1.1rem .3rem 1.1rem;background:rgba(127,178,255,.2);border-color:rgba(127,178,255,.3)}
 .blase .wer{display:flex;justify-content:space-between;gap:1rem;font-size:.75rem;color:var(--text3);margin-bottom:.2rem}
 .blase .wer b{color:var(--text2);font-weight:600}
 .blase p{margin:0 0 .5em}.blase p:last-child{margin:0}
 
 /* Widgets */
-.widgets{display:flex;flex-direction:column;gap:1rem}
 .w{border-radius:1rem;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);padding:1rem 1.1rem}
 .w h4{font-size:.78rem;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.7rem}
 .w-kennzahlen{display:grid;grid-template-columns:repeat(auto-fit,minmax(9rem,1fr));gap:.7rem}
@@ -136,7 +165,7 @@ a{color:var(--blau);text-decoration:none}a:hover{text-decoration:underline}
 .w-balken{display:flex;flex-direction:column;gap:.55rem;font-size:.9rem}
 .w-balken .z{display:grid;grid-template-columns:minmax(6rem,30%) 1fr auto;gap:.7rem;align-items:center}
 .w-balken .spur{height:.6rem;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden}
-.w-balken .spur i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#8d7bff,#b9a6ff)}
+.w-balken .spur i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#3d7bff,#7fb2ff)}
 .w-balken .z span:last-child{color:var(--text2);font-variant-numeric:tabular-nums}
 .w-links{display:flex;flex-direction:column;gap:.55rem}
 .w-links a{display:block;padding:.7rem .9rem;border-radius:.8rem;background:rgba(255,255,255,.05);color:var(--text)}
@@ -153,7 +182,7 @@ a{color:var(--blau);text-decoration:none}a:hover{text-decoration:underline}
 .schritt{font-size:.85rem;color:var(--text3);display:flex;align-items:center;gap:.4rem}
 .schritt .k{width:1rem;height:1rem;border-radius:50%;border:1px solid var(--kante-hell);display:grid;place-items:center;font-size:.6rem}
 .schritt.erl{color:var(--text2)}.schritt.erl .k{background:rgba(127,224,176,.2);border-color:var(--gruen);color:var(--gruen)}
-.schritt.akt{color:var(--text)}.schritt.akt .k{border-color:var(--violett);background:rgba(185,166,255,.25)}
+.schritt.akt{color:var(--text)}.schritt.akt .k{border-color:var(--violett);background:rgba(127,178,255,.25)}
 .freigabe{display:flex;gap:.5rem;margin-left:auto}
 .glasknopf{padding:.55rem 1.1rem;border-radius:999px;font-size:.9rem;font-weight:500;
   background:linear-gradient(180deg,rgba(255,255,255,.18),rgba(255,255,255,.05));border:1px solid var(--kante-hell);
@@ -167,9 +196,7 @@ a{color:var(--blau);text-decoration:none}a:hover{text-decoration:underline}
 .mehr.an{display:block}
 .mehr .raster{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,36rem),1fr));gap:1.2rem;padding-top:.5rem}
 .mehr .fenster{position:relative;left:auto;top:auto;width:auto;height:min(46rem,70vh);transform:none!important;opacity:1!important;filter:none!important}
-.mehr .f-koerper.mit-widgets{grid-template-columns:minmax(0,1fr)}
-.mehr .f-spalte + .f-spalte{border-left:0;border-top:1px solid rgba(255,255,255,.07)}
-.mehr .f-koerper{overflow:auto}.mehr .f-spalte{overflow:visible}
+.mehr .lage .stand p{font-size:1.3rem}
 .rondell.aus{display:none}
 
 /* Absprache Tony ⇄ Claude */
@@ -187,7 +214,7 @@ a{color:var(--blau);text-decoration:none}a:hover{text-decoration:underline}
 .hinweis{font-size:1rem;color:var(--text2);text-align:center;min-height:1.4rem}
 .nav{display:flex;gap:.9rem;align-items:center;font-size:.8rem;color:var(--text3)}
 .nav button{width:2.1rem;height:2.1rem;border-radius:50%;display:grid;place-items:center;background:var(--glas);border:1px solid var(--kante);font-size:1.1rem}
-.eingabe{width:100%;display:flex;gap:.6rem;align-items:center;padding:.5rem .5rem .5rem 1.2rem;border-radius:999px;background:rgba(20,18,38,.65);border:1px solid var(--kante);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.eingabe{width:100%;display:flex;gap:.6rem;align-items:center;padding:.5rem .5rem .5rem 1.2rem;border-radius:999px;background:rgba(10,20,40,.65);border:1px solid var(--kante);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
 .eingabe input{flex:1;min-width:0;background:none;border:0;outline:0;color:var(--text);font:inherit;font-size:1rem}
 .eingabe input::placeholder{color:var(--text3)}
 .eingabe .ziel{font-size:.8rem;color:var(--text3);white-space:nowrap;max-width:14rem;overflow:hidden;text-overflow:ellipsis}
@@ -204,9 +231,7 @@ a{color:var(--blau);text-decoration:none}a:hover{text-decoration:underline}
   .todos{display:none}
   .mehr{padding-left:1.6rem}
   .fenster{width:92vw}
-  .f-koerper.mit-widgets{grid-template-columns:minmax(0,1fr);overflow:auto}
-  .f-koerper.mit-widgets .f-spalte{overflow:visible}
-  .f-spalte + .f-spalte{border-left:0;border-top:1px solid rgba(255,255,255,.07)}
+  .lage .stand p{font-size:1.3rem}
 }
 @media (max-width:700px){
   .kopf{padding:0 1rem}.live span{display:none}
@@ -222,6 +247,7 @@ a{color:var(--blau);text-decoration:none}a:hover{text-decoration:underline}
     <button data-a="rondell"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="12" rx="9" ry="4"/><rect x="9" y="7" width="6" height="10" rx="1.5"/></svg><span class="txt">Rondell</span></button>
     <button data-a="mehrfenster"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="8" height="7" rx="1.5"/><rect x="13" y="4" width="8" height="7" rx="1.5"/><rect x="3" y="13" width="8" height="7" rx="1.5"/><rect x="13" y="13" width="8" height="7" rx="1.5"/></svg><span class="txt">Mehrfenster</span></button>
     <button data-a="absprache"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 5h11v8H8l-4 3z"/><path d="M15 9h5v8l-3-2h-6v-2"/></svg><span class="txt">Tony ⇄ Claude</span><span class="zahl" id="abzahl" hidden></span></button>
+    <button data-a="archiv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11h14V8M10 12h4"/></svg><span class="txt">Archiv</span></button>
   </div>
   <div class="live" id="live"><i></i><span>verbunden</span></div>
 </header>
@@ -232,6 +258,7 @@ a{color:var(--blau);text-decoration:none}a:hover{text-decoration:underline}
   <div class="rondell" id="rondell"></div>
   <div class="mehr" id="mehr"><div class="raster" id="raster"></div></div>
   <div class="absprache" id="absprache"><div class="spalte" id="abspalte"></div></div>
+  <div class="archiv" id="archiv"><div class="spalte"><h2>Archiv</h2><input id="asuche" placeholder="Im Archiv suchen …" autocomplete="off"><div class="liste" id="aliste"></div></div></div>
 </main>
 
 <div class="unten">
@@ -326,23 +353,41 @@ function verlaufHTML(v){
 function fensterHTML(f){
   const kopf = f.kopf && Object.keys(f.kopf).length
     ? `<dl class="f-meta">${Object.entries(f.kopf).map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>` : "";
-  const inhalt = f.inhalt ? `<div class="f-inhalt ${f.art==="code"?"code":""}">${f.art==="code"?esc(f.inhalt):markdown(f.inhalt)}</div>` : "";
+  const text = f.inhalt ? `<div class="f-inhalt ${f.art==="code"?"code":""}">${f.art==="code"?esc(f.inhalt):markdown(f.inhalt)}</div>` : "";
   const verlauf = verlaufHTML(f.verlauf);
-  const links = f.art === "chat" ? kopf + verlauf + inhalt : kopf + inhalt + verlauf;
-  const ws = (f.widgets||[]).map(widget).join("");
+  const ws = (f.widgets||[]).map(w => widget(w).replace('<div class="w">', `<div class="w${["tabelle","mockup","vergleich"].includes(w.typ)?" breit":""}">`)).join("");
+  // Widgets zuerst; Fliesstext nur eingeklappt, ausser bei Mails/Chats oder wenn es nichts anderes gibt
+  const textOffen = f.art === "mail" || f.art === "chat" || !ws;
+  const details = (kopf || text || verlauf)
+    ? (textOffen ? `${kopf}${f.art==="chat"?verlauf+text:text+verlauf}` : `<details class="mehr-text"><summary>Details lesen</summary><div>${kopf}${text}${verlauf}</div></details>`)
+    : "";
   const schritte = (f.schritte||[]).map(s=>`<span class="schritt ${s.erledigt?"erl":s.aktuell?"akt":""}"><span class="k">${s.erledigt?"✓":""}</span>${esc(s.text)}</span>`).join("");
   let freigabe = "";
   if (f.freigabe === "angefragt") freigabe = `<div class="freigabe"><button class="glasknopf" data-ab="${esc(f.id)}">Ändern …</button><button class="glasknopf ja" data-ja="${esc(f.id)}">Freigeben</button></div>`;
   else if (f.freigabe === "freigegeben") freigabe = `<span class="marke-frei">Freigegeben</span>`;
   else if (f.freigabe === "abgelehnt") freigabe = `<span class="marke-ab">Änderung gewünscht</span>`;
+  const archiv = `<button class="leise-knopf" data-archiv="${esc(f.id)}" style="${freigabe?"":"margin-left:auto"}">Archivieren</button>`;
   return `<div class="f-kopf"><div class="logo">${LOGOS[f.app]||LOGOS.notiz}</div>
       <div class="f-titel"><small>${esc(f.app)}</small><b>${esc(f.titel)}</b></div>
       <div class="status ${esc(f.status)}"><i></i>${STATUS[f.status]||esc(f.status)}</div></div>
-    <div class="f-koerper ${ws?"mit-widgets":""}">
-      <div class="f-spalte">${links || '<div class="f-inhalt" style="color:var(--text3)">Tony bereitet den Inhalt vor …</div>'}</div>
-      ${ws?`<div class="f-spalte"><div class="widgets">${ws}</div></div>`:""}
-    </div>
-    ${(schritte||freigabe)?`<div class="f-fuss">${schritte}${freigabe}</div>`:""}`;
+    ${(f.auftrag||f.kernaussage||f.von_dir)?`<div class="lage">
+      ${f.auftrag?`<div class="z"><span>Auftrag</span><p>${zeile(esc(f.auftrag))}</p></div>`:""}
+      ${f.kernaussage?`<div class="z stand"><span>Stand</span><p>${zeile(esc(f.kernaussage))}</p></div>`:""}
+      ${f.von_dir?`<div class="z vondir"><span>Von dir</span><p>${zeile(esc(f.von_dir))}</p></div>`:""}
+    </div>`:""}
+    <div class="f-koerper"><div class="f-spalte">
+      ${ws?`<div class="widgets">${ws}</div>`:""}
+      ${details || (ws?"":'<div class="f-inhalt" style="color:var(--text3)">Tony bereitet den Inhalt vor …</div>')}
+    </div></div>
+    <div class="f-fuss">${schritte}${freigabe}${archiv}</div>`;
+}
+
+function archivZeichnen(){
+  const q = (document.getElementById("asuche").value||"").toLowerCase().trim();
+  const liste = (zustand.archiv||[]).filter(a => !q || (a.titel+" "+(a.kernaussage||"")).toLowerCase().includes(q));
+  document.getElementById("aliste").innerHTML = liste.length
+    ? liste.map(a=>`<button class="akarte" data-zurueck="${esc(a.id)}"><div class="logo">${LOGOS[a.app]||LOGOS.notiz}</div><div><b>${esc(a.titel)}</b>${a.kernaussage?`<span>${zeile(esc(a.kernaussage))}</span>`:""}<small>${new Date(a.geaendert).toLocaleString("de-DE",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})} · zurück aufs Board</small></div></button>`).join("")
+    : `<div style="color:var(--text3);padding:2rem 0">${q?"Nichts gefunden.":"Noch nichts archiviert."}</div>`;
 }
 
 function zeit(iso){ try { return new Date(iso).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"}); } catch(e){ return ""; } }
@@ -369,6 +414,8 @@ function zeichnen(){
   document.getElementById("rondell").classList.toggle("aus", a!=="rondell");
   document.getElementById("mehr").classList.toggle("an", a==="mehrfenster");
   document.getElementById("absprache").classList.toggle("an", a==="absprache");
+  document.getElementById("archiv").classList.toggle("an", a==="archiv");
+  archivZeichnen();
   document.getElementById("nav").style.visibility = (a==="rondell" && F.length>1) ? "visible" : "hidden";
   document.getElementById("hinweis").style.visibility = a==="rondell" ? "visible" : "hidden";
   absprachZeichnen();
@@ -383,11 +430,13 @@ function zeichnen(){
   }
   vorn = Math.max(0, Math.min(vorn, F.length-1));
   // Scrollstand im vorderen Fenster beim Neuzeichnen behalten
-  const alt = {}; document.querySelectorAll(".fenster .f-spalte").forEach((el,i)=>alt[el.closest(".buehne > div").id+i]=el.scrollTop);
+  const alt = {}; document.querySelectorAll(".fenster .f-koerper").forEach((el,i)=>alt[el.closest(".buehne > div").id+i]=el.scrollTop);
+  const offen = new Set([...document.querySelectorAll(".fenster details[open]")].map(d=>d.closest(".buehne > div").id+d.closest(".fenster").dataset.i));
   const html = F.map((f,i)=>`<section class="fenster ${f.status==="braucht_dich"?"braucht":""}" data-i="${i}">${fensterHTML(f)}</section>`).join("");
   r.innerHTML = html;
   document.getElementById("raster").innerHTML = html;
-  document.querySelectorAll(".fenster .f-spalte").forEach((el,i)=>{ const k = el.closest(".buehne > div").id+i; if (alt[k]) el.scrollTop = alt[k]; });
+  document.querySelectorAll(".fenster details").forEach(d=>{ if (offen.has(d.closest(".buehne > div").id+d.closest(".fenster").dataset.i)) d.open = true; });
+  document.querySelectorAll(".fenster .f-koerper").forEach((el,i)=>{ const k = el.closest(".buehne > div").id+i; if (alt[k]) el.scrollTop = alt[k]; });
   drehen();
 }
 
@@ -417,7 +466,7 @@ async function laden(){
     const z = await res.json();
     document.getElementById("live").classList.remove("aus");
     document.querySelector("#live span").textContent = "verbunden";
-    const stand = JSON.stringify([z.fenster, z.fokus, z.ansicht, z.todos, z.absprache, z.eingang]);
+    const stand = JSON.stringify([z.fenster, z.fokus, z.ansicht, z.todos, z.absprache, z.eingang, z.archiv]);
     if (stand === letzterStand) return;
     letzterStand = stand;
     zustand = z;
@@ -444,15 +493,25 @@ function start(){
   document.getElementById("zurueck").onclick = () => schritt(-1);
   document.getElementById("vor").onclick = () => schritt(1);
   document.addEventListener("keydown", e => { if (e.target.tagName === "INPUT") return; if (e.key==="ArrowLeft") schritt(-1); if (e.key==="ArrowRight") schritt(1); });
-  let rad = 0;
+  // Rad/Trackpad: eine Geste = genau ein Fenster weiter. Gesperrt, bis 300 ms lang keine Radbewegung mehr kam
+  // (Trackpad-Nachlauf feuert sonst Dutzende Ereignisse). Ueber dem Inhalt des vorderen Fensters wird normal gescrollt.
+  let summe = 0, gesperrt = false, ruhe = null;
   document.getElementById("rondell").addEventListener("wheel", e => {
-    if (e.target.closest(".fenster.vorn .f-spalte")) return; // im Fenster normal scrollen
-    e.preventDefault(); if (Date.now()-rad < 450) return; rad = Date.now(); schritt((e.deltaY||e.deltaX) > 0 ? 1 : -1);
+    if (e.target.closest(".fenster.vorn .f-koerper")) return;
+    e.preventDefault();
+    clearTimeout(ruhe); ruhe = setTimeout(() => { gesperrt = false; summe = 0; }, 300);
+    if (gesperrt) return;
+    summe += Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+    if (Math.abs(summe) < 60) return;
+    schritt(summe > 0 ? 1 : -1); gesperrt = true; summe = 0;
   }, {passive:false});
   let tx = null;
   document.getElementById("rondell").addEventListener("touchstart", e => tx = e.touches[0].clientX, {passive:true});
   document.getElementById("rondell").addEventListener("touchend", e => { if (tx===null) return; const d = e.changedTouches[0].clientX - tx; if (Math.abs(d) > 60) schritt(d < 0 ? 1 : -1); tx = null; });
   document.querySelector(".buehne").addEventListener("click", e => {
+    const ar = e.target.closest("[data-archiv]"), zu = e.target.closest("[data-zurueck]");
+    if (ar) { zustand.fenster = zustand.fenster.filter(f=>f.id!==ar.dataset.archiv); zeichnen(); senden("archivieren", {id: ar.dataset.archiv}); return; }
+    if (zu) { zustand.ansicht = "rondell"; letzterFokus = null; senden("archivieren", {id: zu.dataset.zurueck, zurueck:true}); return; }
     const ja = e.target.closest("[data-ja]"), ab = e.target.closest("[data-ab]");
     if (ja) { senden("eingabe", {fenster_id: ja.dataset.ja, art:"freigabe", text:"Freigegeben"}); return; }
     if (ab) {
@@ -466,7 +525,7 @@ function start(){
   document.getElementById("umschalter").addEventListener("click", e => {
     const b = e.target.closest("button"); if (!b) return;
     zustand.ansicht = b.dataset.a; zeichnen();
-    if (b.dataset.a !== "absprache") senden("ansicht", {ansicht: b.dataset.a});
+    if (b.dataset.a === "rondell" || b.dataset.a === "mehrfenster") senden("ansicht", {ansicht: b.dataset.a});
   });
   document.getElementById("eingabe").addEventListener("submit", e => {
     e.preventDefault();
@@ -475,6 +534,7 @@ function start(){
     senden("eingabe", {fenster_id: f?.id ?? null, art:"nachricht", text});
     t.value = ""; t.placeholder = "Gesendet. Tony liest es beim nächsten Blick aufs Board.";
   });
+  document.getElementById("asuche").addEventListener("input", archivZeichnen);
   laden(); setInterval(laden, 1500);
 }
 
