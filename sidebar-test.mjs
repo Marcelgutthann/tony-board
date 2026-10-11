@@ -1,5 +1,6 @@
 import { chromium } from "playwright-core";
-const DATEI = "file:///C:/Users/m.gutthann/Desktop/NoraNotes.ai%20Claude/tony-board/docs/index.html#k=test";
+import { pathToFileURL } from "node:url";
+const DATEI = new URL("docs/index.html", pathToFileURL(import.meta.dirname + "/")).href + "#k=test";
 const vor = m => new Date(Date.now()-m*60000).toISOString();
 const F = [
   {id:"logo", app:"noranotes", titel:"Echtes NoraNotes-Logo im Board", status:"fertig", kernaussage:"Logo und Aktivitaetsanzeige liegen bereit.", geaendert:vor(5), schritte:[{text:"Bauen",erledigt:true}]},
@@ -11,7 +12,7 @@ const F = [
 ];
 let zustand = {fenster:F, fokus:"volker", ansicht:"mehrfenster", todos:[{text:"AVV klaeren"},{text:"Logo live",erledigt:true}], absprache:[], eingang:[], archiv:[]};
 const ok = (b,m) => { console.log((b?"OK   ":"FEHL ")+m); if(!b) process.exitCode=1; };
-const browser = await chromium.launch({executablePath:"C:/Program Files/Google/Chrome/Application/chrome.exe"});
+const browser = await chromium.launch({executablePath: process.env.CHROME ?? "C:/Program Files/Google/Chrome/Application/chrome.exe"});
 async function seite(opts){
   const ctx = await browser.newContext(opts);
   await ctx.route("https://lzrfyxejlejxfpvqpket.supabase.co/**", r => r.fulfill({contentType:"application/json", body: (()=>{ const q=r.request(); if(q.method()==="POST"&&q.url().endsWith("/ansicht")) zustand={...zustand, ansicht:JSON.parse(q.postData()).ansicht}; return q.method()==="GET" ? JSON.stringify(zustand) : "{}"; })()}));
