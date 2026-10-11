@@ -538,7 +538,7 @@ function leisteZeichnen(){
   for (const {f} of sortiert){
     if (f.status !== gruppe){ gruppe = f.status; html += `<div class="gruppe ${esc(f.status)}">${STATUS[f.status]||esc(f.status)}</div>`; }
     const frage = f.status!=="braucht_dich" ? "" : f.von_dir ? f.von_dir : f.freigabe==="angefragt" ? "Freigabe: Freigeben oder Ändern?" : "Frage fehlt – Tony muss sie nennen";
-    const unter = frage ? `<span class="s-stand vondir">${esc(frage)}</span>` : f.kernaussage ? `<span class="s-stand">${esc(f.kernaussage)}</span>` : "";
+    const unter = frage ? `<span class="s-stand vondir">${zeile(esc(frage))}</span>` : f.kernaussage ? `<span class="s-stand">${zeile(esc(f.kernaussage))}</span>` : "";
     html += `<button class="sitzung ${esc(f.status)} ${f.id===sel?"gewaehlt":""}" data-sid="${esc(f.id)}" aria-current="${f.id===sel}">
       <div class="logo">${LOGOS[f.app]||LOGOS.notiz}</div>
       <div class="s-text"><b title="${esc(f.titel)}">${esc(f.titel)}${f.id===zustand.fokus?'<span class="tony">Tony hier</span>':""}</b>

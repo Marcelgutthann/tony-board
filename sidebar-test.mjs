@@ -3,7 +3,7 @@ import { pathToFileURL } from "node:url";
 const DATEI = new URL("docs/index.html", pathToFileURL(import.meta.dirname + "/")).href + "#k=test";
 const vor = m => new Date(Date.now()-m*60000).toISOString();
 const F = [
-  {id:"logo", app:"noranotes", titel:"Echtes NoraNotes-Logo im Board", status:"fertig", kernaussage:"Logo und Aktivitaetsanzeige liegen bereit.", geaendert:vor(5), schritte:[{text:"Bauen",erledigt:true}]},
+  {id:"logo", app:"noranotes", titel:"Echtes NoraNotes-Logo im Board", status:"fertig", kernaussage:"**Logo** und Aktivitaetsanzeige liegen bereit.", geaendert:vor(5), schritte:[{text:"Bauen",erledigt:true}]},
   {id:"volker", app:"gmail", titel:"Volker Maegdefrau – Nachweise fuer Termin 12.10.", status:"arbeitet", kernaussage:"Sechs Punkte abgeglichen, Belege werden nachgeschaerft.", auftrag:"Funktionsnachweise zeigen", geaendert:vor(2), widgets:[{typ:"kennzahlen",titel:"Stand",daten:{werte:[{wert:"6",label:"Punkte"},{wert:"0",label:"live getestet"}]}}], schritte:[{text:"Abgleich",erledigt:true},{text:"Belege",aktuell:true}]},
   {id:"mail", app:"outlook", titel:"Antwort an Kanzlei zum AVV", status:"braucht_dich", kernaussage:"Entwurf fertig.", von_dir:"Darf die Mail so raus?", freigabe:"angefragt", geaendert:vor(1), inhalt:"Sehr geehrte Damen und Herren,\n\nanbei ..."},
   {id:"alt", app:"jira", titel:"NN-240 Sync pruefen", status:"arbeitet", kernaussage:"Seit Laengerem ohne Meldung.", geaendert:vor(25)},
@@ -37,6 +37,7 @@ ok(await p.$eval(".todos", e=>getComputedStyle(e).display)==="none", "Schwebende
 ok((await p.$$("#ltodos li")).length===2, "To-dos in der Leiste");
 ok(await p.$eval('[data-sid="mail"] .s-stand', e=>e.textContent)==="Darf die Mail so raus?", "Braucht-dich zeigt die konkrete Frage in der Leiste");
 ok(await p.$eval('[data-sid="ohne"] .s-stand', e=>e.textContent.startsWith("Frage fehlt")), "Braucht-dich ohne Frage wird als fehlend benannt");
+ok(await p.$eval('[data-sid="logo"] .s-stand b', e=>e.textContent)==="Logo", "Fett aus der Kernaussage wird in der Leiste gesetzt, nicht als Sternchen");
 ok(await p.$$eval("#lliste .sitzung", es=>es.every(e=>{const s=e.querySelector(".status"); return s && s.getBoundingClientRect().width>20 && getComputedStyle(s).visibility!=="hidden";})), "Status in jedem Leistenknopf sichtbar, ohne Hover");
 await p.screenshot({path:"1-desktop.png"});
 // Hover
