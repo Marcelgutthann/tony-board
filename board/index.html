@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Tony Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0b0b16; --bg2:#151327;
+  --glas:rgba(255,255,255,.055); --glas-stark:rgba(255,255,255,.085);
+  --kante:rgba(255,255,255,.14); --kante-hell:rgba(255,255,255,.28);
+  --text:#ecebf5; --text2:rgba(236,235,245,.62); --text3:rgba(236,235,245,.55);
+  --gruen:#7fe0b0; --gelb:#f3d27a; --violett:#b9a6ff;
+  --radius:20px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:Inter,system-ui,sans-serif;color:var(--text);
+  background:
+    radial-gradient(1200px 700px at 50% 55%, rgba(122,92,255,.16), transparent 60%),
+    radial-gradient(900px 500px at 85% 10%, rgba(80,170,255,.08), transparent 60%),
+    linear-gradient(180deg,var(--bg2),var(--bg));
+  overflow:hidden;-webkit-font-smoothing:antialiased;
+}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+
+/* Kopf */
+.kopf{position:fixed;inset:0 0 auto 0;height:72px;display:flex;align-items:center;justify-content:space-between;padding:0 28px;z-index:20}
+.marke{display:flex;align-items:center;gap:12px;font-weight:600;font-size:17px;letter-spacing:-.01em}
+.marke .punkt{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:var(--glas-stark);border:1px solid var(--kante)}
+.marke span.leise{color:var(--text3);font-weight:500}
+.live{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2)}
+.live i{width:7px;height:7px;border-radius:50%;background:var(--gruen)}
+.live.aus i{background:#ff7a7a}
+.umschalter{display:flex;gap:4px;padding:4px;border-radius:999px;background:rgba(255,255,255,.04);border:1px solid var(--kante)}
+.umschalter button{padding:8px 16px;border-radius:999px;font-size:13px;color:var(--text2);display:flex;gap:7px;align-items:center}
+.umschalter button.an{background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,.06));color:var(--text);box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 4px 14px rgba(0,0,0,.35)}
+
+/* To-dos */
+.todos{position:fixed;left:28px;top:96px;width:270px;z-index:15;padding:16px 16px 12px;border-radius:18px;
+  background:rgba(20,18,38,.55);border:1px solid var(--kante);backdrop-filter:blur(22px) saturate(140%);-webkit-backdrop-filter:blur(22px) saturate(140%)}
+.todos h3{font-size:12px;font-weight:600;color:var(--text2);letter-spacing:.02em;margin-bottom:10px}
+.todos ul{list-style:none;display:flex;flex-direction:column;gap:8px}
+.todos li{display:flex;gap:10px;font-size:13px;line-height:1.35}
+.todos li .box{flex:none;width:15px;height:15px;margin-top:1px;border-radius:5px;border:1px solid var(--kante-hell)}
+.todos li.erl{color:var(--text3);text-decoration:line-through}
+.todos li.erl .box{background:var(--gruen);border-color:var(--gruen)}
+.todos .leer{font-size:12px;color:var(--text3)}
+
+/* Bühne */
+.buehne{position:fixed;inset:72px 0 150px 0}
+.rondell{position:absolute;inset:0;perspective:1800px}
+.fenster{
+  position:absolute;left:50%;top:50%;width:min(620px,86vw);height:min(470px,62vh);
+  border-radius:var(--radius);
+  background:linear-gradient(160deg,rgba(255,255,255,.10),rgba(255,255,255,.03) 40%,rgba(255,255,255,.05));
+  border:1px solid var(--kante);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 30px 80px rgba(0,0,0,.55);
+  backdrop-filter:blur(26px) saturate(150%);-webkit-backdrop-filter:blur(26px) saturate(150%);
+  display:flex;flex-direction:column;overflow:hidden;
+  transition:transform .9s cubic-bezier(.2,.8,.2,1),opacity .9s,filter .9s;
+  transform-style:preserve-3d;cursor:pointer;
+}
+.fenster.vorn{cursor:default;border-color:var(--kante-hell)}
+.fenster.braucht{box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 0 0 1px rgba(243,210,122,.45),0 30px 80px rgba(0,0,0,.55)}
+.f-kopf{display:flex;align-items:center;gap:14px;padding:18px 20px 14px;border-bottom:1px solid rgba(255,255,255,.08)}
+.logo{flex:none;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:rgba(255,255,255,.92);box-shadow:0 4px 14px rgba(0,0,0,.3)}
+.logo svg{width:24px;height:24px}
+.f-titel{flex:1;min-width:0}
+.f-titel small{display:block;font-size:11px;color:var(--text3);text-transform:capitalize;margin-bottom:2px}
+.f-titel b{display:block;font-size:16px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.status{font-size:11px;color:var(--text2);display:flex;align-items:center;gap:6px;white-space:nowrap}
+.status i{width:6px;height:6px;border-radius:50%;background:var(--violett)}
+.status.braucht_dich i{background:var(--gelb)}
+.status.fertig i{background:var(--gruen)}
+.status.wartet i{background:var(--text3)}
+.f-meta{padding:10px 20px 0;display:grid;grid-template-columns:auto 1fr;gap:4px 16px;font-size:13px}
+.f-meta dt{color:var(--text3)}
+.f-meta dd{color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.f-inhalt{flex:1;overflow:auto;padding:16px 20px;font-size:15px;line-height:1.6;color:var(--text)}
+.f-inhalt p{margin:0 0 .8em}
+.f-inhalt h1,.f-inhalt h2,.f-inhalt h3{font-size:15px;font-weight:600;margin:.4em 0 .5em}
+.f-inhalt ul,.f-inhalt ol{margin:0 0 .8em 1.2em}
+.f-inhalt.code{font-family:"JetBrains Mono",monospace;font-size:13px;white-space:pre-wrap}
+.f-inhalt::-webkit-scrollbar{width:6px}.f-inhalt::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:6px}
+.f-fuss{padding:12px 20px 14px;border-top:1px solid rgba(255,255,255,.08);display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center}
+.schritt{font-size:12px;color:var(--text3);display:flex;align-items:center;gap:6px}
+.schritt .k{width:14px;height:14px;border-radius:50%;border:1px solid var(--kante-hell);display:grid;place-items:center;font-size:9px}
+.schritt.erl{color:var(--text2)}.schritt.erl .k{background:rgba(127,224,176,.2);border-color:var(--gruen);color:var(--gruen)}
+.schritt.akt{color:var(--text)}.schritt.akt .k{border-color:var(--violett);background:rgba(185,166,255,.25)}
+.freigabe{display:flex;gap:8px;margin-left:auto}
+.glasknopf{padding:8px 16px;border-radius:999px;font-size:13px;font-weight:500;
+  background:linear-gradient(180deg,rgba(255,255,255,.18),rgba(255,255,255,.05));border:1px solid var(--kante-hell);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 6px 18px rgba(0,0,0,.35)}
+.glasknopf.ja{background:linear-gradient(180deg,rgba(127,224,176,.35),rgba(127,224,176,.12));border-color:rgba(127,224,176,.6)}
+.marke-frei{font-size:12px;color:var(--gruen);margin-left:auto}
+.marke-ab{font-size:12px;color:#ff9b9b;margin-left:auto}
+
+/* Mehrfenster */
+.mehr{position:absolute;inset:0;overflow:auto;padding:0 28px 20px 326px;display:none}
+.mehr.an{display:block}
+.mehr .raster{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:20px;padding-top:8px}
+.mehr .fenster{position:relative;left:auto;top:auto;width:auto;height:430px;transform:none!important;opacity:1!important;filter:none!important}
+.rondell.aus{display:none}
+
+/* Hinweis + Eingabe */
+.unten{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);width:min(720px,92vw);z-index:20;display:flex;flex-direction:column;gap:12px;align-items:center}
+.hinweis{font-size:14px;color:var(--text2);text-align:center;min-height:20px}
+.nav{display:flex;gap:14px;align-items:center;font-size:12px;color:var(--text3)}
+.nav button{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:var(--glas);border:1px solid var(--kante)}
+.eingabe{width:100%;display:flex;gap:10px;align-items:center;padding:8px 8px 8px 18px;border-radius:999px;background:rgba(20,18,38,.6);border:1px solid var(--kante);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.eingabe input{flex:1;background:none;border:0;outline:0;color:var(--text);font:inherit;font-size:14px}
+.eingabe input::placeholder{color:var(--text3)}
+.eingabe .ziel{font-size:12px;color:var(--text3);white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis}
+.eingabe button{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(180deg,rgba(255,255,255,.2),rgba(255,255,255,.06));border:1px solid var(--kante-hell)}
+
+.leerstand{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:var(--text3);font-size:15px;line-height:1.6}
+.leerstand b{display:block;color:var(--text2);font-size:22px;font-weight:500;margin-bottom:6px;letter-spacing:-.01em}
+.schluessel{position:fixed;inset:0;display:grid;place-items:center;z-index:50;background:var(--bg)}
+.schluessel form{display:flex;flex-direction:column;gap:12px;width:min(380px,90vw)}
+.schluessel input{padding:12px 16px;border-radius:12px;background:var(--glas);border:1px solid var(--kante);color:var(--text);font:inherit}
+
+@media (max-width:900px){
+  .todos{position:static;width:auto;margin:84px 16px 0}
+  .buehne{top:250px}
+  .mehr{padding:0 16px 20px}
+  .mehr .raster{grid-template-columns:1fr}
+  .kopf{padding:0 16px}.live span{display:none}
+}
+</style>
+</head>
+<body>
+
+<header class="kopf">
+  <div class="marke"><div class="punkt"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg></div>Tony <span class="leise">/ Board</span></div>
+  <div class="umschalter" id="umschalter">
+    <button data-a="rondell"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="12" rx="9" ry="4"/><rect x="9" y="7" width="6" height="10" rx="1.5"/></svg>Rondell</button>
+    <button data-a="mehrfenster"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="8" height="7" rx="1.5"/><rect x="13" y="4" width="8" height="7" rx="1.5"/><rect x="3" y="13" width="8" height="7" rx="1.5"/><rect x="13" y="13" width="8" height="7" rx="1.5"/></svg>Mehrfenster</button>
+  </div>
+  <div class="live" id="live"><i></i><span>verbunden</span></div>
+</header>
+
+<aside class="todos"><h3>Bleibt im Blick</h3><ul id="todos"></ul></aside>
+
+<main class="buehne">
+  <div class="rondell" id="rondell"></div>
+  <div class="mehr" id="mehr"><div class="raster" id="raster"></div></div>
+</main>
+
+<div class="unten">
+  <div class="hinweis" id="hinweis"></div>
+  <div class="nav" id="nav"><button id="zurueck" aria-label="Vorheriges Fenster">‹</button><span id="zaehler"></span><button id="vor" aria-label="Nächstes Fenster">›</button></div>
+  <form class="eingabe" id="eingabe">
+    <span class="ziel" id="ziel">An Tony</span>
+    <input id="text" autocomplete="off" placeholder="Nachricht an Tony …">
+    <button aria-label="Senden"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+  </form>
+</div>
+
+<script>
+const API = "https://lzrfyxejlejxfpvqpket.supabase.co/functions/v1/tony-board/api/";
+const LOGOS = {
+  gmail:'<svg viewBox="0 0 48 48"><path fill="#4285F4" d="M6 40h7V22L4 15v22c0 1.7 1.3 3 2 3z"/><path fill="#34A853" d="M35 40h7c.7 0 2-1.3 2-3V15l-9 7z"/><path fill="#FBBC04" d="M35 10v12l9-7v-3c0-3.7-4.2-5.8-7.2-3.6z"/><path fill="#EA4335" d="M13 22V10l11 8.2L35 10v12l-11 8.2z"/><path fill="#C5221F" d="M4 12v3l9 7V10l-1.8-1.4C8.2 6.4 4 8.5 4 12z"/></svg>',
+  outlook:'<svg viewBox="0 0 48 48"><rect x="16" y="8" width="26" height="32" rx="3" fill="#28A8EA"/><rect x="4" y="13" width="22" height="22" rx="3" fill="#0A64AD"/><ellipse cx="15" cy="24" rx="5.2" ry="6.3" fill="none" stroke="#fff" stroke-width="2.6"/></svg>',
+  github:'<svg viewBox="0 0 24 24"><path fill="#111" d="M12 .5A11.5 11.5 0 0 0 8.4 22.9c.6.1.8-.3.8-.6v-2c-3.2.7-3.9-1.4-3.9-1.4-.5-1.3-1.3-1.7-1.3-1.7-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.6-.3-5.3-1.3-5.3-5.7 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.2 1.2a11 11 0 0 1 5.8 0c2.2-1.5 3.2-1.2 3.2-1.2.6 1.6.2 2.8.1 3.1.8.8 1.2 1.8 1.2 3.1 0 4.4-2.7 5.4-5.3 5.7.4.4.8 1.1.8 2.2v3.2c0 .3.2.7.8.6A11.5 11.5 0 0 0 12 .5z"/></svg>',
+  jira:'<svg viewBox="0 0 24 24"><path fill="#2684FF" d="M22.2 11.3 12.7 1.8 12 1 4.8 8.2 1.8 11.3a1 1 0 0 0 0 1.4l6.5 6.5L12 23l7.2-7.2.1-.1 2.9-2.9a1 1 0 0 0 0-1.5zM12 15.1 8.9 12 12 8.9l3.1 3.1z"/></svg>',
+  kalender:'<svg viewBox="0 0 24 24" fill="none"><rect x="3" y="4.5" width="18" height="16" rx="3" fill="#fff" stroke="#4285F4" stroke-width="1.6"/><path d="M3 9h18" stroke="#4285F4" stroke-width="1.6"/><path d="M8 3v3M16 3v3" stroke="#4285F4" stroke-width="1.6" stroke-linecap="round"/><text x="12" y="18" text-anchor="middle" font-size="7" font-family="Inter,sans-serif" font-weight="600" fill="#4285F4">31</text></svg>',
+  drive:'<svg viewBox="0 0 48 48"><path fill="#0066DA" d="M6 38l4 7h28l4-7z"/><path fill="#00AC47" d="M17 6 4 29l4 7L21 13z"/><path fill="#FFBA00" d="M31 6H17l13 23h14z"/><path fill="#00832D" d="M4 29l4 7h0l13-23-4-7z" opacity=".0"/></svg>',
+  slack:'<svg viewBox="0 0 24 24"><path fill="#E01E5A" d="M5 15a2 2 0 1 1-2-2h2zm1 0a2 2 0 0 1 4 0v5a2 2 0 0 1-4 0z"/><path fill="#36C5F0" d="M9 5a2 2 0 1 1 2-2v2zm0 1a2 2 0 0 1 0 4H4a2 2 0 0 1 0-4z"/><path fill="#2EB67D" d="M19 9a2 2 0 1 1 2 2h-2zm-1 0a2 2 0 0 1-4 0V4a2 2 0 0 1 4 0z"/><path fill="#ECB22E" d="M15 19a2 2 0 1 1-2 2v-2zm0-1a2 2 0 0 1 0-4h5a2 2 0 0 1 0 4z"/></svg>',
+  notion:'<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3" fill="#fff" stroke="#111" stroke-width="1.6"/><path d="M8.5 16.5v-9l7 9v-9" fill="none" stroke="#111" stroke-width="1.8" stroke-linejoin="round"/></svg>',
+  web:'<svg viewBox="0 0 24 24" fill="none" stroke="#3b6ef5" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></svg>',
+  code:'<svg viewBox="0 0 24 24" fill="none" stroke="#5b3fd9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5"/></svg>',
+  notiz:'<svg viewBox="0 0 24 24" fill="none" stroke="#6b5ad6" stroke-width="1.8" stroke-linecap="round"><rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>',
+  dokument:'<svg viewBox="0 0 24 24" fill="none" stroke="#2b7bd6" stroke-width="1.8" stroke-linejoin="round"><path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5"/></svg>',
+  noranotes:'<svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="6" fill="#0f5c63"/><path d="M8 17V7l8 10V7" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg>'
+};
+const STATUS = {arbeitet:"Arbeitet", braucht_dich:"Braucht dich", wartet:"Wartet", fertig:"Fertig"};
+
+let KEY = null;
+try { KEY = new URLSearchParams(location.hash.slice(1)).get("k") || localStorage.getItem("tonyBoardKey"); } catch(e) {
+  KEY = new URLSearchParams(location.hash.slice(1)).get("k");
+}
+if (KEY) { try { localStorage.setItem("tonyBoardKey", KEY); } catch(e) {} }
+
+let zustand = {fenster:[], fokus:null, ansicht:"rondell", todos:[]};
+let vorn = 0, letzterFokus = null, letzteAnsicht = null, letzterStand = "";
+
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function markdown(t){
+  const zeilen = esc(t).split(/\n/); let out = "", liste = null, absatz = [];
+  const fl = () => { if (absatz.length){ out += "<p>"+absatz.join("<br>")+"</p>"; absatz = []; } };
+  const fli = () => { if (liste){ out += `</${liste}>`; liste = null; } };
+  for (const z of zeilen){
+    let m;
+    if (/^\s*$/.test(z)){ fl(); fli(); continue; }
+    if ((m = z.match(/^#{1,3}\s+(.*)/))){ fl(); fli(); out += `<h3>${m[1]}</h3>`; continue; }
+    if ((m = z.match(/^\s*[-*•]\s+(.*)/))){ fl(); if (liste!=="ul"){ fli(); out+="<ul>"; liste="ul"; } out += `<li>${m[1]}</li>`; continue; }
+    if ((m = z.match(/^\s*\d+[.)]\s+(.*)/))){ fl(); if (liste!=="ol"){ fli(); out+="<ol>"; liste="ol"; } out += `<li>${m[1]}</li>`; continue; }
+    fli(); absatz.push(z);
+  }
+  fl(); fli();
+  return out.replace(/\*\*(.+?)\*\*/g,"<b>$1</b>");
+}
+
+function fensterHTML(f){
+  const kopf = f.kopf && Object.keys(f.kopf).length
+    ? `<dl class="f-meta">${Object.entries(f.kopf).map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>` : "";
+  const schritte = (f.schritte||[]).map(s=>`<span class="schritt ${s.erledigt?"erl":s.aktuell?"akt":""}"><span class="k">${s.erledigt?"✓":""}</span>${esc(s.text)}</span>`).join("");
+  let freigabe = "";
+  if (f.freigabe === "angefragt") freigabe = `<div class="freigabe"><button class="glasknopf" data-ab="${esc(f.id)}">Ändern …</button><button class="glasknopf ja" data-ja="${esc(f.id)}">Freigeben</button></div>`;
+  else if (f.freigabe === "freigegeben") freigabe = `<span class="marke-frei">Freigegeben</span>`;
+  else if (f.freigabe === "abgelehnt") freigabe = `<span class="marke-ab">Änderung gewünscht</span>`;
+  return `<div class="f-kopf"><div class="logo">${LOGOS[f.app]||LOGOS.notiz}</div>
+      <div class="f-titel"><small>${esc(f.app)}</small><b>${esc(f.titel)}</b></div>
+      <div class="status ${esc(f.status)}"><i></i>${STATUS[f.status]||esc(f.status)}</div></div>
+    ${kopf}
+    <div class="f-inhalt ${f.art==="code"?"code":""}">${f.art==="code"?esc(f.inhalt):markdown(f.inhalt)}</div>
+    ${(schritte||freigabe)?`<div class="f-fuss">${schritte}${freigabe}</div>`:""}`;
+}
+
+function zeichnen(){
+  const F = zustand.fenster;
+  // Todos
+  const tl = document.getElementById("todos");
+  tl.innerHTML = zustand.todos.length ? zustand.todos.map(t=>`<li class="${t.erledigt?"erl":""}"><span class="box"></span>${esc(t.text)}</li>`).join("") : `<li class="leer">Noch keine To-dos.</li>`;
+  // Ansicht
+  const mehrfenster = zustand.ansicht === "mehrfenster";
+  document.querySelectorAll("#umschalter button").forEach(b=>b.classList.toggle("an", b.dataset.a===zustand.ansicht));
+  document.getElementById("rondell").classList.toggle("aus", mehrfenster);
+  document.getElementById("mehr").classList.toggle("an", mehrfenster);
+  document.getElementById("nav").style.visibility = (!mehrfenster && F.length>1) ? "visible" : "hidden";
+
+  const r = document.getElementById("rondell");
+  if (!F.length){
+    r.innerHTML = `<div class="leerstand"><div><b>Tony arbeitet gerade an nichts Sichtbarem.</b>Sobald er eine Aufgabe zeigt, erscheint sie hier.</div></div>`;
+    document.getElementById("raster").innerHTML = "";
+    document.getElementById("hinweis").textContent = "";
+    document.getElementById("ziel").textContent = "An Tony";
+    return;
+  }
+  vorn = Math.max(0, Math.min(vorn, F.length-1));
+  // Rondell
+  r.innerHTML = F.map((f,i)=>`<section class="fenster ${f.status==="braucht_dich"?"braucht":""}" data-i="${i}">${fensterHTML(f)}</section>`).join("");
+  document.getElementById("raster").innerHTML = F.map((f,i)=>`<section class="fenster ${f.status==="braucht_dich"?"braucht":""}" data-i="${i}">${fensterHTML(f)}</section>`).join("");
+  drehen();
+}
+
+function drehen(){
+  const F = zustand.fenster, n = F.length;
+  document.querySelectorAll("#rondell .fenster").forEach(el=>{
+    const i = +el.dataset.i;
+    let d = i - vorn; if (d > n/2) d -= n; if (d < -n/2) d += n;
+    const a = Math.abs(d);
+    const x = d * 46, z = -a * 340, ry = -d * 32;
+    el.style.transform = `translate(-50%,-50%) translate3d(${x}%,0,${z}px) rotateY(${ry}deg)`;
+    el.style.opacity = a > 2 ? 0 : 1 - a*0.32;
+    el.style.filter = a ? `blur(${a*1.5}px) brightness(${1-a*.2})` : "none";
+    el.style.zIndex = 10 - a;
+    el.style.pointerEvents = a > 2 ? "none" : "auto";
+    el.classList.toggle("vorn", a===0);
+  });
+  const f = F[vorn];
+  document.getElementById("zaehler").textContent = `${String(vorn+1).padStart(2,"0")} / ${String(n).padStart(2,"0")}`;
+  document.getElementById("hinweis").textContent = f?.hinweis || "";
+  document.getElementById("ziel").textContent = f ? `Zu: ${f.titel}` : "An Tony";
+}
+
+async function laden(){
+  try{
+    const res = await fetch(API + KEY + "/state", {cache:"no-store"});
+    if (!res.ok) throw new Error(res.status);
+    const z = await res.json();
+    const stand = JSON.stringify([z.fenster, z.fokus, z.ansicht, z.todos]);
+    document.getElementById("live").classList.remove("aus");
+    document.querySelector("#live span").textContent = "verbunden";
+    if (stand === letzterStand) return;
+    letzterStand = stand;
+    zustand = z;
+    if (z.fokus !== letzterFokus){
+      const i = z.fenster.findIndex(f=>f.id===z.fokus);
+      if (i >= 0) vorn = i;
+      letzterFokus = z.fokus;
+    }
+    zeichnen();
+    if (z.ansicht === "mehrfenster" && z.fokus && z.ansicht === letzteAnsicht){
+      document.querySelector(`#raster .fenster[data-i="${vorn}"]`)?.scrollIntoView({behavior:"smooth",block:"nearest"});
+    }
+    letzteAnsicht = z.ansicht;
+  }catch(e){
+    document.getElementById("live").classList.add("aus");
+    document.querySelector("#live span").textContent = "keine Verbindung";
+  }
+}
+
+async function senden(pfad, daten){
+  await fetch(API + KEY + "/" + pfad, {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify(daten)});
+  letzterStand = ""; laden();
+}
+
+function schritt(d){ const n = zustand.fenster.length; if (!n) return; vorn = (vorn + d + n) % n; drehen(); }
+
+function start(){
+  document.getElementById("zurueck").onclick = () => schritt(-1);
+  document.getElementById("vor").onclick = () => schritt(1);
+  document.addEventListener("keydown", e => { if (e.target.tagName === "INPUT") return; if (e.key==="ArrowLeft") schritt(-1); if (e.key==="ArrowRight") schritt(1); });
+  let rad = 0;
+  document.getElementById("rondell").addEventListener("wheel", e => { e.preventDefault(); if (Date.now()-rad < 450) return; rad = Date.now(); schritt((e.deltaY||e.deltaX) > 0 ? 1 : -1); }, {passive:false});
+  let tx = null;
+  document.getElementById("rondell").addEventListener("touchstart", e => tx = e.touches[0].clientX, {passive:true});
+  document.getElementById("rondell").addEventListener("touchend", e => { if (tx===null) return; const d = e.changedTouches[0].clientX - tx; if (Math.abs(d) > 40) schritt(d < 0 ? 1 : -1); tx = null; });
+  document.querySelector(".buehne").addEventListener("click", e => {
+    const ja = e.target.closest("[data-ja]"), ab = e.target.closest("[data-ab]");
+    if (ja) { senden("eingabe", {fenster_id: ja.dataset.ja, art:"freigabe", text:"Freigegeben"}); return; }
+    if (ab) {
+      const w = prompt("Was soll Tony ändern?");
+      if (w !== null) senden("eingabe", {fenster_id: ab.dataset.ab, art:"ablehnung", text: w || "Bitte überarbeiten"});
+      return;
+    }
+    const f = e.target.closest("#rondell .fenster:not(.vorn)");
+    if (f) { vorn = +f.dataset.i; drehen(); }
+  });
+  document.getElementById("umschalter").addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    zustand.ansicht = b.dataset.a; zeichnen(); senden("ansicht", {ansicht: b.dataset.a});
+  });
+  document.getElementById("eingabe").addEventListener("submit", e => {
+    e.preventDefault();
+    const t = document.getElementById("text"); const text = t.value.trim(); if (!text) return;
+    const f = zustand.ansicht === "rondell" ? zustand.fenster[vorn] : null;
+    senden("eingabe", {fenster_id: f?.id ?? null, art:"nachricht", text});
+    t.value = ""; t.placeholder = "Gesendet. Tony liest es beim nächsten Blick aufs Board.";
+  });
+  laden(); setInterval(laden, 1500);
+}
+
+if (KEY) start();
+else {
+  document.body.insertAdjacentHTML("beforeend", `<div class="schluessel"><form id="sf"><b>Tony Board</b><input id="sk" placeholder="Zugangsschlüssel"><button class="glasknopf">Öffnen</button></form></div>`);
+  document.getElementById("sf").onsubmit = e => { e.preventDefault(); location.hash = "k=" + document.getElementById("sk").value.trim(); location.reload(); };
+}
+</script>
+</body>
+</html>
