@@ -58,10 +58,15 @@ ok(await p.$eval("#detail .band", e=>e.textContent.includes("Antwort an Kanzlei"
 await p.screenshot({path:"3-gehalten.png"});
 await p.click("[data-folgen]"); await warte(100);
 ok((await detailTitel(p)).startsWith("Antwort"), "'Dorthin' folgt Tony");
-// Nach Ruhezeit folgt neuer Fokus
-await p.click('[data-sid="kal"]'); console.log("  auswahl vor Ruhe:", await p.evaluate("auswahl"), await p.evaluate("bedient = Date.now()-100000, typeof window.bedient"));
-zustand = {...zustand, fokus:"logo"}; await warte(1800);
-console.log("  detail:", await detailTitel(p), await p.evaluate("auswahl")); ok((await detailTitel(p)).startsWith("Echtes"), "Nach 90 s ohne Bedienung folgt Ansicht Tony");
+// Auswahl bleibt dauerhaft: Hover, Maus raus, 10 Min. spaeter neuer Fokus + neue Frage
+{ const b = await p.$eval('[data-sid="kal"]', e=>{const r=e.getBoundingClientRect(); return [r.x+r.width/2, r.y+r.height/2+3];}); await p.mouse.move(b[0], b[1], {steps:5}); }
+await warte(350); ok((await detailTitel(p)).startsWith("Termine"), "Hover waehlt Sitzung"); await p.mouse.move(1300,450, {steps:5});
+await p.evaluate("{ const r = Date.now; Date.now = () => r() + 600000; }");
+zustand = {...zustand, fokus:"logo", fenster:[...F, {id:"neu", app:"notiz", titel:"Neue Rueckfrage", status:"braucht_dich", von_dir:"Passt das?", geaendert:vor(0)}]}; await warte(1800);
+ok((await detailTitel(p)).startsWith("Termine"), "Nach Mausleave und spaeterem Tony-Fokus bleibt die Auswahl stehen");
+ok(await p.$eval("#detail .band", e=>e.textContent.includes("Echtes")), "Neuer Fokus erscheint nur als Hinweis-Band");
+ok(await p.$eval('[data-sid="neu"] .s-stand', e=>e.textContent)==="Passt das?", "Neue Rueckfrage steht als Hinweis in der Leiste");
+zustand = {...zustand, fenster:F, fokus:"mail"};
 // Tastatur
 await p.click('[data-sid="mail"]'); await p.keyboard.press("ArrowDown"); await warte(100);
 ok((await detailTitel(p)).startsWith("Frage vergessen"), "Pfeil runter waehlt naechste Sitzung");

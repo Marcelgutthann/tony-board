@@ -515,9 +515,9 @@ const fensterSection = (f,i) => `<section class="fenster ${f.status==="braucht_d
 /* Mehrfenster: Auswahl durch Marcel hat Vorrang vor Tonys Fokus.
    auswahl = geklickt, angetippt oder mit der Maus kurz angesteuert; sie bleibt stehen, bis die naechste Wahl kommt.
    Ohne Auswahl folgt die Ansicht Tony (Fokus, sonst was dich braucht, sonst was laeuft).
-   Tony verdraengt eine Auswahl erst, wenn Marcel HALTEN lang nichts bedient hat. */
-const HALTEN = 90000, PRIO = ["braucht_dich","arbeitet","wartet","fertig"];
-let auswahl = null, bedient = 0, gezeigt = null;
+   Tony verdraengt eine Auswahl nie; sein neuer Fokus erscheint nur als Band ueber dem Inhalt. */
+const PRIO = ["braucht_dich","arbeitet","wartet","fertig"];
+let auswahl = null, gezeigt = null;
 const finde = id => zustand.fenster.find(f=>f.id===id);
 const prio = s => { const i = PRIO.indexOf(s); return i < 0 ? 2 : i; };
 function tonysWahl(){
@@ -579,7 +579,7 @@ function zielSetzen(){
 }
 
 function waehlen(id){
-  auswahl = id; bedient = Date.now();
+  auswahl = id;
   const i = zustand.fenster.findIndex(f=>f.id===id); if (i >= 0) vorn = i;
   leisteZeichnen(); detailZeichnen(); drehen();
 }
@@ -630,8 +630,6 @@ async function laden(){
     if (z.fokus !== letzterFokus){
       const i = z.fenster.findIndex(f=>f.id===z.fokus);
       if (i >= 0) vorn = i;
-      // Neuer Fokus von Tony: Marcels Auswahl bleibt, solange er gerade bedient
-      if (Date.now() - bedient > HALTEN) auswahl = null;
       letzterFokus = z.fokus;
     }
     zeichnen();
@@ -673,8 +671,6 @@ function start(){
     schwebe = setTimeout(() => waehlen(b.dataset.sid), 250);
   });
   liste.addEventListener("pointerleave", () => clearTimeout(schwebe));
-  // Jede Bedienung im Inhalt haelt die Auswahl fest
-  ["pointerdown","wheel","keydown"].forEach(t => document.getElementById("detail").addEventListener(t, () => { if (auswahl) bedient = Date.now(); }, {passive:true}));
   // Rad/Trackpad: eine Geste = genau ein Fenster weiter. Gesperrt, bis 300 ms lang keine Radbewegung mehr kam
   // (Trackpad-Nachlauf feuert sonst Dutzende Ereignisse). Ueber dem Inhalt des vorderen Fensters wird normal gescrollt.
   let summe = 0, gesperrt = false, ruhe = null;
@@ -701,7 +697,7 @@ function start(){
       if (w !== null) senden("eingabe", {fenster_id: ab.dataset.ab, art:"ablehnung", text: w || "Bitte überarbeiten"});
       return;
     }
-    if (e.target.closest("[data-folgen]")) { auswahl = null; bedient = 0; leisteZeichnen(); detailZeichnen(); return; }
+    if (e.target.closest("[data-folgen]")) { auswahl = null; leisteZeichnen(); detailZeichnen(); return; }
     const f = e.target.closest("#rondell .fenster:not(.vorn)");
     if (f) { vorn = +f.dataset.i; drehen(); }
   });
@@ -714,7 +710,6 @@ function start(){
     e.preventDefault();
     const t = document.getElementById("text"); const text = t.value.trim(); if (!text) return;
     const f = zustand.ansicht === "rondell" ? zustand.fenster[vorn] : zustand.ansicht === "mehrfenster" ? gewaehlt() : null;
-    if (f && auswahl) bedient = Date.now();
     senden("eingabe", {fenster_id: f?.id ?? null, art:"nachricht", text});
     t.value = ""; t.placeholder = "Gesendet. Tony liest es beim nächsten Blick aufs Board.";
   });
