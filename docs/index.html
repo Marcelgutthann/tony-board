@@ -232,7 +232,13 @@ body.v-mehrfenster .todos{display:none}
 .sitzung .s-stand{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:.84rem;line-height:1.35;color:var(--text2);margin-top:.3rem}
 .sitzung .s-stand.vondir{color:var(--gelb)}
 .sitzung .tony{display:inline-block;font-size:.66rem;font-weight:600;padding:.05rem .45rem;border-radius:999px;background:rgba(127,178,255,.22);color:var(--text);margin-left:.35rem;vertical-align:.1rem}
-.sitzung:hover,.sitzung.vorschau{background:rgba(255,255,255,.06)}
+.sitzung{transition:background-color .18s ease}
+.sitzung .logo{transition:transform .18s ease}
+.sitzung:hover{background:rgba(255,255,255,.06)}
+.sitzung:hover .logo{transform:scale(1.22)}
+.detail .fenster.neu{animation:einblenden .22s ease}
+@keyframes einblenden{from{opacity:.35}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){.sitzung,.sitzung .logo{transition:none}.sitzung:hover .logo{transform:none}.detail .fenster.neu{animation:none}}
 .sitzung.gewaehlt{background:rgba(127,178,255,.14);border-color:rgba(127,178,255,.4)}
 .sitzung.braucht_dich{box-shadow:inset .2rem 0 0 var(--gelb)}
 .sitzung.still .status i{animation:none}
@@ -247,7 +253,6 @@ body.v-mehrfenster .todos{display:none}
 .detail{min-width:0;min-height:0;display:flex;flex-direction:column;gap:.6rem}
 .detail .fenster{position:relative;left:auto;top:auto;width:auto;height:auto;flex:1;min-height:0;transform:none;cursor:default;transition:none}
 .detail .lage .stand p{font-size:1.4rem}
-.detail.vorschau .fenster{border-color:rgba(127,178,255,.45)}
 .band{display:flex;align-items:center;gap:.8rem;padding:.55rem .6rem .55rem 1rem;border-radius:.9rem;font-size:.88rem;color:var(--text2);background:rgba(127,178,255,.1);border:1px solid rgba(127,178,255,.3)}
 .band.braucht_dich{background:rgba(243,210,122,.1);border-color:rgba(243,210,122,.4);color:var(--text)}
 .band span{flex:1;min-width:0}
@@ -434,7 +439,7 @@ function fensterHTML(f){
     ${(f.auftrag||f.kernaussage||f.von_dir)?`<div class="lage">
       ${f.auftrag?`<div class="z"><span>Auftrag</span><p>${zeile(esc(f.auftrag))}</p></div>`:""}
       ${f.kernaussage?`<div class="z stand"><span>Stand</span><p>${zeile(esc(f.kernaussage))}${f.status==="arbeitet"?'<span class="laeuft" aria-label="wird bearbeitet"><i></i><i></i><i></i></span>':""}</p></div>`:""}
-      ${f.von_dir?`<div class="z vondir"><span>Von dir</span><p>${zeile(esc(f.von_dir))}</p></div>`:""}
+      ${f.von_dir?`<div class="z ${f.status==="braucht_dich"?"vondir":""}"><span>${f.status==="braucht_dich"?"Frage an dich":"Offen"}</span><p>${zeile(esc(f.von_dir))}</p></div>`:""}
     </div>`:""}
     <div class="f-koerper"><div class="f-spalte">
       ${ws?`<div class="widgets">${ws}</div>`:""}
@@ -508,11 +513,11 @@ function zeichnen(){
 const fensterSection = (f,i) => `<section class="fenster ${f.status==="braucht_dich"?"braucht":""} ${f.status==="arbeitet"?"arbeitet":""}" data-i="${i}">${fensterHTML(f)}</section>`;
 
 /* Mehrfenster: Auswahl durch Marcel hat Vorrang vor Tonys Fokus.
-   auswahl = bewusst geklickt/angetippt, vorschau = Maus schwebt ueber einer Sitzung.
+   auswahl = geklickt, angetippt oder mit der Maus kurz angesteuert; sie bleibt stehen, bis die naechste Wahl kommt.
    Ohne Auswahl folgt die Ansicht Tony (Fokus, sonst was dich braucht, sonst was laeuft).
    Tony verdraengt eine Auswahl erst, wenn Marcel HALTEN lang nichts bedient hat. */
 const HALTEN = 90000, PRIO = ["braucht_dich","arbeitet","wartet","fertig"];
-let auswahl = null, bedient = 0, vorschau = null, gezeigt = null;
+let auswahl = null, bedient = 0, gezeigt = null;
 const finde = id => zustand.fenster.find(f=>f.id===id);
 const prio = s => { const i = PRIO.indexOf(s); return i < 0 ? 2 : i; };
 function tonysWahl(){
@@ -532,8 +537,9 @@ function leisteZeichnen(){
   let gruppe = null, html = "";
   for (const {f} of sortiert){
     if (f.status !== gruppe){ gruppe = f.status; html += `<div class="gruppe ${esc(f.status)}">${STATUS[f.status]||esc(f.status)}</div>`; }
-    const unter = f.status==="braucht_dich" && f.von_dir ? `<span class="s-stand vondir">${esc(f.von_dir)}</span>` : f.kernaussage ? `<span class="s-stand">${esc(f.kernaussage)}</span>` : "";
-    html += `<button class="sitzung ${esc(f.status)} ${f.id===sel?"gewaehlt":""} ${f.id===vorschau?"vorschau":""}" data-sid="${esc(f.id)}" aria-current="${f.id===sel}">
+    const frage = f.status!=="braucht_dich" ? "" : f.von_dir ? f.von_dir : f.freigabe==="angefragt" ? "Freigabe: Freigeben oder Ändern?" : "Frage fehlt – Tony muss sie nennen";
+    const unter = frage ? `<span class="s-stand vondir">${esc(frage)}</span>` : f.kernaussage ? `<span class="s-stand">${esc(f.kernaussage)}</span>` : "";
+    html += `<button class="sitzung ${esc(f.status)} ${f.id===sel?"gewaehlt":""}" data-sid="${esc(f.id)}" aria-current="${f.id===sel}">
       <div class="logo">${LOGOS[f.app]||LOGOS.notiz}</div>
       <div class="s-text"><b title="${esc(f.titel)}">${esc(f.titel)}${f.id===zustand.fokus?'<span class="tony">Tony hier</span>':""}</b>
         <div class="s-zeile"><span class="status ${esc(f.status)}"><i></i>${STATUS[f.status]||esc(f.status)}</span>${f.geaendert?`<small class="frisch" data-t="${esc(f.geaendert)}"></small>`:""}</div>
@@ -546,21 +552,20 @@ function leisteZeichnen(){
 function detailZeichnen(neuerStand){
   const d = document.getElementById("detail");
   if (!zustand.fenster.length) return;
-  const sel = gewaehlt(), f = finde(vorschau) || sel, tony = tonysWahl();
+  const f = gewaehlt(), tony = tonysWahl();
   let band = "";
-  if (f !== sel) band = `<div class="band"><span>Vorschau – klicken, um diese Sitzung zu öffnen.</span></div>`;
-  else if (auswahl && tony && tony.id !== f.id){
+  if (auswahl && tony && tony.id !== f.id){
     const b = tony.status==="braucht_dich";
     band = `<div class="band ${b?"braucht_dich":""}"><span>${b?"Braucht dich":"Tony ist gerade bei"}: <b>${esc(tony.titel)}</b></span><button class="glasknopf" data-folgen>Dorthin</button></div>`;
   }
   const i = zustand.fenster.indexOf(f);
-  const schluessel = f.id + "|" + (f===sel) + "|" + band;
+  const schluessel = f.id + "|" + band;
   if (!neuerStand && schluessel === gezeigt) return;
   const gleich = gezeigt && gezeigt.split("|")[0] === f.id;
   const k = d.querySelector(".f-koerper"), top = gleich && k ? k.scrollTop : 0;
   const offen = gleich && !!d.querySelector("details.mehr-text[open]");
-  d.classList.toggle("vorschau", f !== sel);
   d.innerHTML = band + fensterSection(f,i);
+  if (!gleich) d.querySelector(".fenster")?.classList.add("neu");
   if (offen) d.querySelector("details.mehr-text")?.setAttribute("open","");
   if (top) d.querySelector(".f-koerper").scrollTop = top;
   gezeigt = schluessel;
@@ -574,7 +579,7 @@ function zielSetzen(){
 }
 
 function waehlen(id){
-  auswahl = id; vorschau = null; bedient = Date.now();
+  auswahl = id; bedient = Date.now();
   const i = zustand.fenster.findIndex(f=>f.id===id); if (i >= 0) vorn = i;
   leisteZeichnen(); detailZeichnen(); drehen();
 }
@@ -654,7 +659,7 @@ function start(){
       return;
     }
     if (e.key==="ArrowLeft") schritt(-1); if (e.key==="ArrowRight") schritt(1); });
-  // Sitzungsleiste: Klick/Antippen waehlt, Maus-Schweben zeigt eine Vorschau (nur echte Maus, nicht Touch)
+  // Sitzungsleiste: Klick/Antippen waehlt; Maus-Schweben (nur echte Maus) waehlt nach kurzer Ruhe ebenfalls und bleibt stehen
   const liste = document.getElementById("lliste");
   // Nur echte Bewegung zaehlt: Neuzeichnen unter einer ruhenden Maus loest sonst Hover-Ereignisse aus
   let schwebe = null, mx = -1, my = -1;
@@ -662,14 +667,12 @@ function start(){
   liste.addEventListener("pointermove", e => {
     if (e.pointerType !== "mouse" || (e.clientX === mx && e.clientY === my)) return;
     mx = e.clientX; my = e.clientY;
-    const b = e.target.closest("[data-sid]"); if (!b || b.dataset.sid === vorschau) return;
+    const b = e.target.closest("[data-sid]");
     clearTimeout(schwebe);
-    schwebe = setTimeout(() => { vorschau = b.dataset.sid === gewaehlt()?.id ? null : b.dataset.sid; leisteZeichnen(); detailZeichnen(); }, 200);
+    if (!b || b.dataset.sid === gewaehlt()?.id) return;
+    schwebe = setTimeout(() => waehlen(b.dataset.sid), 250);
   });
-  liste.addEventListener("pointerleave", () => {
-    clearTimeout(schwebe);
-    if (vorschau){ vorschau = null; leisteZeichnen(); detailZeichnen(); }
-  });
+  liste.addEventListener("pointerleave", () => clearTimeout(schwebe));
   // Jede Bedienung im Inhalt haelt die Auswahl fest
   ["pointerdown","wheel","keydown"].forEach(t => document.getElementById("detail").addEventListener(t, () => { if (auswahl) bedient = Date.now(); }, {passive:true}));
   // Rad/Trackpad: eine Geste = genau ein Fenster weiter. Gesperrt, bis 300 ms lang keine Radbewegung mehr kam
@@ -698,7 +701,7 @@ function start(){
       if (w !== null) senden("eingabe", {fenster_id: ab.dataset.ab, art:"ablehnung", text: w || "Bitte überarbeiten"});
       return;
     }
-    if (e.target.closest("[data-folgen]")) { auswahl = null; vorschau = null; bedient = 0; leisteZeichnen(); detailZeichnen(); return; }
+    if (e.target.closest("[data-folgen]")) { auswahl = null; bedient = 0; leisteZeichnen(); detailZeichnen(); return; }
     const f = e.target.closest("#rondell .fenster:not(.vorn)");
     if (f) { vorn = +f.dataset.i; drehen(); }
   });
