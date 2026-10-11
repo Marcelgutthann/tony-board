@@ -6,140 +6,222 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Tony Board</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#0b0b16; --bg2:#151327;
-  --glas:rgba(255,255,255,.055); --glas-stark:rgba(255,255,255,.085);
-  --kante:rgba(255,255,255,.14); --kante-hell:rgba(255,255,255,.28);
-  --text:#ecebf5; --text2:rgba(236,235,245,.62); --text3:rgba(236,235,245,.55);
-  --gruen:#7fe0b0; --gelb:#f3d27a; --violett:#b9a6ff;
-  --radius:20px;
+  --glas:rgba(255,255,255,.055); --glas-stark:rgba(255,255,255,.09);
+  --kante:rgba(255,255,255,.14); --kante-hell:rgba(255,255,255,.3);
+  --text:#f1f0f8; --text2:rgba(241,240,248,.72); --text3:rgba(241,240,248,.55);
+  --gruen:#7fe0b0; --gelb:#f3d27a; --violett:#b9a6ff; --blau:#8fb8ff;
 }
+/* Alles skaliert mit der Bildschirmbreite: 16 px am Laptop, bis 30 px auf 4K */
+html{font-size:clamp(15px, .6vw + 8px, 32px)}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
 body{
-  font-family:Inter,system-ui,sans-serif;color:var(--text);
+  font-family:Inter,system-ui,sans-serif;color:var(--text);line-height:1.5;
   background:
-    radial-gradient(1200px 700px at 50% 55%, rgba(122,92,255,.16), transparent 60%),
-    radial-gradient(900px 500px at 85% 10%, rgba(80,170,255,.08), transparent 60%),
+    radial-gradient(70vw 45vw at 50% 55%, rgba(122,92,255,.15), transparent 60%),
+    radial-gradient(50vw 30vw at 85% 8%, rgba(80,170,255,.07), transparent 60%),
     linear-gradient(180deg,var(--bg2),var(--bg));
   overflow:hidden;-webkit-font-smoothing:antialiased;
 }
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+a{color:var(--blau);text-decoration:none}a:hover{text-decoration:underline}
 
 /* Kopf */
-.kopf{position:fixed;inset:0 0 auto 0;height:72px;display:flex;align-items:center;justify-content:space-between;padding:0 28px;z-index:20}
-.marke{display:flex;align-items:center;gap:12px;font-weight:600;font-size:17px;letter-spacing:-.01em}
-.marke .punkt{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:var(--glas-stark);border:1px solid var(--kante)}
+.kopf{position:fixed;inset:0 0 auto 0;height:4.4rem;display:flex;align-items:center;justify-content:space-between;padding:0 1.6rem;z-index:20}
+.marke{display:flex;align-items:center;gap:.7rem;font-weight:600;font-size:1.15rem;letter-spacing:-.01em}
+.marke .punkt{width:2.2rem;height:2.2rem;border-radius:.7rem;display:grid;place-items:center;background:var(--glas-stark);border:1px solid var(--kante)}
+.marke .punkt svg{width:1.15rem;height:1.15rem}
 .marke span.leise{color:var(--text3);font-weight:500}
-.live{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2)}
-.live i{width:7px;height:7px;border-radius:50%;background:var(--gruen)}
+.live{display:flex;align-items:center;gap:.5rem;font-size:.8rem;color:var(--text2)}
+.live i{width:.45rem;height:.45rem;border-radius:50%;background:var(--gruen)}
 .live.aus i{background:#ff7a7a}
-.umschalter{display:flex;gap:4px;padding:4px;border-radius:999px;background:rgba(255,255,255,.04);border:1px solid var(--kante)}
-.umschalter button{padding:8px 16px;border-radius:999px;font-size:13px;color:var(--text2);display:flex;gap:7px;align-items:center}
-.umschalter button.an{background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,.06));color:var(--text);box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 4px 14px rgba(0,0,0,.35)}
+.umschalter{display:flex;gap:.25rem;padding:.25rem;border-radius:999px;background:rgba(255,255,255,.04);border:1px solid var(--kante)}
+.umschalter button{padding:.5rem 1.05rem;border-radius:999px;font-size:.85rem;color:var(--text2);display:flex;gap:.45rem;align-items:center}
+.umschalter button svg{width:.95rem;height:.95rem}
+.umschalter button.an{background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,.06));color:var(--text);box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 .3rem .9rem rgba(0,0,0,.35)}
+.umschalter .zahl{font-size:.7rem;min-width:1.1rem;padding:0 .3rem;border-radius:999px;background:rgba(185,166,255,.25);color:var(--text)}
 
 /* To-dos */
-.todos{position:fixed;left:28px;top:96px;width:270px;z-index:15;padding:16px 16px 12px;border-radius:18px;
+.todos{position:fixed;left:1.6rem;top:5.4rem;width:17rem;z-index:15;padding:1rem 1rem .8rem;border-radius:1.1rem;
   background:rgba(20,18,38,.55);border:1px solid var(--kante);backdrop-filter:blur(22px) saturate(140%);-webkit-backdrop-filter:blur(22px) saturate(140%)}
-.todos h3{font-size:12px;font-weight:600;color:var(--text2);letter-spacing:.02em;margin-bottom:10px}
-.todos ul{list-style:none;display:flex;flex-direction:column;gap:8px}
-.todos li{display:flex;gap:10px;font-size:13px;line-height:1.35}
-.todos li .box{flex:none;width:15px;height:15px;margin-top:1px;border-radius:5px;border:1px solid var(--kante-hell)}
+.todos h3{font-size:.78rem;font-weight:600;color:var(--text2);letter-spacing:.02em;margin-bottom:.6rem}
+.todos ul{list-style:none;display:flex;flex-direction:column;gap:.5rem}
+.todos li{display:flex;gap:.6rem;font-size:.88rem;line-height:1.35}
+.todos li .box{flex:none;width:.95rem;height:.95rem;margin-top:.1rem;border-radius:.3rem;border:1px solid var(--kante-hell)}
 .todos li.erl{color:var(--text3);text-decoration:line-through}
 .todos li.erl .box{background:var(--gruen);border-color:var(--gruen)}
-.todos .leer{font-size:12px;color:var(--text3)}
+.todos .leer{font-size:.8rem;color:var(--text3)}
 
 /* Bühne */
-.buehne{position:fixed;inset:72px 0 150px 0}
-.rondell{position:absolute;inset:0;perspective:1800px}
+.buehne{position:fixed;inset:4.4rem 0 8.6rem 0}
+.rondell{position:absolute;inset:0;perspective:120rem}
 .fenster{
-  position:absolute;left:50%;top:50%;width:min(620px,86vw);height:min(470px,62vh);
-  border-radius:var(--radius);
+  position:absolute;left:50%;top:50%;
+  width:min(62vw, 100rem);height:min(calc(100% - 2.5rem), 58rem);
+  border-radius:1.4rem;
   background:linear-gradient(160deg,rgba(255,255,255,.10),rgba(255,255,255,.03) 40%,rgba(255,255,255,.05));
   border:1px solid var(--kante);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 30px 80px rgba(0,0,0,.55);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 2rem 5rem rgba(0,0,0,.55);
   backdrop-filter:blur(26px) saturate(150%);-webkit-backdrop-filter:blur(26px) saturate(150%);
   display:flex;flex-direction:column;overflow:hidden;
   transition:transform .9s cubic-bezier(.2,.8,.2,1),opacity .9s,filter .9s;
   transform-style:preserve-3d;cursor:pointer;
 }
 .fenster.vorn{cursor:default;border-color:var(--kante-hell)}
-.fenster.braucht{box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 0 0 1px rgba(243,210,122,.45),0 30px 80px rgba(0,0,0,.55)}
-.f-kopf{display:flex;align-items:center;gap:14px;padding:18px 20px 14px;border-bottom:1px solid rgba(255,255,255,.08)}
-.logo{flex:none;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:rgba(255,255,255,.92);box-shadow:0 4px 14px rgba(0,0,0,.3)}
-.logo svg{width:24px;height:24px}
+.fenster.braucht{border-color:rgba(243,210,122,.55)}
+.f-kopf{display:flex;align-items:center;gap:1rem;padding:1.2rem 1.5rem 1rem;border-bottom:1px solid rgba(255,255,255,.08)}
+.logo{flex:none;width:2.9rem;height:2.9rem;border-radius:.85rem;display:grid;place-items:center;background:rgba(255,255,255,.94);box-shadow:0 .3rem .9rem rgba(0,0,0,.3)}
+.logo svg{width:1.75rem;height:1.75rem}
 .f-titel{flex:1;min-width:0}
-.f-titel small{display:block;font-size:11px;color:var(--text3);text-transform:capitalize;margin-bottom:2px}
-.f-titel b{display:block;font-size:16px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.status{font-size:11px;color:var(--text2);display:flex;align-items:center;gap:6px;white-space:nowrap}
-.status i{width:6px;height:6px;border-radius:50%;background:var(--violett)}
-.status.braucht_dich i{background:var(--gelb)}
+.f-titel small{display:block;font-size:.75rem;color:var(--text3);text-transform:capitalize;margin-bottom:.1rem}
+.f-titel b{display:block;font-size:1.3rem;font-weight:600;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.status{font-size:.8rem;color:var(--text2);display:flex;align-items:center;gap:.4rem;white-space:nowrap;padding:.35rem .8rem;border-radius:999px;border:1px solid var(--kante)}
+.status i{width:.45rem;height:.45rem;border-radius:50%;background:var(--violett)}
+.status.braucht_dich{border-color:rgba(243,210,122,.5);color:var(--text)}.status.braucht_dich i{background:var(--gelb)}
 .status.fertig i{background:var(--gruen)}
 .status.wartet i{background:var(--text3)}
-.f-meta{padding:10px 20px 0;display:grid;grid-template-columns:auto 1fr;gap:4px 16px;font-size:13px}
+
+.f-koerper{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr);overflow:hidden}
+.f-koerper.mit-widgets{grid-template-columns:minmax(0,1.05fr) minmax(0,1fr)}
+.f-spalte{min-height:0;overflow:auto;padding:1.2rem 1.5rem}
+.f-spalte + .f-spalte{border-left:1px solid rgba(255,255,255,.07);background:rgba(0,0,0,.08)}
+.f-spalte::-webkit-scrollbar{width:.4rem}.f-spalte::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:.4rem}
+.f-meta{display:grid;grid-template-columns:auto 1fr;gap:.3rem 1.2rem;font-size:.95rem;margin-bottom:1rem;padding-bottom:1rem;border-bottom:1px solid rgba(255,255,255,.07)}
 .f-meta dt{color:var(--text3)}
 .f-meta dd{color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.f-inhalt{flex:1;overflow:auto;padding:16px 20px;font-size:15px;line-height:1.6;color:var(--text)}
-.f-inhalt p{margin:0 0 .8em}
-.f-inhalt h1,.f-inhalt h2,.f-inhalt h3{font-size:15px;font-weight:600;margin:.4em 0 .5em}
-.f-inhalt ul,.f-inhalt ol{margin:0 0 .8em 1.2em}
-.f-inhalt.code{font-family:"JetBrains Mono",monospace;font-size:13px;white-space:pre-wrap}
-.f-inhalt::-webkit-scrollbar{width:6px}.f-inhalt::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:6px}
-.f-fuss{padding:12px 20px 14px;border-top:1px solid rgba(255,255,255,.08);display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center}
-.schritt{font-size:12px;color:var(--text3);display:flex;align-items:center;gap:6px}
-.schritt .k{width:14px;height:14px;border-radius:50%;border:1px solid var(--kante-hell);display:grid;place-items:center;font-size:9px}
+.f-inhalt{font-size:1.08rem;line-height:1.65;color:var(--text)}
+.f-inhalt p{margin:0 0 .85em}
+.f-inhalt h3{font-size:1.15rem;font-weight:600;margin:1em 0 .45em;letter-spacing:-.01em}
+.f-inhalt h3:first-child{margin-top:0}
+.f-inhalt ul,.f-inhalt ol{margin:0 0 .9em 1.3em}
+.f-inhalt li{margin:.2em 0}
+.f-inhalt blockquote{border-left:3px solid var(--violett);padding:.2em 0 .2em 1em;color:var(--text2);margin:0 0 .9em}
+.f-inhalt code{font-family:"JetBrains Mono",monospace;font-size:.88em;background:rgba(255,255,255,.08);padding:.1em .35em;border-radius:.3em}
+.f-inhalt.code{font-family:"JetBrains Mono",monospace;font-size:.92rem;white-space:pre-wrap}
+
+/* Chatverlauf */
+.verlauf{display:flex;flex-direction:column;gap:.7rem;margin-bottom:1.2rem}
+.blase{max-width:82%;padding:.75rem 1rem;border-radius:1.1rem 1.1rem 1.1rem .3rem;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.08);font-size:1rem;line-height:1.5}
+.blase.eigen{align-self:flex-end;border-radius:1.1rem 1.1rem .3rem 1.1rem;background:rgba(185,166,255,.2);border-color:rgba(185,166,255,.3)}
+.blase .wer{display:flex;justify-content:space-between;gap:1rem;font-size:.75rem;color:var(--text3);margin-bottom:.2rem}
+.blase .wer b{color:var(--text2);font-weight:600}
+.blase p{margin:0 0 .5em}.blase p:last-child{margin:0}
+
+/* Widgets */
+.widgets{display:flex;flex-direction:column;gap:1rem}
+.w{border-radius:1rem;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);padding:1rem 1.1rem}
+.w h4{font-size:.78rem;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.7rem}
+.w-kennzahlen{display:grid;grid-template-columns:repeat(auto-fit,minmax(9rem,1fr));gap:.7rem}
+.w-zahl{padding:.8rem .9rem;border-radius:.8rem;background:rgba(255,255,255,.05)}
+.w-zahl b{display:block;font-size:1.75rem;font-weight:600;letter-spacing:-.02em;line-height:1.15}
+.w-zahl span{display:block;font-size:.82rem;color:var(--text2);margin-top:.15rem}
+.w-zahl small{display:block;font-size:.75rem;color:var(--text3);margin-top:.15rem}
+.w table{width:100%;border-collapse:collapse;font-size:.92rem}
+.w th{text-align:left;font-weight:600;color:var(--text2);padding:.45rem .6rem;border-bottom:1px solid var(--kante)}
+.w td{padding:.5rem .6rem;border-bottom:1px solid rgba(255,255,255,.06);vertical-align:top}
+.w tr:last-child td{border-bottom:0}
+.w-check{list-style:none;display:flex;flex-direction:column;gap:.5rem;font-size:.98rem}
+.w-check li{display:flex;gap:.6rem}
+.w-check .k{flex:none;width:1.1rem;height:1.1rem;margin-top:.15rem;border-radius:.35rem;border:1px solid var(--kante-hell);display:grid;place-items:center;font-size:.7rem}
+.w-check li.erl .k{background:rgba(127,224,176,.25);border-color:var(--gruen);color:var(--gruen)}
+.w-check li.erl{color:var(--text2)}
+.w-vergleich{display:grid;grid-template-columns:1fr 1fr;gap:.7rem}
+.w-vergleich > div{padding:.8rem .9rem;border-radius:.8rem;background:rgba(255,255,255,.05)}
+.w-vergleich b{display:block;font-size:1rem;margin-bottom:.4rem}
+.w-vergleich ul{margin-left:1.1em;font-size:.92rem;color:var(--text2)}
+.w-balken{display:flex;flex-direction:column;gap:.55rem;font-size:.9rem}
+.w-balken .z{display:grid;grid-template-columns:minmax(6rem,30%) 1fr auto;gap:.7rem;align-items:center}
+.w-balken .spur{height:.6rem;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden}
+.w-balken .spur i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#8d7bff,#b9a6ff)}
+.w-balken .z span:last-child{color:var(--text2);font-variant-numeric:tabular-nums}
+.w-links{display:flex;flex-direction:column;gap:.55rem}
+.w-links a{display:block;padding:.7rem .9rem;border-radius:.8rem;background:rgba(255,255,255,.05);color:var(--text)}
+.w-links a:hover{background:rgba(255,255,255,.09);text-decoration:none}
+.w-links b{display:block;font-size:.98rem;font-weight:600}
+.w-links small{display:block;font-size:.8rem;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.w-links span{display:block;font-size:.88rem;color:var(--text2);margin-top:.15rem}
+.w-zitat{font-size:1.15rem;line-height:1.5}
+.w-zitat small{display:block;font-size:.82rem;color:var(--text3);margin-top:.5rem}
+.w img{display:block;max-width:100%;border-radius:.7rem}
+.w iframe{display:block;width:100%;height:22rem;border:0;border-radius:.7rem;background:#fff}
+
+.f-fuss{padding:.9rem 1.5rem 1rem;border-top:1px solid rgba(255,255,255,.08);display:flex;flex-wrap:wrap;gap:.5rem 1.1rem;align-items:center}
+.schritt{font-size:.85rem;color:var(--text3);display:flex;align-items:center;gap:.4rem}
+.schritt .k{width:1rem;height:1rem;border-radius:50%;border:1px solid var(--kante-hell);display:grid;place-items:center;font-size:.6rem}
 .schritt.erl{color:var(--text2)}.schritt.erl .k{background:rgba(127,224,176,.2);border-color:var(--gruen);color:var(--gruen)}
 .schritt.akt{color:var(--text)}.schritt.akt .k{border-color:var(--violett);background:rgba(185,166,255,.25)}
-.freigabe{display:flex;gap:8px;margin-left:auto}
-.glasknopf{padding:8px 16px;border-radius:999px;font-size:13px;font-weight:500;
+.freigabe{display:flex;gap:.5rem;margin-left:auto}
+.glasknopf{padding:.55rem 1.1rem;border-radius:999px;font-size:.9rem;font-weight:500;
   background:linear-gradient(180deg,rgba(255,255,255,.18),rgba(255,255,255,.05));border:1px solid var(--kante-hell);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 6px 18px rgba(0,0,0,.35)}
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 .4rem 1.1rem rgba(0,0,0,.35)}
 .glasknopf.ja{background:linear-gradient(180deg,rgba(127,224,176,.35),rgba(127,224,176,.12));border-color:rgba(127,224,176,.6)}
-.marke-frei{font-size:12px;color:var(--gruen);margin-left:auto}
-.marke-ab{font-size:12px;color:#ff9b9b;margin-left:auto}
+.marke-frei{font-size:.85rem;color:var(--gruen);margin-left:auto}
+.marke-ab{font-size:.85rem;color:#ff9b9b;margin-left:auto}
 
 /* Mehrfenster */
-.mehr{position:absolute;inset:0;overflow:auto;padding:0 28px 20px 326px;display:none}
+.mehr{position:absolute;inset:0;overflow:auto;padding:0 1.6rem 1.2rem 20.4rem;display:none}
 .mehr.an{display:block}
-.mehr .raster{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:20px;padding-top:8px}
-.mehr .fenster{position:relative;left:auto;top:auto;width:auto;height:430px;transform:none!important;opacity:1!important;filter:none!important}
+.mehr .raster{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,36rem),1fr));gap:1.2rem;padding-top:.5rem}
+.mehr .fenster{position:relative;left:auto;top:auto;width:auto;height:min(46rem,70vh);transform:none!important;opacity:1!important;filter:none!important}
+.mehr .f-koerper.mit-widgets{grid-template-columns:minmax(0,1fr)}
+.mehr .f-spalte + .f-spalte{border-left:0;border-top:1px solid rgba(255,255,255,.07)}
+.mehr .f-koerper{overflow:auto}.mehr .f-spalte{overflow:visible}
 .rondell.aus{display:none}
 
+/* Absprache Tony ⇄ Claude */
+.absprache{position:absolute;inset:0;display:none;justify-content:center;overflow:auto;padding:0 1.6rem 1.2rem}
+.absprache.an{display:flex}
+.absprache .spalte{width:min(100%,62rem);display:flex;flex-direction:column;gap:.9rem;padding-top:.5rem}
+.absprache h2{font-size:1.35rem;font-weight:600;letter-spacing:-.01em}
+.absprache .unter{color:var(--text2);font-size:.95rem;margin-top:-.4rem;margin-bottom:.4rem}
+.absprache .blase{max-width:78%;font-size:1.02rem}
+.absprache .blase.claude{align-self:flex-end;border-radius:1.1rem 1.1rem .3rem 1.1rem;background:rgba(143,184,255,.16);border-color:rgba(143,184,255,.28)}
+.absprache .blase.marcel{align-self:center;max-width:70%;background:rgba(127,224,176,.12);border-color:rgba(127,224,176,.25);border-radius:1.1rem}
+
 /* Hinweis + Eingabe */
-.unten{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);width:min(720px,92vw);z-index:20;display:flex;flex-direction:column;gap:12px;align-items:center}
-.hinweis{font-size:14px;color:var(--text2);text-align:center;min-height:20px}
-.nav{display:flex;gap:14px;align-items:center;font-size:12px;color:var(--text3)}
-.nav button{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:var(--glas);border:1px solid var(--kante)}
-.eingabe{width:100%;display:flex;gap:10px;align-items:center;padding:8px 8px 8px 18px;border-radius:999px;background:rgba(20,18,38,.6);border:1px solid var(--kante);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
-.eingabe input{flex:1;background:none;border:0;outline:0;color:var(--text);font:inherit;font-size:14px}
+.unten{position:fixed;left:50%;bottom:1.4rem;transform:translateX(-50%);width:min(52rem,92vw);z-index:20;display:flex;flex-direction:column;gap:.7rem;align-items:center}
+.hinweis{font-size:1rem;color:var(--text2);text-align:center;min-height:1.4rem}
+.nav{display:flex;gap:.9rem;align-items:center;font-size:.8rem;color:var(--text3)}
+.nav button{width:2.1rem;height:2.1rem;border-radius:50%;display:grid;place-items:center;background:var(--glas);border:1px solid var(--kante);font-size:1.1rem}
+.eingabe{width:100%;display:flex;gap:.6rem;align-items:center;padding:.5rem .5rem .5rem 1.2rem;border-radius:999px;background:rgba(20,18,38,.65);border:1px solid var(--kante);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.eingabe input{flex:1;min-width:0;background:none;border:0;outline:0;color:var(--text);font:inherit;font-size:1rem}
 .eingabe input::placeholder{color:var(--text3)}
-.eingabe .ziel{font-size:12px;color:var(--text3);white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis}
-.eingabe button{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(180deg,rgba(255,255,255,.2),rgba(255,255,255,.06));border:1px solid var(--kante-hell)}
+.eingabe .ziel{font-size:.8rem;color:var(--text3);white-space:nowrap;max-width:14rem;overflow:hidden;text-overflow:ellipsis}
+.eingabe button{width:2.5rem;height:2.5rem;border-radius:50%;display:grid;place-items:center;background:linear-gradient(180deg,rgba(255,255,255,.2),rgba(255,255,255,.06));border:1px solid var(--kante-hell)}
+.eingabe button svg{width:1rem;height:1rem}
 
-.leerstand{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:var(--text3);font-size:15px;line-height:1.6}
-.leerstand b{display:block;color:var(--text2);font-size:22px;font-weight:500;margin-bottom:6px;letter-spacing:-.01em}
+.leerstand{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:var(--text3);font-size:1.05rem;line-height:1.6}
+.leerstand b{display:block;color:var(--text2);font-size:1.6rem;font-weight:500;margin-bottom:.4rem;letter-spacing:-.01em}
 .schluessel{position:fixed;inset:0;display:grid;place-items:center;z-index:50;background:var(--bg)}
-.schluessel form{display:flex;flex-direction:column;gap:12px;width:min(380px,90vw)}
-.schluessel input{padding:12px 16px;border-radius:12px;background:var(--glas);border:1px solid var(--kante);color:var(--text);font:inherit}
+.schluessel form{display:flex;flex-direction:column;gap:.8rem;width:min(24rem,90vw)}
+.schluessel input{padding:.8rem 1rem;border-radius:.8rem;background:var(--glas);border:1px solid var(--kante);color:var(--text);font:inherit}
 
-@media (max-width:900px){
-  .todos{position:static;width:auto;margin:84px 16px 0}
-  .buehne{top:250px}
-  .mehr{padding:0 16px 20px}
-  .mehr .raster{grid-template-columns:1fr}
-  .kopf{padding:0 16px}.live span{display:none}
+@media (max-width:1100px){
+  .todos{display:none}
+  .mehr{padding-left:1.6rem}
+  .fenster{width:92vw}
+  .f-koerper.mit-widgets{grid-template-columns:minmax(0,1fr);overflow:auto}
+  .f-koerper.mit-widgets .f-spalte{overflow:visible}
+  .f-spalte + .f-spalte{border-left:0;border-top:1px solid rgba(255,255,255,.07)}
+}
+@media (max-width:700px){
+  .kopf{padding:0 1rem}.live span{display:none}
+  .umschalter button span.txt{display:none}
 }
 </style>
 </head>
 <body>
 
 <header class="kopf">
-  <div class="marke"><div class="punkt"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg></div>Tony <span class="leise">/ Board</span></div>
+  <div class="marke"><div class="punkt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg></div>Tony <span class="leise">/ Board</span></div>
   <div class="umschalter" id="umschalter">
-    <button data-a="rondell"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="12" rx="9" ry="4"/><rect x="9" y="7" width="6" height="10" rx="1.5"/></svg>Rondell</button>
-    <button data-a="mehrfenster"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="8" height="7" rx="1.5"/><rect x="13" y="4" width="8" height="7" rx="1.5"/><rect x="3" y="13" width="8" height="7" rx="1.5"/><rect x="13" y="13" width="8" height="7" rx="1.5"/></svg>Mehrfenster</button>
+    <button data-a="rondell"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="12" rx="9" ry="4"/><rect x="9" y="7" width="6" height="10" rx="1.5"/></svg><span class="txt">Rondell</span></button>
+    <button data-a="mehrfenster"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="8" height="7" rx="1.5"/><rect x="13" y="4" width="8" height="7" rx="1.5"/><rect x="3" y="13" width="8" height="7" rx="1.5"/><rect x="13" y="13" width="8" height="7" rx="1.5"/></svg><span class="txt">Mehrfenster</span></button>
+    <button data-a="absprache"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 5h11v8H8l-4 3z"/><path d="M15 9h5v8l-3-2h-6v-2"/></svg><span class="txt">Tony ⇄ Claude</span><span class="zahl" id="abzahl" hidden></span></button>
   </div>
   <div class="live" id="live"><i></i><span>verbunden</span></div>
 </header>
@@ -149,6 +231,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 <main class="buehne">
   <div class="rondell" id="rondell"></div>
   <div class="mehr" id="mehr"><div class="raster" id="raster"></div></div>
+  <div class="absprache" id="absprache"><div class="spalte" id="abspalte"></div></div>
 </main>
 
 <div class="unten">
@@ -157,7 +240,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
   <form class="eingabe" id="eingabe">
     <span class="ziel" id="ziel">An Tony</span>
     <input id="text" autocomplete="off" placeholder="Nachricht an Tony …">
-    <button aria-label="Senden"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+    <button aria-label="Senden"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
   </form>
 </div>
 
@@ -166,10 +249,10 @@ const API = "https://lzrfyxejlejxfpvqpket.supabase.co/functions/v1/tony-board/ap
 const LOGOS = {
   gmail:'<svg viewBox="0 0 48 48"><path fill="#4285F4" d="M6 40h7V22L4 15v22c0 1.7 1.3 3 2 3z"/><path fill="#34A853" d="M35 40h7c.7 0 2-1.3 2-3V15l-9 7z"/><path fill="#FBBC04" d="M35 10v12l9-7v-3c0-3.7-4.2-5.8-7.2-3.6z"/><path fill="#EA4335" d="M13 22V10l11 8.2L35 10v12l-11 8.2z"/><path fill="#C5221F" d="M4 12v3l9 7V10l-1.8-1.4C8.2 6.4 4 8.5 4 12z"/></svg>',
   outlook:'<svg viewBox="0 0 48 48"><rect x="16" y="8" width="26" height="32" rx="3" fill="#28A8EA"/><rect x="4" y="13" width="22" height="22" rx="3" fill="#0A64AD"/><ellipse cx="15" cy="24" rx="5.2" ry="6.3" fill="none" stroke="#fff" stroke-width="2.6"/></svg>',
-  github:'<svg viewBox="0 0 24 24"><path fill="#111" d="M12 .5A11.5 11.5 0 0 0 8.4 22.9c.6.1.8-.3.8-.6v-2c-3.2.7-3.9-1.4-3.9-1.4-.5-1.3-1.3-1.7-1.3-1.7-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.6-.3-5.3-1.3-5.3-5.7 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.2 1.2a11 11 0 0 1 5.8 0c2.2-1.5 3.2-1.2 3.2-1.2.6 1.6.2 2.8.1 3.1.8.8 1.2 1.8 1.2 3.1 0 4.4-2.7 5.4-5.3 5.7.4.4.8 1.1.8 2.2v3.2c0 .3.2.7.8.6A11.5 11.5 0 0 0 12 .5z"/></svg>',
+  github:'<svg viewBox="0 0 24 24"><path fill="#111" d="M12 .5A11.5 11.5 0 0 0 8.4 22.9c.6.1.8-.3.8-.6v-2c-3.2.7-3.9-1.4-3.9-1.4-.5-1.3-1.3-1.7-1.3-1.7-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.6-.3-5.3-1.3-5.3-5.7 0-1.3.5-2.300 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.2 1.2a11 11 0 0 1 5.8 0c2.2-1.5 3.2-1.2 3.2-1.2.6 1.6.2 2.8.1 3.1.8.8 1.2 1.8 1.2 3.1 0 4.4-2.7 5.4-5.3 5.7.4.4.8 1.1.8 2.2v3.2c0 .3.2.7.8.6A11.5 11.5 0 0 0 12 .5z"/></svg>',
   jira:'<svg viewBox="0 0 24 24"><path fill="#2684FF" d="M22.2 11.3 12.7 1.8 12 1 4.8 8.2 1.8 11.3a1 1 0 0 0 0 1.4l6.5 6.5L12 23l7.2-7.2.1-.1 2.9-2.9a1 1 0 0 0 0-1.5zM12 15.1 8.9 12 12 8.9l3.1 3.1z"/></svg>',
   kalender:'<svg viewBox="0 0 24 24" fill="none"><rect x="3" y="4.5" width="18" height="16" rx="3" fill="#fff" stroke="#4285F4" stroke-width="1.6"/><path d="M3 9h18" stroke="#4285F4" stroke-width="1.6"/><path d="M8 3v3M16 3v3" stroke="#4285F4" stroke-width="1.6" stroke-linecap="round"/><text x="12" y="18" text-anchor="middle" font-size="7" font-family="Inter,sans-serif" font-weight="600" fill="#4285F4">31</text></svg>',
-  drive:'<svg viewBox="0 0 48 48"><path fill="#0066DA" d="M6 38l4 7h28l4-7z"/><path fill="#00AC47" d="M17 6 4 29l4 7L21 13z"/><path fill="#FFBA00" d="M31 6H17l13 23h14z"/><path fill="#00832D" d="M4 29l4 7h0l13-23-4-7z" opacity=".0"/></svg>',
+  drive:'<svg viewBox="0 0 48 48"><path fill="#0066DA" d="M6 38l4 7h28l4-7z"/><path fill="#00AC47" d="M17 6 4 29l4 7L21 13z"/><path fill="#FFBA00" d="M31 6H17l13 23h14z"/></svg>',
   slack:'<svg viewBox="0 0 24 24"><path fill="#E01E5A" d="M5 15a2 2 0 1 1-2-2h2zm1 0a2 2 0 0 1 4 0v5a2 2 0 0 1-4 0z"/><path fill="#36C5F0" d="M9 5a2 2 0 1 1 2-2v2zm0 1a2 2 0 0 1 0 4H4a2 2 0 0 1 0-4z"/><path fill="#2EB67D" d="M19 9a2 2 0 1 1 2 2h-2zm-1 0a2 2 0 0 1-4 0V4a2 2 0 0 1 4 0z"/><path fill="#ECB22E" d="M15 19a2 2 0 1 1-2 2v-2zm0-1a2 2 0 0 1 0-4h5a2 2 0 0 1 0 4z"/></svg>',
   notion:'<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3" fill="#fff" stroke="#111" stroke-width="1.6"/><path d="M8.5 16.5v-9l7 9v-9" fill="none" stroke="#111" stroke-width="1.8" stroke-linejoin="round"/></svg>',
   web:'<svg viewBox="0 0 24 24" fill="none" stroke="#3b6ef5" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></svg>',
@@ -186,29 +269,67 @@ try { KEY = new URLSearchParams(location.hash.slice(1)).get("k") || localStorage
 }
 if (KEY) { try { localStorage.setItem("tonyBoardKey", KEY); } catch(e) {} }
 
-let zustand = {fenster:[], fokus:null, ansicht:"rondell", todos:[]};
-let vorn = 0, letzterFokus = null, letzteAnsicht = null, letzterStand = "";
+let zustand = {fenster:[], fokus:null, ansicht:"rondell", todos:[], absprache:[], eingang:[]};
+let vorn = 0, letzterFokus = null, letzterStand = "", gesehenAb = 0;
+try { gesehenAb = +localStorage.getItem("tonyAbGesehen") || 0; } catch(e) {}
 
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const sichereUrl = u => /^https?:\/\//i.test(String(u||"")) ? esc(u) : "#";
+function zeile(t){
+  return t.replace(/\*\*(.+?)\*\*/g,"<b>$1</b>")
+          .replace(/`([^`]+)`/g,"<code>$1</code>")
+          .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>')
+          .replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g,'$1<a href="$2" target="_blank" rel="noopener">$2</a>');
+}
 function markdown(t){
   const zeilen = esc(t).split(/\n/); let out = "", liste = null, absatz = [];
-  const fl = () => { if (absatz.length){ out += "<p>"+absatz.join("<br>")+"</p>"; absatz = []; } };
+  const fl = () => { if (absatz.length){ out += "<p>"+absatz.map(zeile).join("<br>")+"</p>"; absatz = []; } };
   const fli = () => { if (liste){ out += `</${liste}>`; liste = null; } };
   for (const z of zeilen){
     let m;
     if (/^\s*$/.test(z)){ fl(); fli(); continue; }
-    if ((m = z.match(/^#{1,3}\s+(.*)/))){ fl(); fli(); out += `<h3>${m[1]}</h3>`; continue; }
-    if ((m = z.match(/^\s*[-*•]\s+(.*)/))){ fl(); if (liste!=="ul"){ fli(); out+="<ul>"; liste="ul"; } out += `<li>${m[1]}</li>`; continue; }
-    if ((m = z.match(/^\s*\d+[.)]\s+(.*)/))){ fl(); if (liste!=="ol"){ fli(); out+="<ol>"; liste="ol"; } out += `<li>${m[1]}</li>`; continue; }
+    if ((m = z.match(/^#{1,4}\s+(.*)/))){ fl(); fli(); out += `<h3>${zeile(m[1])}</h3>`; continue; }
+    if ((m = z.match(/^&gt;\s?(.*)/))){ fl(); fli(); out += `<blockquote>${zeile(m[1])}</blockquote>`; continue; }
+    if ((m = z.match(/^\s*[-*•]\s+(.*)/))){ fl(); if (liste!=="ul"){ fli(); out+="<ul>"; liste="ul"; } out += `<li>${zeile(m[1])}</li>`; continue; }
+    if ((m = z.match(/^\s*\d+[.)]\s+(.*)/))){ fl(); if (liste!=="ol"){ fli(); out+="<ol>"; liste="ol"; } out += `<li>${zeile(m[1])}</li>`; continue; }
     fli(); absatz.push(z);
   }
   fl(); fli();
-  return out.replace(/\*\*(.+?)\*\*/g,"<b>$1</b>");
+  return out;
+}
+
+function widget(w){
+  const d = w.daten || {}, t = w.titel ? `<h4>${esc(w.titel)}</h4>` : "";
+  try {
+    switch (w.typ){
+      case "kennzahlen": return `<div class="w">${t}<div class="w-kennzahlen">${(d.werte||[]).map(k=>`<div class="w-zahl"><b>${esc(k.wert)}</b><span>${esc(k.label)}</span>${k.hinweis?`<small>${esc(k.hinweis)}</small>`:""}</div>`).join("")}</div></div>`;
+      case "tabelle": return `<div class="w">${t}<table><thead><tr>${(d.spalten||[]).map(s=>`<th>${esc(s)}</th>`).join("")}</tr></thead><tbody>${(d.zeilen||[]).map(r=>`<tr>${(r||[]).map(c=>`<td>${zeile(esc(c))}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+      case "checkliste": return `<div class="w">${t}<ul class="w-check">${(d.punkte||[]).map(p=>`<li class="${p.erledigt?"erl":""}"><span class="k">${p.erledigt?"✓":""}</span>${esc(p.text)}</li>`).join("")}</ul></div>`;
+      case "vergleich": { const s = x => x ? `<div><b>${esc(x.titel)}</b><ul>${(x.punkte||[]).map(p=>`<li>${esc(p)}</li>`).join("")}</ul></div>` : "<div></div>";
+        return `<div class="w">${t}<div class="w-vergleich">${s(d.links)}${s(d.rechts)}</div></div>`; }
+      case "balken": { const max = Math.max(1, ...(d.werte||[]).map(v=>+v.wert||0));
+        return `<div class="w">${t}<div class="w-balken">${(d.werte||[]).map(v=>`<div class="z"><span>${esc(v.label)}</span><span class="spur"><i style="width:${Math.max(2,(+v.wert||0)/max*100)}%"></i></span><span>${esc(v.wert)}${d.einheit?" "+esc(d.einheit):""}</span></div>`).join("")}</div></div>`; }
+      case "links": return `<div class="w">${t}<div class="w-links">${(d.eintraege||[]).map(l=>`<a href="${sichereUrl(l.url)}" target="_blank" rel="noopener"><b>${esc(l.titel||l.url)}</b><small>${esc(l.url)}</small>${l.beschreibung?`<span>${esc(l.beschreibung)}</span>`:""}</a>`).join("")}</div></div>`;
+      case "zitat": return `<div class="w">${t}<div class="w-zitat">„${esc(d.text)}“${d.quelle?`<small>${esc(d.quelle)}</small>`:""}</div></div>`;
+      case "bild": return `<div class="w">${t}<img src="${sichereUrl(d.url)}" alt="${esc(d.alt)}"></div>`;
+      case "mockup": return `<div class="w">${t}<iframe sandbox="" referrerpolicy="no-referrer" srcdoc="${esc(d.html||"")}"></iframe></div>`;
+    }
+  } catch(e) {}
+  return "";
+}
+
+function verlaufHTML(v){
+  if (!v || !v.length) return "";
+  return `<div class="verlauf">${v.map(n=>`<div class="blase ${n.eigen?"eigen":""}"><div class="wer"><b>${esc(n.wer)}</b>${n.zeit?`<span>${esc(n.zeit)}</span>`:""}</div>${markdown(n.text)}</div>`).join("")}</div>`;
 }
 
 function fensterHTML(f){
   const kopf = f.kopf && Object.keys(f.kopf).length
     ? `<dl class="f-meta">${Object.entries(f.kopf).map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>` : "";
+  const inhalt = f.inhalt ? `<div class="f-inhalt ${f.art==="code"?"code":""}">${f.art==="code"?esc(f.inhalt):markdown(f.inhalt)}</div>` : "";
+  const verlauf = verlaufHTML(f.verlauf);
+  const links = f.art === "chat" ? kopf + verlauf + inhalt : kopf + inhalt + verlauf;
+  const ws = (f.widgets||[]).map(widget).join("");
   const schritte = (f.schritte||[]).map(s=>`<span class="schritt ${s.erledigt?"erl":s.aktuell?"akt":""}"><span class="k">${s.erledigt?"✓":""}</span>${esc(s.text)}</span>`).join("");
   let freigabe = "";
   if (f.freigabe === "angefragt") freigabe = `<div class="freigabe"><button class="glasknopf" data-ab="${esc(f.id)}">Ändern …</button><button class="glasknopf ja" data-ja="${esc(f.id)}">Freigeben</button></div>`;
@@ -217,36 +338,56 @@ function fensterHTML(f){
   return `<div class="f-kopf"><div class="logo">${LOGOS[f.app]||LOGOS.notiz}</div>
       <div class="f-titel"><small>${esc(f.app)}</small><b>${esc(f.titel)}</b></div>
       <div class="status ${esc(f.status)}"><i></i>${STATUS[f.status]||esc(f.status)}</div></div>
-    ${kopf}
-    <div class="f-inhalt ${f.art==="code"?"code":""}">${f.art==="code"?esc(f.inhalt):markdown(f.inhalt)}</div>
+    <div class="f-koerper ${ws?"mit-widgets":""}">
+      <div class="f-spalte">${links || '<div class="f-inhalt" style="color:var(--text3)">Tony bereitet den Inhalt vor …</div>'}</div>
+      ${ws?`<div class="f-spalte"><div class="widgets">${ws}</div></div>`:""}
+    </div>
     ${(schritte||freigabe)?`<div class="f-fuss">${schritte}${freigabe}</div>`:""}`;
 }
 
+function zeit(iso){ try { return new Date(iso).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"}); } catch(e){ return ""; } }
+
+function absprachZeichnen(){
+  const ab = (zustand.absprache||[]).map(m=>({wer:m.von, text:m.text, t:m.erstellt, id:m.id}));
+  const mein = (zustand.eingang||[]).filter(e=>e.art==="nachricht").map(e=>({wer:"marcel", text:e.text, t:e.erstellt}));
+  const alle = ab.concat(mein).sort((a,b)=>a.t<b.t?-1:1);
+  const name = {tony:"Tony", claude:"Claude", marcel:"Du an Tony"};
+  document.getElementById("abspalte").innerHTML =
+    `<h2>Tony ⇄ Claude</h2><div class="unter">Was die beiden untereinander absprechen. Claude schaut jede Minute nach.</div>` +
+    (alle.length ? alle.map(n=>`<div class="blase ${n.wer}"><div class="wer"><b>${name[n.wer]}</b><span>${zeit(n.t)}</span></div>${markdown(n.text)}</div>`).join("")
+                 : `<div class="leerstand" style="position:static;padding:4rem 0"><div><b>Noch keine Absprache.</b>Sobald Tony Claude etwas übergibt, steht es hier.</div></div>`);
+  const neu = ab.filter(m=>m.id > gesehenAb).length;
+  const z = document.getElementById("abzahl");
+  if (zustand.ansicht === "absprache"){ const max = Math.max(0,...ab.map(m=>m.id)); if (max > gesehenAb){ gesehenAb = max; try{localStorage.setItem("tonyAbGesehen",max);}catch(e){} } z.hidden = true; }
+  else { z.hidden = !neu; z.textContent = neu; }
+}
+
 function zeichnen(){
-  const F = zustand.fenster;
-  // Todos
-  const tl = document.getElementById("todos");
-  tl.innerHTML = zustand.todos.length ? zustand.todos.map(t=>`<li class="${t.erledigt?"erl":""}"><span class="box"></span>${esc(t.text)}</li>`).join("") : `<li class="leer">Noch keine To-dos.</li>`;
-  // Ansicht
-  const mehrfenster = zustand.ansicht === "mehrfenster";
-  document.querySelectorAll("#umschalter button").forEach(b=>b.classList.toggle("an", b.dataset.a===zustand.ansicht));
-  document.getElementById("rondell").classList.toggle("aus", mehrfenster);
-  document.getElementById("mehr").classList.toggle("an", mehrfenster);
-  document.getElementById("nav").style.visibility = (!mehrfenster && F.length>1) ? "visible" : "hidden";
-  document.getElementById("hinweis").style.visibility = mehrfenster ? "hidden" : "visible";
+  const F = zustand.fenster, a = zustand.ansicht;
+  document.getElementById("todos").innerHTML = zustand.todos.length ? zustand.todos.map(t=>`<li class="${t.erledigt?"erl":""}"><span class="box"></span>${esc(t.text)}</li>`).join("") : `<li class="leer">Noch keine To-dos.</li>`;
+  document.querySelectorAll("#umschalter button").forEach(b=>b.classList.toggle("an", b.dataset.a===a));
+  document.getElementById("rondell").classList.toggle("aus", a!=="rondell");
+  document.getElementById("mehr").classList.toggle("an", a==="mehrfenster");
+  document.getElementById("absprache").classList.toggle("an", a==="absprache");
+  document.getElementById("nav").style.visibility = (a==="rondell" && F.length>1) ? "visible" : "hidden";
+  document.getElementById("hinweis").style.visibility = a==="rondell" ? "visible" : "hidden";
+  absprachZeichnen();
 
   const r = document.getElementById("rondell");
   if (!F.length){
-    r.innerHTML = `<div class="leerstand"><div><b>Tony arbeitet gerade an nichts Sichtbarem.</b>Sobald er eine Aufgabe zeigt, erscheint sie hier.</div></div>`;
+    r.innerHTML = `<div class="leerstand"><div><b>Tony zeigt gerade keine Aufgabe.</b>Sobald er an etwas arbeitet, erscheint es hier.</div></div>`;
     document.getElementById("raster").innerHTML = "";
     document.getElementById("hinweis").textContent = "";
     document.getElementById("ziel").textContent = "An Tony";
     return;
   }
   vorn = Math.max(0, Math.min(vorn, F.length-1));
-  // Rondell
-  r.innerHTML = F.map((f,i)=>`<section class="fenster ${f.status==="braucht_dich"?"braucht":""}" data-i="${i}">${fensterHTML(f)}</section>`).join("");
-  document.getElementById("raster").innerHTML = F.map((f,i)=>`<section class="fenster ${f.status==="braucht_dich"?"braucht":""}" data-i="${i}">${fensterHTML(f)}</section>`).join("");
+  // Scrollstand im vorderen Fenster beim Neuzeichnen behalten
+  const alt = {}; document.querySelectorAll(".fenster .f-spalte").forEach((el,i)=>alt[el.closest(".buehne > div").id+i]=el.scrollTop);
+  const html = F.map((f,i)=>`<section class="fenster ${f.status==="braucht_dich"?"braucht":""}" data-i="${i}">${fensterHTML(f)}</section>`).join("");
+  r.innerHTML = html;
+  document.getElementById("raster").innerHTML = html;
+  document.querySelectorAll(".fenster .f-spalte").forEach((el,i)=>{ const k = el.closest(".buehne > div").id+i; if (alt[k]) el.scrollTop = alt[k]; });
   drehen();
 }
 
@@ -256,10 +397,9 @@ function drehen(){
     const i = +el.dataset.i;
     let d = i - vorn; if (d > n/2) d -= n; if (d < -n/2) d += n;
     const a = Math.abs(d);
-    const x = d * 46, z = -a * 340, ry = -d * 32;
-    el.style.transform = `translate(-50%,-50%) translate3d(${x}%,0,${z}px) rotateY(${ry}deg)`;
-    el.style.opacity = a > 2 ? 0 : 1 - a*0.32;
-    el.style.filter = a ? `blur(${a*1.5}px) brightness(${1-a*.2})` : "none";
+    el.style.transform = `translate(-50%,-50%) translate3d(${d*44}%,0,${-a*22}rem) rotateY(${-d*30}deg)`;
+    el.style.opacity = a > 2 ? 0 : 1 - a*0.35;
+    el.style.filter = a ? `blur(${a*2}px) brightness(${1-a*.25})` : "none";
     el.style.zIndex = 10 - a;
     el.style.pointerEvents = a > 2 ? "none" : "auto";
     el.classList.toggle("vorn", a===0);
@@ -275,9 +415,9 @@ async function laden(){
     const res = await fetch(API + KEY + "/state", {cache:"no-store"});
     if (!res.ok) throw new Error(res.status);
     const z = await res.json();
-    const stand = JSON.stringify([z.fenster, z.fokus, z.ansicht, z.todos]);
     document.getElementById("live").classList.remove("aus");
     document.querySelector("#live span").textContent = "verbunden";
+    const stand = JSON.stringify([z.fenster, z.fokus, z.ansicht, z.todos, z.absprache, z.eingang]);
     if (stand === letzterStand) return;
     letzterStand = stand;
     zustand = z;
@@ -287,10 +427,6 @@ async function laden(){
       letzterFokus = z.fokus;
     }
     zeichnen();
-    if (z.ansicht === "mehrfenster" && z.fokus && z.ansicht === letzteAnsicht){
-      document.querySelector(`#raster .fenster[data-i="${vorn}"]`)?.scrollIntoView({behavior:"smooth",block:"nearest"});
-    }
-    letzteAnsicht = z.ansicht;
   }catch(e){
     document.getElementById("live").classList.add("aus");
     document.querySelector("#live span").textContent = "keine Verbindung";
@@ -309,10 +445,13 @@ function start(){
   document.getElementById("vor").onclick = () => schritt(1);
   document.addEventListener("keydown", e => { if (e.target.tagName === "INPUT") return; if (e.key==="ArrowLeft") schritt(-1); if (e.key==="ArrowRight") schritt(1); });
   let rad = 0;
-  document.getElementById("rondell").addEventListener("wheel", e => { e.preventDefault(); if (Date.now()-rad < 450) return; rad = Date.now(); schritt((e.deltaY||e.deltaX) > 0 ? 1 : -1); }, {passive:false});
+  document.getElementById("rondell").addEventListener("wheel", e => {
+    if (e.target.closest(".fenster.vorn .f-spalte")) return; // im Fenster normal scrollen
+    e.preventDefault(); if (Date.now()-rad < 450) return; rad = Date.now(); schritt((e.deltaY||e.deltaX) > 0 ? 1 : -1);
+  }, {passive:false});
   let tx = null;
   document.getElementById("rondell").addEventListener("touchstart", e => tx = e.touches[0].clientX, {passive:true});
-  document.getElementById("rondell").addEventListener("touchend", e => { if (tx===null) return; const d = e.changedTouches[0].clientX - tx; if (Math.abs(d) > 40) schritt(d < 0 ? 1 : -1); tx = null; });
+  document.getElementById("rondell").addEventListener("touchend", e => { if (tx===null) return; const d = e.changedTouches[0].clientX - tx; if (Math.abs(d) > 60) schritt(d < 0 ? 1 : -1); tx = null; });
   document.querySelector(".buehne").addEventListener("click", e => {
     const ja = e.target.closest("[data-ja]"), ab = e.target.closest("[data-ab]");
     if (ja) { senden("eingabe", {fenster_id: ja.dataset.ja, art:"freigabe", text:"Freigegeben"}); return; }
@@ -326,7 +465,8 @@ function start(){
   });
   document.getElementById("umschalter").addEventListener("click", e => {
     const b = e.target.closest("button"); if (!b) return;
-    zustand.ansicht = b.dataset.a; zeichnen(); senden("ansicht", {ansicht: b.dataset.a});
+    zustand.ansicht = b.dataset.a; zeichnen();
+    if (b.dataset.a !== "absprache") senden("ansicht", {ansicht: b.dataset.a});
   });
   document.getElementById("eingabe").addEventListener("submit", e => {
     e.preventDefault();

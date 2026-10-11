@@ -1,1 +1,4 @@
 *.env
+waechter/*.log
+waechter/*.lock
+waechter/antwort.json

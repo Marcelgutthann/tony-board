@@ -52,7 +52,7 @@ const TOOLS = [
         id: { type: "string", description: "Kurze feste Kennung der Aufgabe, z. B. 'mail-mueller-angebot'." },
         titel: { type: "string", description: "Titel der Aufgabe, z. B. 'Antwort an Herrn Mueller'." },
         app: { type: "string", enum: APPS, description: "Logo oben links im Fenster." },
-        art: { type: "string", enum: ["mail", "text", "code"], description: "mail = Kopfzeilen An/Betreff + Text; code = Monospace." },
+        art: { type: "string", enum: ["mail", "text", "code", "chat"], description: "mail = Kopfzeilen An/Betreff + Text; code = Monospace; chat = Verlauf steht im Vordergrund." },
         kopf: {
           type: "object",
           description: "Kopfzeilen, bei Mails z. B. {\"An\": \"...\", \"Betreff\": \"...\"}.",
@@ -74,6 +74,43 @@ const TOOLS = [
           },
         },
         hinweis: { type: "string", description: "Ein Satz unter dem Fenster: was du gerade tust oder was du von Marcel brauchst." },
+        verlauf: {
+          type: "array",
+          description: "Chatverlauf im Fenster, z. B. ein Mailwechsel oder dein Arbeitsprotokoll als Nachrichten. Ersetzt den bisherigen Verlauf.",
+          items: {
+            type: "object",
+            properties: {
+              wer: { type: "string", description: "Absender, z. B. 'Tony', 'Herr Mueller', 'Marcel'." },
+              text: { type: "string" },
+              zeit: { type: "string", description: "Optional, z. B. '14:05' oder '10.10.'" },
+              eigen: { type: "boolean", description: "true = rechts als eigene Nachricht (Tony/Marcel)." },
+            },
+            required: ["wer", "text"],
+          },
+        },
+        widgets: {
+          type: "array",
+          description:
+            "Visuelle Bausteine neben dem Text. Nutze sie grosszuegig, damit Marcel Ergebnisse auf einen Blick sieht. Typen und daten: " +
+            "kennzahlen {werte:[{label,wert,hinweis?}]}; " +
+            "tabelle {spalten:[..], zeilen:[[..]]}; " +
+            "checkliste {punkte:[{text,erledigt}]}; " +
+            "vergleich {links:{titel,punkte:[..]}, rechts:{titel,punkte:[..]}}; " +
+            "balken {werte:[{label,wert}], einheit?}; " +
+            "links {eintraege:[{titel,url,beschreibung?}]}; " +
+            "zitat {text, quelle?}; " +
+            "bild {url, alt?}; " +
+            "mockup {html} = kleines selbst gebautes HTML/CSS-Mockup (inline Styles, ohne externe Skripte), z. B. ein Entwurf einer Oberflaeche oder Grafik.",
+          items: {
+            type: "object",
+            properties: {
+              typ: { type: "string", enum: ["kennzahlen", "tabelle", "checkliste", "vergleich", "balken", "links", "zitat", "bild", "mockup"] },
+              titel: { type: "string" },
+              daten: { type: "object", description: "Inhalt je nach typ, siehe oben." },
+            },
+            required: ["typ", "daten"],
+          },
+        },
         fokus: { type: "boolean", description: "true = dieses Fenster nach vorne holen." },
       },
       required: ["id"],
@@ -133,6 +170,22 @@ const TOOLS = [
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
   },
   {
+    name: "an_claude",
+    title: "An Claude schreiben",
+    description:
+      "Schreibt Claude (Marcels Coding-Agent auf dem Laptop) eine Nachricht. Claude schaut jede Minute nach und antwortet ueber das Board; die Antwort steht danach in board_lesen unter neue_nachrichten_von_claude. Nutze es fuer Aufgaben, die Code, App, Daten, Deploys, Tickets oder Auswertungen betreffen, und um euch abzustimmen, was ihr Marcel abnehmen koennt. Gib allen Kontext mit, den Claude braucht.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        text: { type: "string", description: "Die Nachricht an Claude, mit Kontext." },
+        fenster_id: { type: "string", description: "Optional: Fenster, um das es geht." },
+      },
+      required: ["text"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+  },
+  {
     name: "fenster_schliessen",
     title: "Fenster schliessen",
     description: "Nimmt ein erledigtes Fenster vom Board.",
@@ -147,12 +200,22 @@ const TOOLS = [
 ];
 
 async function zustandLesen() {
-  const [{ data: fenster }, { data: z }, { data: eingang }] = await Promise.all([
+  const [{ data: fenster }, { data: z }, { data: eingang }, { data: absprache }] = await Promise.all([
     db.from("tony_board_fenster").select("*").eq("geschlossen", false).order("erstellt"),
     db.from("tony_board_zustand").select("fokus, ansicht, todos, geaendert").eq("id", 1).single(),
     db.from("tony_board_eingang").select("*").order("id", { ascending: false }).limit(30),
+    db.from("tony_board_absprache").select("*").order("id", { ascending: false }).limit(30),
   ]);
-  return { fenster: fenster ?? [], fokus: z?.fokus ?? null, ansicht: z?.ansicht ?? "rondell", todos: z?.todos ?? [], eingang: eingang ?? [] };
+  return { fenster: fenster ?? [], fokus: z?.fokus ?? null, ansicht: z?.ansicht ?? "rondell", todos: z?.todos ?? [], eingang: eingang ?? [], absprache: absprache ?? [] };
+}
+
+// Ungelesene Nachrichten eines Absenders holen und als gelesen markieren
+async function absprachenHolen(von: string) {
+  const { data } = await db.from("tony_board_absprache").select("*").eq("von", von).is("gelesen", null).order("id");
+  if (data?.length) {
+    await db.from("tony_board_absprache").update({ gelesen: new Date().toISOString() }).in("id", data.map((m: any) => m.id));
+  }
+  return (data ?? []).map((m: any) => ({ text: m.text, fenster_id: m.fenster_id, zeit: m.erstellt }));
 }
 
 async function setzeZustand(felder: Record<string, unknown>) {
@@ -177,13 +240,14 @@ async function werkzeug(name: string, a: Record<string, any>): Promise<unknown> 
           freigabe_kommentar: f.freigabe_kommentar, hinweis: f.hinweis,
         })),
         neue_eingaben_von_marcel: neu.reverse().map((e: any) => ({ fenster_id: e.fenster_id, art: e.art, text: e.text, zeit: e.erstellt })),
+        neue_nachrichten_von_claude: await absprachenHolen("claude"),
       };
     }
     case "fenster_zeigen": {
       if (!a.id) throw new Error("id fehlt");
       const { data: alt } = await db.from("tony_board_fenster").select("id").eq("id", a.id).maybeSingle();
       const felder: Record<string, unknown> = { geaendert: new Date().toISOString(), geschlossen: false };
-      for (const k of ["titel", "app", "art", "kopf", "inhalt", "status", "schritte", "hinweis"]) {
+      for (const k of ["titel", "app", "art", "kopf", "inhalt", "status", "schritte", "hinweis", "verlauf", "widgets"]) {
         if (a[k] !== undefined) felder[k] = a[k];
       }
       if (felder.app && !APPS.includes(felder.app as string)) felder.app = "notiz";
@@ -223,6 +287,13 @@ async function werkzeug(name: string, a: Record<string, any>): Promise<unknown> 
       await setzeZustand({ todos: (a.todos ?? []).map((t: any) => ({ text: String(t.text), erledigt: !!t.erledigt })) });
       return { ok: true };
     }
+    case "an_claude": {
+      const text = String(a.text ?? "").trim();
+      if (!text) throw new Error("text fehlt");
+      const { error } = await db.from("tony_board_absprache").insert({ von: "tony", text: text.slice(0, 20000), fenster_id: a.fenster_id ?? null });
+      if (error) throw new Error(error.message);
+      return { ok: true, hinweis: "Claude schaut innerhalb von etwa einer Minute nach. Antwort spaeter mit board_lesen holen." };
+    }
     case "fenster_schliessen": {
       const { error } = await db.from("tony_board_fenster").update({ geschlossen: true, geaendert: new Date().toISOString() }).eq("id", a.id);
       if (error) throw new Error(error.message);
@@ -241,9 +312,9 @@ async function mcp(msg: any): Promise<any | null> {
       return ok({
         protocolVersion: params?.protocolVersion ?? "2025-06-18",
         capabilities: { tools: { listChanged: false } },
-        serverInfo: { name: "tony-board", title: "Tony Board", version: "1.0.0" },
+        serverInfo: { name: "tony-board", title: "Tony Board", version: "1.1.0" },
         instructions:
-          "Tony Board ist Marcels Bildschirm fuer deine Arbeit. Lege fuer jede Aufgabe, an der du arbeitest, ein Fenster an (fenster_zeigen) und halte Inhalt, Schritte und Status aktuell. Hole das Fenster nach vorne, ueber das ihr gerade sprecht. Vor dem Senden einer Mail: freigabe_anfragen, dann board_lesen bis freigegeben. Lies mit board_lesen regelmaessig, was Marcel eingegeben hat.",
+          "Tony Board ist Marcels Bildschirm fuer deine Arbeit. Lege fuer jede Aufgabe, an der du arbeitest, ein Fenster an (fenster_zeigen) und halte Inhalt, Schritte und Status aktuell. Bereite Ergebnisse visuell auf: Kennzahlen, Tabellen, Vergleiche, Link-Karten oder kleine Mockups als widgets, Mailwechsel als verlauf. Hole das Fenster nach vorne, ueber das ihr gerade sprecht. Vor dem Senden einer Mail: freigabe_anfragen, dann board_lesen bis freigegeben. Lies mit board_lesen regelmaessig, was Marcel eingegeben und Claude geantwortet hat. Code-, App-, Daten- und Deploy-Themen gibst du mit an_claude an Claude weiter.",
       });
     case "ping":
       return ok({});
@@ -304,6 +375,24 @@ Deno.serve(async (req) => {
         geaendert: new Date().toISOString(),
       }).eq("id", b.fenster_id);
     }
+    return json({ ok: true });
+  }
+
+  // Claude: ungelesene Nachrichten von Tony holen (markiert sie als gelesen)
+  if (bereich === "api" && aktion === "fuer-claude" && req.method === "POST") {
+    return json({ nachrichten: await absprachenHolen("tony") });
+  }
+  // Claude: nur zaehlen, ohne zu markieren (fuer den Minuten-Waechter)
+  if (bereich === "api" && aktion === "fuer-claude" && req.method === "GET") {
+    const { count } = await db.from("tony_board_absprache").select("id", { count: "exact", head: true }).eq("von", "tony").is("gelesen", null);
+    return json({ offen: count ?? 0 });
+  }
+  // Claude: Antwort an Tony
+  if (bereich === "api" && aktion === "an-tony" && req.method === "POST") {
+    const b = await req.json().catch(() => ({}));
+    const text = String(b.text ?? "").trim();
+    if (!text) return json({ error: "leer" }, 400);
+    await db.from("tony_board_absprache").insert({ von: "claude", text: text.slice(0, 20000), fenster_id: b.fenster_id ?? null });
     return json({ ok: true });
   }
 
