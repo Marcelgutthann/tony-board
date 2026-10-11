@@ -233,6 +233,7 @@ function zeichnen(){
   document.getElementById("rondell").classList.toggle("aus", mehrfenster);
   document.getElementById("mehr").classList.toggle("an", mehrfenster);
   document.getElementById("nav").style.visibility = (!mehrfenster && F.length>1) ? "visible" : "hidden";
+  document.getElementById("hinweis").style.visibility = mehrfenster ? "hidden" : "visible";
 
   const r = document.getElementById("rondell");
   if (!F.length){
