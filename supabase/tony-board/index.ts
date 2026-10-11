@@ -104,7 +104,7 @@ const TOOLS = [
             "checkliste {punkte:[{text,erledigt}]}; " +
             "vergleich {links:{titel,punkte:[..]}, rechts:{titel,punkte:[..]}}; " +
             "balken {werte:[{label,wert}], einheit?}; " +
-            "links {eintraege:[{titel,url,beschreibung?}]}; " +
+            "links {eintraege:[{titel,url,beschreibung?}]} = bei einem fertigen Feature steht zuerst der Direktlink auf die Stelle in der App (z. B. https://staging.noranotes.ai/style), ein GitHub-PR nur danach als technische Quelle (privates Repo: im Browser ohne GitHub-Login immer 404); " +
             "zitat {text, quelle?}; " +
             "bild {url, alt?}; " +
             "mockup {html} = kleines selbst gebautes HTML/CSS-Mockup (inline Styles, ohne externe Skripte), z. B. ein Entwurf einer Oberflaeche oder Grafik.",
@@ -346,7 +346,7 @@ async function mcp(msg: any): Promise<any | null> {
         capabilities: { tools: { listChanged: false } },
         serverInfo: { name: "tony-board", title: "Tony Board", version: "1.3.0" },
         instructions:
-          "Tony Board ist Marcels Bildschirm fuer deine Arbeit. Oberste Regel: Marcel muss jedes Fenster in 5 Sekunden verstehen, ohne zu lesen. Darum beginnt jedes Fenster mit auftrag (ein Satz), kernaussage als Stand (hoechstens 12 Woerter, Schluesselwoerter fett) und von_dir (die eine Frage an Marcel, sonst leer), dazu mindestens ein Widget; Fliesstext ist nur Detail. Lege fuer jede Aufgabe, an der du arbeitest, ein Fenster an (fenster_zeigen) und halte Inhalt, Schritte und Status aktuell. Bereite Ergebnisse visuell auf: Kennzahlen, Tabellen, Vergleiche, Link-Karten oder kleine Mockups als widgets, Mailwechsel als verlauf. Hole das Fenster nach vorne, ueber das ihr gerade sprecht. Vor dem Senden einer Mail: freigabe_anfragen, dann board_lesen bis freigegeben. Lies mit board_lesen regelmaessig, was Marcel eingegeben und Claude geantwortet hat. Code-, App-, Daten- und Deploy-Themen gibst du mit an_claude an Claude weiter.",
+          "Tony Board ist Marcels Bildschirm fuer deine Arbeit. Oberste Regel: Marcel muss jedes Fenster in 5 Sekunden verstehen, ohne zu lesen. Darum beginnt jedes Fenster mit auftrag (ein Satz), kernaussage als Stand (hoechstens 12 Woerter, Schluesselwoerter fett) und von_dir (die eine Frage an Marcel, sonst leer), dazu mindestens ein Widget; Fliesstext ist nur Detail. Lege fuer jede Aufgabe, an der du arbeitest, ein Fenster an (fenster_zeigen) und halte Inhalt, Schritte und Status aktuell. Bereite Ergebnisse visuell auf: Kennzahlen, Tabellen, Vergleiche, Link-Karten oder kleine Mockups als widgets, Mailwechsel als verlauf. Bei einem fertigen Feature ist die erste Link-Karte immer der Direktlink auf die Stelle in der App, ein GitHub-PR nur danach als technische Quelle. Hole das Fenster nach vorne, ueber das ihr gerade sprecht. Vor dem Senden einer Mail: freigabe_anfragen, dann board_lesen bis freigegeben. Lies mit board_lesen regelmaessig, was Marcel eingegeben und Claude geantwortet hat. Code-, App-, Daten- und Deploy-Themen gibst du mit an_claude an Claude weiter.",
       });
     case "ping":
       return ok({});
