@@ -279,7 +279,7 @@ async function werkzeug(name: string, a: Record<string, any>): Promise<unknown> 
         // Rueckwaertskompatibel: aeltere Clients ohne von_dir im Schema schreiben die Frage in hinweis
         if (felder.von_dir === undefined && typeof felder.hinweis === "string" && felder.hinweis.trim()) felder.von_dir = felder.hinweis;
         const frage = String(felder.von_dir ?? f?.von_dir ?? "").trim();
-        if (f?.freigabe !== "angefragt" && (frage.length < 10 || /^von dir/i.test(frage))) throw new Error("status braucht_dich braucht in von_dir die konkrete Frage an Marcel (ganzer Satz). Wartest du nur technisch (Deploy, Build, Antwort von Claude), setze status wartet und von_dir leer. Fuer Freigaben nutze freigabe_anfragen.");
+        if (f?.freigabe !== "angefragt" && (frage.length < 10 || /^von dir\b/i.test(frage))) throw new Error("status braucht_dich braucht in von_dir die konkrete Frage an Marcel (ganzer Satz). Wartest du nur technisch (Deploy, Build, Antwort von Claude), setze status wartet und von_dir leer. Fuer Freigaben nutze freigabe_anfragen.");
       }
       // Neuer Inhalt nach Freigabe = neue Freigabe noetig
       if (alt && (a.inhalt !== undefined || a.kopf !== undefined)) {
