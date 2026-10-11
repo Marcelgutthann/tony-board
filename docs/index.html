@@ -75,6 +75,8 @@ a{color:var(--blau);text-decoration:none}a:hover{text-decoration:underline}
 .f-kopf{display:flex;align-items:center;gap:1rem;padding:1.2rem 1.5rem 1rem;border-bottom:1px solid rgba(255,255,255,.08)}
 .logo{flex:none;width:2.9rem;height:2.9rem;border-radius:.85rem;display:grid;place-items:center;background:rgba(255,255,255,.94);box-shadow:0 .3rem .9rem rgba(0,0,0,.3)}
 .logo svg{width:1.75rem;height:1.75rem}
+.logo img{width:2.3rem;height:2.3rem;object-fit:contain}
+.akarte .logo img{width:1.85rem;height:1.85rem}
 .f-titel{flex:1;min-width:0}
 .f-titel small{display:block;font-size:.75rem;color:var(--text3);text-transform:capitalize;margin-bottom:.1rem}
 .f-titel b{display:block;font-size:1.3rem;font-weight:600;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -82,7 +84,24 @@ a{color:var(--blau);text-decoration:none}a:hover{text-decoration:underline}
 .status i{width:.45rem;height:.45rem;border-radius:50%;background:var(--violett)}
 .status.braucht_dich{border-color:rgba(243,210,122,.5);color:var(--text)}.status.braucht_dich i{background:var(--gelb)}
 .status.fertig i{background:var(--gruen)}
-.status.wartet i{background:var(--text3)}
+.status.wartet i{background:none;border:1px dashed var(--text3)}
+/* Aktivitaet: nur "arbeitet" bewegt sich; wartet ruhig, fertig statisch */
+.status.arbeitet i{animation:puls 1.6s ease-in-out infinite}
+@keyframes puls{0%,100%{box-shadow:0 0 0 0 rgba(127,178,255,.6)}50%{box-shadow:0 0 0 .3rem rgba(127,178,255,0)}}
+.f-titel small.frisch{display:block;font-size:.7rem;color:var(--text3);margin-top:.15rem;text-transform:none}
+.f-titel small.frisch.alt{color:var(--gelb)}
+.lage .stand .laeuft{display:inline-flex;gap:.18rem;margin-left:.45rem;vertical-align:middle}
+.lage .stand .laeuft i{width:.3rem;height:.3rem;border-radius:50%;background:var(--violett);animation:tupf 1.2s ease-in-out infinite}
+.lage .stand .laeuft i:nth-child(2){animation-delay:.2s}.lage .stand .laeuft i:nth-child(3){animation-delay:.4s}
+@keyframes tupf{0%,80%,100%{opacity:.25}40%{opacity:1}}
+.fenster.arbeitet .schritt.akt .k{border-color:var(--violett) transparent var(--violett) var(--violett);background:none;animation:dreh 1s linear infinite}
+@keyframes dreh{to{transform:rotate(360deg)}}
+.fenster.still .status i,.fenster.still .schritt.akt .k,.fenster.still .laeuft{animation:none}
+.fenster.still .laeuft{display:none}
+@media (prefers-reduced-motion:reduce){
+  .status.arbeitet i,.laeuft i,.fenster.arbeitet .schritt.akt .k{animation:none}
+  .fenster.arbeitet .schritt.akt .k{border-color:var(--violett);background:rgba(127,178,255,.45)}
+}
 
 /* Lage wie Claudes Antwortkopf: Auftrag, Stand, Von dir */
 .lage{padding:1rem 1.5rem 1.1rem;border-bottom:1px solid rgba(255,255,255,.08);display:flex;flex-direction:column;gap:.55rem}
@@ -285,7 +304,7 @@ const LOGOS = {
   code:'<svg viewBox="0 0 24 24" fill="none" stroke="#5b3fd9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5"/></svg>',
   notiz:'<svg viewBox="0 0 24 24" fill="none" stroke="#6b5ad6" stroke-width="1.8" stroke-linecap="round"><rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>',
   dokument:'<svg viewBox="0 0 24 24" fill="none" stroke="#2b7bd6" stroke-width="1.8" stroke-linejoin="round"><path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5"/></svg>',
-  noranotes:'<svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="6" fill="#0f5c63"/><path d="M8 17V7l8 10V7" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg>'
+  noranotes:'<img src="logos/noranotes.png" alt="NoraNotes">'
 };
 const STATUS = {arbeitet:"Arbeitet", braucht_dich:"Braucht dich", wartet:"Wartet", fertig:"Fertig"};
 
@@ -367,11 +386,11 @@ function fensterHTML(f){
   else if (f.freigabe === "abgelehnt") freigabe = `<span class="marke-ab">Änderung gewünscht</span>`;
   const archiv = `<button class="leise-knopf" data-archiv="${esc(f.id)}" style="${freigabe?"":"margin-left:auto"}">Archivieren</button>`;
   return `<div class="f-kopf"><div class="logo">${LOGOS[f.app]||LOGOS.notiz}</div>
-      <div class="f-titel"><small>${esc(f.app)}</small><b>${esc(f.titel)}</b></div>
+      <div class="f-titel"><small>${esc(f.app)}</small><b>${esc(f.titel)}</b>${f.geaendert?`<small class="frisch" data-t="${esc(f.geaendert)}"></small>`:""}</div>
       <div class="status ${esc(f.status)}"><i></i>${STATUS[f.status]||esc(f.status)}</div></div>
     ${(f.auftrag||f.kernaussage||f.von_dir)?`<div class="lage">
       ${f.auftrag?`<div class="z"><span>Auftrag</span><p>${zeile(esc(f.auftrag))}</p></div>`:""}
-      ${f.kernaussage?`<div class="z stand"><span>Stand</span><p>${zeile(esc(f.kernaussage))}</p></div>`:""}
+      ${f.kernaussage?`<div class="z stand"><span>Stand</span><p>${zeile(esc(f.kernaussage))}${f.status==="arbeitet"?'<span class="laeuft" aria-label="wird bearbeitet"><i></i><i></i><i></i></span>':""}</p></div>`:""}
       ${f.von_dir?`<div class="z vondir"><span>Von dir</span><p>${zeile(esc(f.von_dir))}</p></div>`:""}
     </div>`:""}
     <div class="f-koerper"><div class="f-spalte">
@@ -431,12 +450,26 @@ function zeichnen(){
   // Scrollstand im vorderen Fenster beim Neuzeichnen behalten
   const alt = {}; document.querySelectorAll(".fenster .f-koerper").forEach((el,i)=>alt[el.closest(".buehne > div").id+i]=el.scrollTop);
   const offen = new Set([...document.querySelectorAll(".fenster details[open]")].map(d=>d.closest(".buehne > div").id+d.closest(".fenster").dataset.i));
-  const html = F.map((f,i)=>`<section class="fenster ${f.status==="braucht_dich"?"braucht":""}" data-i="${i}">${fensterHTML(f)}</section>`).join("");
+  const html = F.map((f,i)=>`<section class="fenster ${f.status==="braucht_dich"?"braucht":""} ${f.status==="arbeitet"?"arbeitet":""}" data-i="${i}">${fensterHTML(f)}</section>`).join("");
   r.innerHTML = html;
   document.getElementById("raster").innerHTML = html;
   document.querySelectorAll(".fenster details").forEach(d=>{ if (offen.has(d.closest(".buehne > div").id+d.closest(".fenster").dataset.i)) d.open = true; });
   document.querySelectorAll(".fenster .f-koerper").forEach((el,i)=>{ const k = el.closest(".buehne > div").id+i; if (alt[k]) el.scrollTop = alt[k]; });
+  frischeZeigen();
   drehen();
+}
+
+// Letzte Meldung je Fenster; arbeitet ohne Meldung seit 15 Min. -> Animation aus, gelb markiert
+function frischeZeigen(){
+  document.querySelectorAll(".frisch").forEach(el=>{
+    const min = Math.floor((Date.now() - new Date(el.dataset.t)) / 60000);
+    const fe = el.closest(".fenster");
+    const alt = fe.classList.contains("arbeitet") && min >= 15;
+    el.textContent = "letzte Meldung " + (min < 1 ? "gerade eben" : min < 60 ? `vor ${min} Min.` : zeit(el.dataset.t) + " Uhr");
+    if (alt) el.textContent = "keine Meldung seit " + (min < 60 ? `${min} Min.` : zeit(el.dataset.t) + " Uhr");
+    el.classList.toggle("alt", alt);
+    fe.classList.toggle("still", alt);
+  });
 }
 
 function drehen(){
@@ -534,7 +567,7 @@ function start(){
     t.value = ""; t.placeholder = "Gesendet. Tony liest es beim nächsten Blick aufs Board.";
   });
   document.getElementById("asuche").addEventListener("input", archivZeichnen);
-  laden(); setInterval(laden, 1500);
+  laden(); setInterval(laden, 1500); setInterval(frischeZeigen, 20000);
 }
 
 if (KEY) start();
