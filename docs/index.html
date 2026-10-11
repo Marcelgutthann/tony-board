@@ -209,12 +209,49 @@ details.mehr-text > div{margin-top:.8rem}
 .marke-frei{font-size:.85rem;color:var(--gruen);margin-left:auto}
 .marke-ab{font-size:.85rem;color:#ff9b9b;margin-left:auto}
 
-/* Mehrfenster */
-.mehr{position:absolute;inset:0;overflow:auto;padding:0 1.6rem 1.2rem 20.4rem;display:none}
-.mehr.an{display:block}
-.mehr .raster{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,36rem),1fr));gap:1.2rem;padding-top:.5rem}
-.mehr .fenster{position:relative;left:auto;top:auto;width:auto;height:min(46rem,70vh);transform:none!important;opacity:1!important;filter:none!important}
-.mehr .lage .stand p{font-size:1.3rem}
+/* Mehrfenster: alle Sitzungen links, Inhalt der gewaehlten rechts */
+.mehr{position:absolute;inset:0;display:none;grid-template-columns:minmax(17rem,23rem) 1fr;gap:1.2rem;padding:0 1.6rem 1.2rem}
+.mehr.an{display:grid}
+body.v-mehrfenster .todos{display:none}
+.leiste{display:flex;flex-direction:column;min-height:0;border-radius:1.2rem;background:rgba(10,20,40,.78);border:1px solid var(--kante);overflow:hidden}
+.leiste-kopf{padding:.9rem 1rem .7rem;border-bottom:1px solid rgba(255,255,255,.08)}
+.leiste-kopf b{display:block;font-size:.95rem;font-weight:600}
+.leiste-kopf span{display:block;font-size:.78rem;color:var(--text3);margin-top:.1rem}
+.leiste-liste{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:.4rem .5rem .6rem}
+.leiste-liste::-webkit-scrollbar{width:.4rem}.leiste-liste::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:.4rem}
+.gruppe{font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);padding:.7rem .5rem .3rem}
+.gruppe.braucht_dich{color:var(--gelb)}
+.sitzung{width:100%;display:grid;grid-template-columns:auto 1fr;gap:.7rem;align-items:start;text-align:left;padding:.65rem .6rem;border-radius:.9rem;border:1px solid transparent;margin-bottom:.15rem;touch-action:manipulation}
+.sitzung .logo{width:2.3rem;height:2.3rem;border-radius:.7rem}.sitzung .logo svg{width:1.4rem;height:1.4rem}.sitzung .logo img{width:1.85rem;height:1.85rem}
+.sitzung .s-text{min-width:0}
+.sitzung b{display:block;font-size:.95rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sitzung .s-zeile{display:flex;align-items:center;gap:.45rem;margin-top:.15rem;font-size:.74rem;color:var(--text3);white-space:nowrap}
+.sitzung .s-zeile .status{padding:.1rem .5rem;font-size:.72rem}
+.sitzung .s-zeile .frisch{overflow:hidden;text-overflow:ellipsis}
+.sitzung .frisch.alt{color:var(--gelb)}
+.sitzung .s-stand{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:.84rem;line-height:1.35;color:var(--text2);margin-top:.3rem}
+.sitzung .s-stand.vondir{color:var(--gelb)}
+.sitzung .tony{display:inline-block;font-size:.66rem;font-weight:600;padding:.05rem .45rem;border-radius:999px;background:rgba(127,178,255,.22);color:var(--text);margin-left:.35rem;vertical-align:.1rem}
+.sitzung:hover,.sitzung.vorschau{background:rgba(255,255,255,.06)}
+.sitzung.gewaehlt{background:rgba(127,178,255,.14);border-color:rgba(127,178,255,.4)}
+.sitzung.braucht_dich{box-shadow:inset .2rem 0 0 var(--gelb)}
+.sitzung.still .status i{animation:none}
+.sitzung:focus-visible{outline:2px solid var(--blau);outline-offset:1px}
+.leiste-todos{border-top:1px solid rgba(255,255,255,.08);padding:.6rem 1rem .8rem;max-height:30%;overflow:auto}
+.leiste-todos summary{cursor:pointer;font-size:.78rem;font-weight:600;color:var(--text2);list-style:none}
+.leiste-todos ul{list-style:none;display:flex;flex-direction:column;gap:.4rem;margin-top:.5rem}
+.leiste-todos li{display:flex;gap:.5rem;font-size:.84rem;line-height:1.35}
+.leiste-todos li .box{flex:none;width:.9rem;height:.9rem;margin-top:.12rem;border-radius:.3rem;border:1px solid var(--kante-hell)}
+.leiste-todos li.erl{color:var(--text3);text-decoration:line-through}
+.leiste-todos li.erl .box{background:var(--gruen);border-color:var(--gruen)}
+.detail{min-width:0;min-height:0;display:flex;flex-direction:column;gap:.6rem}
+.detail .fenster{position:relative;left:auto;top:auto;width:auto;height:auto;flex:1;min-height:0;transform:none;cursor:default;transition:none}
+.detail .lage .stand p{font-size:1.4rem}
+.detail.vorschau .fenster{border-color:rgba(127,178,255,.45)}
+.band{display:flex;align-items:center;gap:.8rem;padding:.55rem .6rem .55rem 1rem;border-radius:.9rem;font-size:.88rem;color:var(--text2);background:rgba(127,178,255,.1);border:1px solid rgba(127,178,255,.3)}
+.band.braucht_dich{background:rgba(243,210,122,.1);border-color:rgba(243,210,122,.4);color:var(--text)}
+.band span{flex:1;min-width:0}
+.band .glasknopf{padding:.35rem .9rem;font-size:.82rem}
 .rondell.aus{display:none}
 
 /* Absprache Tony ⇄ Claude */
@@ -247,13 +284,15 @@ details.mehr-text > div{margin-top:.8rem}
 
 @media (max-width:1100px){
   .todos{display:none}
-  .mehr{padding-left:1.6rem}
+  .mehr{grid-template-columns:16rem 1fr;gap:.9rem;padding:0 1rem 1rem}
   .fenster{width:92vw}
   .lage .stand p{font-size:1.3rem}
 }
 @media (max-width:700px){
   .kopf{padding:0 1rem}.live span{display:none}
   .umschalter button span.txt{display:none}
+  .mehr{grid-template-columns:1fr;grid-template-rows:minmax(0,38%) 1fr;padding:0 .7rem .7rem}
+  .sitzung .s-stand{-webkit-line-clamp:1}
 }
 </style>
 </head>
@@ -274,7 +313,11 @@ details.mehr-text > div{margin-top:.8rem}
 
 <main class="buehne">
   <div class="rondell" id="rondell"></div>
-  <div class="mehr" id="mehr"><div class="raster" id="raster"></div></div>
+  <div class="mehr" id="mehr">
+    <nav class="leiste" aria-label="Sitzungen"><div class="leiste-kopf" id="lkopf"></div><div class="leiste-liste" id="lliste"></div>
+      <details class="leiste-todos"><summary>Bleibt im Blick</summary><ul id="ltodos"></ul></details></nav>
+    <div class="detail" id="detail"></div>
+  </div>
   <div class="absprache" id="absprache"><div class="spalte" id="abspalte"></div></div>
   <div class="archiv" id="archiv"><div class="spalte"><h2>Archiv</h2><input id="asuche" placeholder="Im Archiv suchen …" autocomplete="off"><div class="liste" id="aliste"></div></div></div>
 </main>
@@ -432,6 +475,7 @@ function zeichnen(){
   document.getElementById("rondell").classList.toggle("aus", a!=="rondell");
   document.getElementById("mehr").classList.toggle("an", a==="mehrfenster");
   document.getElementById("absprache").classList.toggle("an", a==="absprache");
+  document.body.classList.toggle("v-mehrfenster", a==="mehrfenster");
   document.getElementById("archiv").classList.toggle("an", a==="archiv");
   archivZeichnen();
   document.getElementById("nav").style.visibility = (a==="rondell" && F.length>1) ? "visible" : "hidden";
@@ -441,29 +485,105 @@ function zeichnen(){
   const r = document.getElementById("rondell");
   if (!F.length){
     r.innerHTML = `<div class="leerstand"><div><b>Tony zeigt gerade keine Aufgabe.</b>Sobald er an etwas arbeitet, erscheint es hier.</div></div>`;
-    document.getElementById("raster").innerHTML = "";
+    leisteZeichnen();
+    document.getElementById("detail").innerHTML = `<div class="leerstand" style="position:static;padding:4rem 0"><div><b>Keine offene Sitzung.</b>Sobald Tony an etwas arbeitet, steht es links.</div></div>`;
+    gezeigt = null;
     document.getElementById("hinweis").textContent = "";
     document.getElementById("ziel").textContent = "An Tony";
     return;
   }
   vorn = Math.max(0, Math.min(vorn, F.length-1));
   // Scrollstand im vorderen Fenster beim Neuzeichnen behalten
-  const alt = {}; document.querySelectorAll(".fenster .f-koerper").forEach((el,i)=>alt[el.closest(".buehne > div").id+i]=el.scrollTop);
-  const offen = new Set([...document.querySelectorAll(".fenster details[open]")].map(d=>d.closest(".buehne > div").id+d.closest(".fenster").dataset.i));
-  const html = F.map((f,i)=>`<section class="fenster ${f.status==="braucht_dich"?"braucht":""} ${f.status==="arbeitet"?"arbeitet":""}" data-i="${i}">${fensterHTML(f)}</section>`).join("");
-  r.innerHTML = html;
-  document.getElementById("raster").innerHTML = html;
-  document.querySelectorAll(".fenster details").forEach(d=>{ if (offen.has(d.closest(".buehne > div").id+d.closest(".fenster").dataset.i)) d.open = true; });
-  document.querySelectorAll(".fenster .f-koerper").forEach((el,i)=>{ const k = el.closest(".buehne > div").id+i; if (alt[k]) el.scrollTop = alt[k]; });
+  const alt = {}; document.querySelectorAll("#rondell .fenster .f-koerper").forEach((el,i)=>alt[i]=el.scrollTop);
+  const offen = new Set([...document.querySelectorAll("#rondell .fenster details[open]")].map(d=>d.closest(".fenster").dataset.i));
+  r.innerHTML = F.map((f,i)=>fensterSection(f,i)).join("");
+  document.querySelectorAll("#rondell .fenster details").forEach(d=>{ if (offen.has(d.closest(".fenster").dataset.i)) d.open = true; });
+  document.querySelectorAll("#rondell .fenster .f-koerper").forEach((el,i)=>{ if (alt[i]) el.scrollTop = alt[i]; });
+  leisteZeichnen();
+  detailZeichnen(true);
   frischeZeigen();
   drehen();
+}
+
+const fensterSection = (f,i) => `<section class="fenster ${f.status==="braucht_dich"?"braucht":""} ${f.status==="arbeitet"?"arbeitet":""}" data-i="${i}">${fensterHTML(f)}</section>`;
+
+/* Mehrfenster: Auswahl durch Marcel hat Vorrang vor Tonys Fokus.
+   auswahl = bewusst geklickt/angetippt, vorschau = Maus schwebt ueber einer Sitzung.
+   Ohne Auswahl folgt die Ansicht Tony (Fokus, sonst was dich braucht, sonst was laeuft).
+   Tony verdraengt eine Auswahl erst, wenn Marcel HALTEN lang nichts bedient hat. */
+const HALTEN = 90000, PRIO = ["braucht_dich","arbeitet","wartet","fertig"];
+let auswahl = null, bedient = 0, vorschau = null, gezeigt = null;
+const finde = id => zustand.fenster.find(f=>f.id===id);
+const prio = s => { const i = PRIO.indexOf(s); return i < 0 ? 2 : i; };
+function tonysWahl(){
+  const F = zustand.fenster;
+  return finde(zustand.fokus) || F.find(f=>f.status==="braucht_dich") || F.find(f=>f.status==="arbeitet") || F[0];
+}
+function gewaehlt(){ return finde(auswahl) || tonysWahl(); }
+
+function leisteZeichnen(){
+  const F = zustand.fenster;
+  const zahl = s => F.filter(f=>f.status===s).length;
+  const teile = [["braucht_dich","braucht dich","brauchen dich"],["arbeitet","arbeitet","arbeiten"],["wartet","wartet","warten"]]
+    .map(([s,e,m])=>{ const n = zahl(s); return n ? `${n} ${n===1?e:m}` : ""; }).filter(Boolean);
+  document.getElementById("lkopf").innerHTML = `<b>Sitzungen · ${F.length}</b><span>${teile.join(" · ") || "nichts offen"}</span>`;
+  const sortiert = F.map((f,i)=>({f,i})).sort((a,b)=>prio(a.f.status)-prio(b.f.status) || a.i-b.i);
+  const sel = gewaehlt()?.id;
+  let gruppe = null, html = "";
+  for (const {f} of sortiert){
+    if (f.status !== gruppe){ gruppe = f.status; html += `<div class="gruppe ${esc(f.status)}">${STATUS[f.status]||esc(f.status)}</div>`; }
+    const unter = f.status==="braucht_dich" && f.von_dir ? `<span class="s-stand vondir">${esc(f.von_dir)}</span>` : f.kernaussage ? `<span class="s-stand">${esc(f.kernaussage)}</span>` : "";
+    html += `<button class="sitzung ${esc(f.status)} ${f.id===sel?"gewaehlt":""} ${f.id===vorschau?"vorschau":""}" data-sid="${esc(f.id)}" aria-current="${f.id===sel}">
+      <div class="logo">${LOGOS[f.app]||LOGOS.notiz}</div>
+      <div class="s-text"><b title="${esc(f.titel)}">${esc(f.titel)}${f.id===zustand.fokus?'<span class="tony">Tony hier</span>':""}</b>
+        <div class="s-zeile"><span class="status ${esc(f.status)}"><i></i>${STATUS[f.status]||esc(f.status)}</span>${f.geaendert?`<small class="frisch" data-t="${esc(f.geaendert)}"></small>`:""}</div>
+        ${unter}</div></button>`;
+  }
+  document.getElementById("lliste").innerHTML = html;
+  document.getElementById("ltodos").innerHTML = zustand.todos.length ? zustand.todos.map(t=>`<li class="${t.erledigt?"erl":""}"><span class="box"></span>${esc(t.text)}</li>`).join("") : `<li style="color:var(--text3)">Noch keine To-dos.</li>`;
+}
+
+function detailZeichnen(neuerStand){
+  const d = document.getElementById("detail");
+  if (!zustand.fenster.length) return;
+  const sel = gewaehlt(), f = finde(vorschau) || sel, tony = tonysWahl();
+  let band = "";
+  if (f !== sel) band = `<div class="band"><span>Vorschau – klicken, um diese Sitzung zu öffnen.</span></div>`;
+  else if (auswahl && tony && tony.id !== f.id){
+    const b = tony.status==="braucht_dich";
+    band = `<div class="band ${b?"braucht_dich":""}"><span>${b?"Braucht dich":"Tony ist gerade bei"}: <b>${esc(tony.titel)}</b></span><button class="glasknopf" data-folgen>Dorthin</button></div>`;
+  }
+  const i = zustand.fenster.indexOf(f);
+  const schluessel = f.id + "|" + (f===sel) + "|" + band;
+  if (!neuerStand && schluessel === gezeigt) return;
+  const gleich = gezeigt && gezeigt.split("|")[0] === f.id;
+  const k = d.querySelector(".f-koerper"), top = gleich && k ? k.scrollTop : 0;
+  const offen = gleich && !!d.querySelector("details.mehr-text[open]");
+  d.classList.toggle("vorschau", f !== sel);
+  d.innerHTML = band + fensterSection(f,i);
+  if (offen) d.querySelector("details.mehr-text")?.setAttribute("open","");
+  if (top) d.querySelector(".f-koerper").scrollTop = top;
+  gezeigt = schluessel;
+  frischeZeigen();
+  zielSetzen();
+}
+
+function zielSetzen(){
+  const f = zustand.ansicht === "rondell" ? zustand.fenster[vorn] : zustand.ansicht === "mehrfenster" ? gewaehlt() : null;
+  document.getElementById("ziel").textContent = f ? `Zu: ${f.titel}` : "An Tony";
+}
+
+function waehlen(id){
+  auswahl = id; vorschau = null; bedient = Date.now();
+  const i = zustand.fenster.findIndex(f=>f.id===id); if (i >= 0) vorn = i;
+  leisteZeichnen(); detailZeichnen(); drehen();
 }
 
 // Letzte Meldung je Fenster; arbeitet ohne Meldung seit 15 Min. -> Animation aus, gelb markiert
 function frischeZeigen(){
   document.querySelectorAll(".frisch").forEach(el=>{
     const min = Math.floor((Date.now() - new Date(el.dataset.t)) / 60000);
-    const fe = el.closest(".fenster");
+    const fe = el.closest(".fenster, .sitzung");
     const alt = fe.classList.contains("arbeitet") && min >= 15;
     el.textContent = "letzte Meldung " + (min < 1 ? "gerade eben" : min < 60 ? `vor ${min} Min.` : zeit(el.dataset.t) + " Uhr");
     if (alt) el.textContent = "keine Meldung seit " + (min < 60 ? `${min} Min.` : zeit(el.dataset.t) + " Uhr");
@@ -488,7 +608,7 @@ function drehen(){
   const f = F[vorn];
   document.getElementById("zaehler").textContent = `${String(vorn+1).padStart(2,"0")} / ${String(n).padStart(2,"0")}`;
   document.getElementById("hinweis").textContent = f?.hinweis || "";
-  document.getElementById("ziel").textContent = f ? `Zu: ${f.titel}` : "An Tony";
+  zielSetzen();
 }
 
 async function laden(){
@@ -505,6 +625,8 @@ async function laden(){
     if (z.fokus !== letzterFokus){
       const i = z.fenster.findIndex(f=>f.id===z.fokus);
       if (i >= 0) vorn = i;
+      // Neuer Fokus von Tony: Marcels Auswahl bleibt, solange er gerade bedient
+      if (Date.now() - bedient > HALTEN) auswahl = null;
       letzterFokus = z.fokus;
     }
     zeichnen();
@@ -524,7 +646,32 @@ function schritt(d){ const n = zustand.fenster.length; if (!n) return; vorn = (v
 function start(){
   document.getElementById("zurueck").onclick = () => schritt(-1);
   document.getElementById("vor").onclick = () => schritt(1);
-  document.addEventListener("keydown", e => { if (e.target.tagName === "INPUT") return; if (e.key==="ArrowLeft") schritt(-1); if (e.key==="ArrowRight") schritt(1); });
+  document.addEventListener("keydown", e => { if (e.target.tagName === "INPUT") return;
+    if (zustand.ansicht === "mehrfenster" && (e.key==="ArrowUp" || e.key==="ArrowDown")){
+      const ids = [...document.querySelectorAll("#lliste .sitzung")].map(b=>b.dataset.sid);
+      const n = ids.indexOf(gewaehlt()?.id) + (e.key==="ArrowDown" ? 1 : -1);
+      if (ids[n]){ e.preventDefault(); waehlen(ids[n]); document.querySelector(`#lliste [data-sid="${CSS.escape(ids[n])}"]`)?.focus(); }
+      return;
+    }
+    if (e.key==="ArrowLeft") schritt(-1); if (e.key==="ArrowRight") schritt(1); });
+  // Sitzungsleiste: Klick/Antippen waehlt, Maus-Schweben zeigt eine Vorschau (nur echte Maus, nicht Touch)
+  const liste = document.getElementById("lliste");
+  // Nur echte Bewegung zaehlt: Neuzeichnen unter einer ruhenden Maus loest sonst Hover-Ereignisse aus
+  let schwebe = null, mx = -1, my = -1;
+  liste.addEventListener("click", e => { const b = e.target.closest("[data-sid]"); if (b) waehlen(b.dataset.sid); });
+  liste.addEventListener("pointermove", e => {
+    if (e.pointerType !== "mouse" || (e.clientX === mx && e.clientY === my)) return;
+    mx = e.clientX; my = e.clientY;
+    const b = e.target.closest("[data-sid]"); if (!b || b.dataset.sid === vorschau) return;
+    clearTimeout(schwebe);
+    schwebe = setTimeout(() => { vorschau = b.dataset.sid === gewaehlt()?.id ? null : b.dataset.sid; leisteZeichnen(); detailZeichnen(); }, 200);
+  });
+  liste.addEventListener("pointerleave", () => {
+    clearTimeout(schwebe);
+    if (vorschau){ vorschau = null; leisteZeichnen(); detailZeichnen(); }
+  });
+  // Jede Bedienung im Inhalt haelt die Auswahl fest
+  ["pointerdown","wheel","keydown"].forEach(t => document.getElementById("detail").addEventListener(t, () => { if (auswahl) bedient = Date.now(); }, {passive:true}));
   // Rad/Trackpad: eine Geste = genau ein Fenster weiter. Gesperrt, bis 300 ms lang keine Radbewegung mehr kam
   // (Trackpad-Nachlauf feuert sonst Dutzende Ereignisse). Ueber dem Inhalt des vorderen Fensters wird normal gescrollt.
   let summe = 0, gesperrt = false, ruhe = null;
@@ -551,18 +698,20 @@ function start(){
       if (w !== null) senden("eingabe", {fenster_id: ab.dataset.ab, art:"ablehnung", text: w || "Bitte überarbeiten"});
       return;
     }
+    if (e.target.closest("[data-folgen]")) { auswahl = null; vorschau = null; bedient = 0; leisteZeichnen(); detailZeichnen(); return; }
     const f = e.target.closest("#rondell .fenster:not(.vorn)");
     if (f) { vorn = +f.dataset.i; drehen(); }
   });
   document.getElementById("umschalter").addEventListener("click", e => {
     const b = e.target.closest("button"); if (!b) return;
-    zustand.ansicht = b.dataset.a; zeichnen();
+    zustand.ansicht = b.dataset.a; zeichnen(); zielSetzen();
     if (b.dataset.a === "rondell" || b.dataset.a === "mehrfenster") senden("ansicht", {ansicht: b.dataset.a});
   });
   document.getElementById("eingabe").addEventListener("submit", e => {
     e.preventDefault();
     const t = document.getElementById("text"); const text = t.value.trim(); if (!text) return;
-    const f = zustand.ansicht === "rondell" ? zustand.fenster[vorn] : null;
+    const f = zustand.ansicht === "rondell" ? zustand.fenster[vorn] : zustand.ansicht === "mehrfenster" ? gewaehlt() : null;
+    if (f && auswahl) bedient = Date.now();
     senden("eingabe", {fenster_id: f?.id ?? null, art:"nachricht", text});
     t.value = ""; t.placeholder = "Gesendet. Tony liest es beim nächsten Blick aufs Board.";
   });
