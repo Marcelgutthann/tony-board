@@ -57,7 +57,7 @@ const TOOLS = [
           description:
             "PFLICHT, wird als 'Stand' angezeigt: was jetzt gilt, in hoechstens 12 Woertern, die Marcel in 5 Sekunden erfasst. Wichtigste Woerter mit **fett**. Trenne ehrlich zwischen erledigt und nur vorbereitet. Beispiel: '**3 Versprechen** auf der Website ohne Beleg, **Impressum** veraltet.'",
         },
-        von_dir: { type: "string", description: "Die EINE Entscheidung oder Frage, die du von Marcel brauchst, als Frage formuliert. Leer lassen (\"\"), wenn nichts noetig ist." },
+        von_dir: { type: "string", description: "Die EINE konkrete Frage an Marcel als ganzer Satz (z. B. \"Soll der Umbau live gehen?\"), Pflicht bei status braucht_dich. Leer lassen (\"\"), wenn nichts von Marcel noetig ist; technisches Warten ist kein von_dir." },
         app: { type: "string", enum: APPS, description: "Logo oben links im Fenster." },
         art: { type: "string", enum: ["mail", "text", "code", "chat"], description: "mail = Kopfzeilen An/Betreff + Text; code = Monospace; chat = Verlauf steht im Vordergrund." },
         kopf: {
@@ -273,6 +273,14 @@ async function werkzeug(name: string, a: Record<string, any>): Promise<unknown> 
       }
       if (felder.app && !APPS.includes(felder.app as string)) felder.app = "notiz";
       if (felder.status && !STATUS.includes(felder.status as string)) felder.status = "arbeitet";
+      // braucht_dich nur mit konkreter Frage; technisches Warten ist "wartet", Freigaben laufen ueber freigabe_anfragen
+      if (felder.status === "braucht_dich") {
+        const { data: f } = alt ? await db.from("tony_board_fenster").select("von_dir, freigabe").eq("id", a.id).single() : { data: null };
+        // Rueckwaertskompatibel: aeltere Clients ohne von_dir im Schema schreiben die Frage in hinweis
+        if (felder.von_dir === undefined && typeof felder.hinweis === "string" && felder.hinweis.trim()) felder.von_dir = felder.hinweis;
+        const frage = String(felder.von_dir ?? f?.von_dir ?? "").trim();
+        if (f?.freigabe !== "angefragt" && (frage.length < 10 || /^von dir/i.test(frage))) throw new Error("status braucht_dich braucht in von_dir die konkrete Frage an Marcel (ganzer Satz). Wartest du nur technisch (Deploy, Build, Antwort von Claude), setze status wartet und von_dir leer. Fuer Freigaben nutze freigabe_anfragen.");
+      }
       // Neuer Inhalt nach Freigabe = neue Freigabe noetig
       if (alt && (a.inhalt !== undefined || a.kopf !== undefined)) {
         const { data: f } = await db.from("tony_board_fenster").select("freigabe").eq("id", a.id).single();
@@ -346,7 +354,7 @@ async function mcp(msg: any): Promise<any | null> {
         capabilities: { tools: { listChanged: false } },
         serverInfo: { name: "tony-board", title: "Tony Board", version: "1.3.0" },
         instructions:
-          "Tony Board ist Marcels Bildschirm fuer deine Arbeit. Oberste Regel: Marcel muss jedes Fenster in 5 Sekunden verstehen, ohne zu lesen. Darum beginnt jedes Fenster mit auftrag (ein Satz), kernaussage als Stand (hoechstens 12 Woerter, Schluesselwoerter fett) und von_dir (die eine Frage an Marcel, sonst leer), dazu mindestens ein Widget; Fliesstext ist nur Detail. Lege fuer jede Aufgabe, an der du arbeitest, ein Fenster an (fenster_zeigen) und halte Inhalt, Schritte und Status aktuell. Bereite Ergebnisse visuell auf: Kennzahlen, Tabellen, Vergleiche, Link-Karten oder kleine Mockups als widgets, Mailwechsel als verlauf. Bei einem fertigen Feature ist die erste Link-Karte immer der Direktlink auf die Stelle in der App, ein GitHub-PR nur danach als technische Quelle. Hole das Fenster nach vorne, ueber das ihr gerade sprecht. Vor dem Senden einer Mail: freigabe_anfragen, dann board_lesen bis freigegeben. Lies mit board_lesen regelmaessig, was Marcel eingegeben und Claude geantwortet hat. Code-, App-, Daten- und Deploy-Themen gibst du mit an_claude an Claude weiter.",
+          "Tony Board ist Marcels Bildschirm fuer deine Arbeit. Oberste Regel: Marcel muss jedes Fenster in 5 Sekunden verstehen, ohne zu lesen. Darum beginnt jedes Fenster mit auftrag (ein Satz), kernaussage als Stand (hoechstens 12 Woerter, Schluesselwoerter fett) und von_dir (die eine Frage an Marcel, sonst leer), dazu mindestens ein Widget; Fliesstext ist nur Detail. Lege fuer jede Aufgabe, an der du arbeitest, ein Fenster an (fenster_zeigen) und halte Inhalt, Schritte und Status aktuell. Bereite Ergebnisse visuell auf: Kennzahlen, Tabellen, Vergleiche, Link-Karten oder kleine Mockups als widgets, Mailwechsel als verlauf. Bei einem fertigen Feature ist die erste Link-Karte immer der Direktlink auf die Stelle in der App, ein GitHub-PR nur danach als technische Quelle. Hole das Fenster nach vorne, ueber das ihr gerade sprecht. status braucht_dich nur, wenn Marcel wirklich entscheiden oder etwas liefern muss, und dann immer mit der konkreten Frage in von_dir; wartest du nur technisch (Deploy, Build, Claude), ist der status wartet und von_dir leer. Vor dem Senden einer Mail: freigabe_anfragen, dann board_lesen bis freigegeben. Lies mit board_lesen regelmaessig, was Marcel eingegeben und Claude geantwortet hat. Code-, App-, Daten- und Deploy-Themen gibst du mit an_claude an Claude weiter.",
       });
     case "ping":
       return ok({});
