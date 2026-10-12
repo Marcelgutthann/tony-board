@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NN-243 — PDF-Abnahme Serienprotokoll</title>
+<style>
+ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;max-width:900px;margin:0 auto;padding:24px 18px 64px;color:#17323a;line-height:1.55}
+ h1{font-size:1.45rem;margin:0 0 4px} h2{font-size:1.05rem;margin:28px 0 8px;color:#3f7280}
+ .hinweis{background:#eef5f6;border-left:3px solid #3f7280;padding:10px 14px;border-radius:0 6px 6px 0;font-size:.92rem}
+ img{width:100%;border:1px solid #d7e2e5;border-radius:6px;margin:8px 0 4px}
+ table{border-collapse:collapse;width:100%;font-size:.88rem;margin:8px 0}
+ th,td{border:1px solid #d7e2e5;padding:6px 8px;text-align:left;vertical-align:top}
+ th{background:#f4f8f9} .ok{color:#15803d;font-weight:600} code{background:#f1f5f6;padding:1px 5px;border-radius:3px;font-size:.86em}
+ .klein{color:#5b7780;font-size:.85rem}
+</style></head><body>
+<h1>NN-243 — Abnahme der Serien-PDF-Ausgabe</h1>
+<p class="klein">PR #377, Commit <code>8d8b770</code> · 12.10.2026 · alle Daten erfunden</p>
+
+<div class="hinweis">
+Erzeugt aus dem <strong>echten</strong> <code>generate-meeting-pdf/index.ts</code> des PR-Stands: die Funktion lief unveraendert,
+nur Supabase und der Serverstart wurden durch Platzhalter ersetzt. Das HTML ist genau das, was sonst an den PDF-Dienst ginge.
+Gerendert wurde mit Chromium, <strong>nicht</strong> mit dem Produktions-PDF-Dienst — Seitenumbruch und Schriftbild koennen dort leicht abweichen.
+Keine Kundendaten, kein Testkonto, kein Deploy.
+</div>
+
+<h2>Was geprueft wurde</h2>
+<table>
+<tr><th>Nr.</th><th>Fall</th><th>Erwartung</th><th>Ergebnis</th></tr>
+<tr><td>1</td><td>Verneinung, fehlt im Registertext</td><td>Nachtrag gruen, mit Datum 12.10.2026</td><td class="ok">erfuellt</td></tr>
+<tr><td>2</td><td>Beitrag steht schon als Datumszeile im Register</td><td>kein Nachtrag, kein Doppel</td><td class="ok">erfuellt</td></tr>
+<tr><td>3</td><td><code>**fett**</code> am Satzanfang (Befund der 2. Abnahme)</td><td>kein Nachtrag, kein Doppel</td><td class="ok">erfuellt</td></tr>
+<tr><td>4</td><td>Beitrag aus einem <em>aelteren</em> Termin</td><td>Text da, mit 28.09.2026, <strong>nicht</strong> gruen</td><td class="ok">erfuellt</td></tr>
+<tr><td>5</td><td>Punkt in diesem Termin neu angelegt</td><td>kein Nachtrag, Titel gruen</td><td class="ok">erfuellt</td></tr>
+<tr><td>6</td><td><code>new_value</code> ist nur eine Zeitmarke</td><td>kein Nachtrag</td><td class="ok">erfuellt</td></tr>
+<tr><td>7</td><td><code>change_summary</code> hat Vorrang</td><td>Nachtrag gruen, mit Datum</td><td class="ok">erfuellt</td></tr>
+<tr><td>—</td><td>Schalter &bdquo;gruen markieren&ldquo; aus</td><td>Farbe weg, <strong>Text bleibt</strong></td><td class="ok">erfuellt</td></tr>
+<tr><td>—</td><td>Seitenumbruch bei 21 Punkten</td><td>Kopfzeile wiederholt, keine zerrissene Zeile</td><td class="ok">erfuellt</td></tr>
+</table>
+<p class="klein">Jeder Beitragstext kommt im PDF genau einmal vor — am erzeugten PDF mit <code>pdftotext</code> nachgezaehlt, nicht nur im HTML.</p>
+
+<h2>Mit Markierung — Seite 1</h2>
+<p class="klein">Nr. 1 und 7 gruen nachgetragen, Nr. 4 schwarz (aelterer Termin), Nr. 5 gruener Titel, Nr. 2/3/6 ohne Nachtrag.</p>
+<img src="markiert-seite1.png" alt="Serienprotokoll Seite 1 mit gruenen Markierungen">
+<h2>Mit Markierung — Seite 2</h2>
+<img src="markiert-seite2.png" alt="Serienprotokoll Seite 2">
+<h2>Ohne Markierung — Seite 1</h2>
+<p class="klein">Gleiches Dokument, kein einziges Gruen — und trotzdem steht jeder Text noch da.</p>
+<img src="ohne-markierung-seite1.png" alt="Serienprotokoll Seite 1 ohne Markierung">
+
+<h2>Dateien</h2>
+<p><a href="serie-markiert.pdf">serie-markiert.pdf</a> · <a href="serie-ohne-markierung.pdf">serie-ohne-markierung.pdf</a></p>
+
+<h2>Was weiterhin offen ist</h2>
+<p>Der Produktions-PDF-Dienst (<code>api.pdf-mcp.io</code>) wurde nicht benutzt — auf staging fehlt <code>PDF_MCP_API_KEY</code>.
+Schriftbild und Seitenumbruch sind dort moeglicherweise minimal anders. Inhalt, Markierung und Dubletten haengen nicht am Renderer
+und sind damit abgenommen; die endgueltige Optik braucht einen Lauf mit dem echten Dienst.</p>
+</body></html>
