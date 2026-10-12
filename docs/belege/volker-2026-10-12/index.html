@@ -1,0 +1,75 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Belege Volker · 12.10.2026</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+ body{font:16px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;max-width:900px;margin:0 auto;padding:24px;color:#14323a}
+ h1{font-size:22px;margin:0 0 4px} h2{font-size:16px;margin:28px 0 6px}
+ .u{background:#eef5f6;border:1px solid #cfe0e3;border-radius:8px;padding:12px;font-size:14px}
+ .w{background:#fff7e6;border:1px solid #f0d49a;border-radius:8px;padding:12px;font-size:14px;margin-top:12px}
+ figure{margin:0 0 26px} img{width:100%;border:1px solid #d7e2e4;border-radius:8px}
+ figcaption{font-size:14px;color:#3c5a62;margin-top:6px}
+ a{color:#14323a}
+</style>
+<h1>Belege für den Termin mit Volker</h1>
+<p>Erhoben am 12.10.2026 zwischen 08:18 und 08:51 Uhr (Europe/Berlin).</p>
+
+<div class="u">
+<b>Umgebung für alle Bilder:</b> staging.noranotes.ai, angemeldete Sitzung in einem eigens
+angelegten Testkonto, Workspace „TEST 1“ (Marcels eigener), Projekte
+„Benchmark Kinderhaus Sonnenfeld“ und „Neubau Kita Sonnenweg (Testlauf)“ — Schaudaten.
+Der Balken „Interner Account — unbegrenzt“ gehört zum internen Konto, nicht zum Funktionsstand.
+Auf der Produktivumgebung wurde ausschließlich gelesen.
+</div>
+
+<div class="w">
+<b>Vier weitere Bilder fehlen hier bewusst.</b> Sie zeigen Namen, die auch in der
+Produktivdatenbank vorkommen, und gehören deshalb nicht auf eine öffentlich erreichbare Seite.
+Sie liegen auf dem Server und können nicht öffentlich nachgereicht werden.
+</div>
+
+<h2>Angemeldete Oberfläche</h2>
+<figure><img src="01-angemeldet-staging.png">
+<figcaption>1 — Angemeldete Sitzung auf Staging, Dashboard mit 12 Projekten.</figcaption></figure>
+<figure><img src="03-serie.png">
+<figcaption>2 — Fortlaufendes Protokoll mit 120 Punkten, Nummern- und Themensicht, PDF-Knopf.</figcaption></figure>
+
+<h2>PDF-Export und Spaltenbreiten</h2>
+<figure><img src="06-pdf-dialog.png">
+<figcaption>3 — Menü „PDF erstellen“ und „PDF versenden“.</figcaption></figure>
+<figure><img src="07-pdf-erstellen-ergebnis.png">
+<figcaption>4 — Der Export läuft auf Staging durch: „PDF erstellt und heruntergeladen!“. Die Datei
+selbst blieb im Download-Puffer des Automatisierungsbrowsers, ihr Inhalt ist aus diesem Lauf
+also nicht belegt.</figcaption></figure>
+<figure><img src="08-protokollvorlage.png">
+<figcaption>5 — Vorlageneditor mit Live-Vorschau: Klassisch/Klar/Akzent, A4 hoch und quer,
+Kopfzeile, Logo, Anschrift.</figcaption></figure>
+<figure><img src="09-spaltenbreiten-ui.png">
+<figcaption>6 — Spaltenbreiten einzeln ziehbar und sofort gespeichert: Lfd.-Nr. 6 %, Datum 9 %,
+Bereich 8 %, Thema 8 %, Besprechungspunkt 31 %, Verantw. 10 %, Bis 9 %, Status 8 %,
+Bemerkungen 11 %. Spalten ein- und ausblendbar, Breiten zurücksetzbar.</figcaption></figure>
+
+<h2>Gerenderte PDF-Seiten (lokaler Renderer, nicht die Oberfläche)</h2>
+<figure><img src="protokoll-standard-1.png">
+<figcaption>7 — Standardbreiten, gerendert aus derselben Vorlagensteuerung.
+<a href="protokoll-standard.pdf">PDF öffnen</a></figcaption></figure>
+<figure><img src="protokoll-breit_punkt-1.png">
+<figcaption>8 — Gegenprobe mit breitem Besprechungspunkt und sehr schmalen Spalten. Sichtbar:
+bei 4 % bricht Text zeichenweise um, der Mindestwert schützt nicht vor unlesbaren Spalten.
+<a href="protokoll-breit_punkt.pdf">PDF öffnen</a></figcaption></figure>
+
+<h2>Aufnahme umordnen</h2>
+<figure><img src="11-aufnahme-umordnen.png">
+<figcaption>9 — Zuordnung in einem Schritt: Bereich, Projekt und Ziel, wahlweise nur Projekt,
+neues Einzelmeeting, bestehendes Meeting oder fortlaufendes Protokoll.</figcaption></figure>
+<figure><img src="12-umordnen-vorher.png">
+<figcaption>10 — Gesetztes neues Ziel vor dem Übernehmen.</figcaption></figure>
+<figure><img src="13-umordnen-nachher.png">
+<figcaption>11 — Nach dem Übernehmen öffnet sich das Zielmeeting und zeigt weiterhin seine alten
+4 Punkte und seine alte Zusammenfassung. In diesem Durchlauf entstanden keine Duplikate: Quelle
+behielt 6 Punkte, Ziel 4. Das ist ein Einzelbefund, keine allgemeine Zusage.</figcaption></figure>
+<figure><img src="14-analyse-gestartet.png">
+<figcaption>12 — Vor dem Analyselauf warnt die App: bestehende Punkte werden ersetzt, nicht
+ergänzt, und erst nach Bestätigung im Prüf-Schritt. Der Lauf wurde abgebrochen, das Ersetzen
+ist also nicht durchgespielt.</figcaption></figure>
