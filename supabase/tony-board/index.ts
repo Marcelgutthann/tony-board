@@ -31,11 +31,15 @@ async function schluesselOk(s: string | undefined) {
 
 const APPS = ["gmail", "outlook", "github", "jira", "kalender", "drive", "slack", "notion", "web", "code", "notiz", "noranotes", "dokument"];
 const STATUS = ["arbeitet", "braucht_dich", "wartet", "fertig"];
+const WARTEN = ["marcel", "extern", "agent", "zugang"];
+const WARTEN_TEXT = "marcel = Marcel muss entscheiden oder etwas liefern, extern = ein Vorgang ausserhalb laeuft (CI-Lauf, Build, Deploy, Antwort einer Firma), agent = ein anderer Agent ist dran (Claude), zugang = ein Zugang, Recht oder Schluessel fehlt.";
 const BEREICHE = ["technik", "vertrieb", "organisation"];
+// Ohne bestaetigtes Signal gilt laufende Arbeit nach dieser Zeit als unbestaetigt (gleiche Grenze wie im Board)
+const FRISCH_MIN = 15;
 // Ohne Angabe: Einordnung nach App, Tony bekommt einen Hinweis zum Korrigieren
 const bereichAusApp = (app: string) =>
   ["code", "github", "jira"].includes(app) ? "technik" : ["gmail", "outlook"].includes(app) ? "vertrieb" : "organisation";
-const BEREICH_TEXT = "technik = Technische Entwicklung (Code, App, Daten, Deploys), vertrieb = Vertrieb/Sales (Kunden, Interessenten, Partner, Angebote, AuÃŸenauftritt), organisation = Organisation (BÃ¼ro, Termine, Verwaltung, Einkauf, PersÃ¶nliches).";
+const BEREICH_TEXT = "technik = Technische Entwicklung (Code, App, Daten, Deploys), vertrieb = Vertrieb/Sales (Kunden, Interessenten, Partner, Angebote, Aussenauftritt), organisation = Organisation (Buero, Termine, Verwaltung, Einkauf, Persoenliches).";
 
 const TOOLS = [
   {
@@ -72,10 +76,21 @@ const TOOLS = [
           additionalProperties: { type: "string" },
         },
         inhalt: { type: "string", description: "Details zum Nachlesen (Mailtext, Notiz, Begruendung). Wird eingeklappt angezeigt, ausser bei Mails. Kurz halten; was sich als Widget zeigen laesst, gehoert ins Widget." },
-        status: { type: "string", enum: STATUS, description: "arbeitet | braucht_dich | wartet | fertig" },
+        status: { type: "string", enum: STATUS, description: "arbeitet | braucht_dich | wartet | fertig. Der Status allein ist kein Beweis, dass gearbeitet wird: bei arbeitet gehoert taetigkeit dazu, bei wartet warten_auf und wartegrund." },
+        taetigkeit: {
+          type: "string",
+          description:
+            "Was in diesem Moment tatsaechlich getan wird oder zuletzt nachweislich getan wurde, konkret und in einem Satz (z. B. 'Regressionstest fuer den PDF-Export geschrieben, laeuft jetzt gegen staging'). Keine Statuswoerter wie 'in Arbeit' oder 'laeuft'. Jedes Setzen zaehlt als bestaetigtes Signal: ohne taetigkeit zeigt das Board 'Status nicht aktuell bestaetigt'.",
+        },
+        zustaendig: { type: "string", description: "Wer gerade daran arbeitet oder worauf es ankommt: 'Tony', 'Claude', 'Marcel', 'GitHub Actions', 'Kanzlei Weber'." },
+        warten_auf: { type: "string", enum: WARTEN, description: "PFLICHT bei status wartet: auf welche Art von Sache gewartet wird. " + WARTEN_TEXT },
+        wartegrund: { type: "string", description: "PFLICHT bei status wartet: die konkrete Abhaengigkeit in einem Satz (z. B. 'GitHub-Actions-Lauf 1148101 muss durchlaufen, bisher bricht er vor dem ersten Schritt ab'). Nicht 'wartet auf Antwort', sondern worauf genau und von wem." },
+        naechste_aktion: { type: "string", description: "Der naechste konkrete Schritt, der passiert, sobald es weitergeht - und wer ihn macht. Leer lassen, wenn es wirklich keinen gibt." },
+        bestaetigt_am: { type: "string", description: "Optional, Zeitpunkt des letzten bestaetigten Signals als ISO-Zeit. Ohne Angabe setzt das Board die Zeit dieses Aufrufs, sobald taetigkeit mitkommt. Nie setzen, ohne tatsaechlich nachgesehen zu haben." },
+        fehler: { type: "string", description: "Ein Fehler, der die Arbeit anhaelt, im Klartext (z. B. 'CI-Lauf bricht mit Abrechnungsfehler ab, kein Testschritt ausgefuehrt'). Leerer String loescht ihn wieder." },
         schritte: {
           type: "array",
-          description: "Arbeitsschritte. Genau ein Schritt sollte aktuell sein.",
+          description: "Arbeitsschritte. Genau ein Schritt sollte aktuell sein. Bei status fertig oder wartet zeigt das Board den aktuellen Schritt nicht als laufend an, sondern als angehalten.",
           items: {
             type: "object",
             properties: {
@@ -86,7 +101,7 @@ const TOOLS = [
             required: ["text"],
           },
         },
-        hinweis: { type: "string", description: "Ein Satz unter dem Fenster: was du gerade tust oder was du von Marcel brauchst." },
+        hinweis: { type: "string", description: "Veraltet: nutze taetigkeit (was du tust), wartegrund (worauf du wartest) und von_dir (was du von Marcel brauchst). Wird nur noch als Ersatz angezeigt, wenn diese Felder fehlen." },
         verlauf: {
           type: "array",
           description: "Chatverlauf im Fenster, z. B. ein Mailwechsel oder dein Arbeitsprotokoll als Nachrichten. Ersetzt den bisherigen Verlauf.",
@@ -165,14 +180,14 @@ const TOOLS = [
     name: "im_blick_behalten",
     title: "Im Blick behalten",
     description:
-      "Legt einen Punkt in 'Bleibt im Blick' an: etwas, das nicht fertig ist und weiterverfolgt werden muss, auch wenn das Fenster dazu fertig ist. Pflicht, sobald eine Reaktion von auÃŸen aussteht (Mail gesendet und Antwort/Termin erwartet, Angebot raus, Zusage offen) oder eine Aufgabe liegen bleibt. Beispiel: Mail an Herrn Arends mit Terminvorschlag gesendet -> text 'Antwort auf Terminvorschlag abwarten', wer 'Christian Arends'. Der Punkt bleibt, bis du ihn mit im_blick_erledigt abhakst oder Marcel ihn abhakt. Gleiche fenster_id und offener Punkt = wird aktualisiert statt doppelt angelegt.",
+      "Legt einen Punkt in 'Bleibt im Blick' an: etwas, das nicht fertig ist und weiterverfolgt werden muss, auch wenn das Fenster dazu fertig ist. Pflicht, sobald eine Reaktion von aussen aussteht (Mail gesendet und Antwort/Termin erwartet, Angebot raus, Zusage offen) oder eine Aufgabe liegen bleibt. Beispiel: Mail an Herrn Arends mit Terminvorschlag gesendet -> text 'Antwort auf Terminvorschlag abwarten', wer 'Christian Arends'. Der Punkt bleibt, bis du ihn mit im_blick_erledigt abhakst oder Marcel ihn abhakt. Gleiche fenster_id und offener Punkt = wird aktualisiert statt doppelt angelegt.",
     inputSchema: {
       type: "object",
       properties: {
         text: { type: "string", description: "Was offen ist, ein kurzer Satz." },
         wer: { type: "string", description: "Von wem etwas aussteht oder um wen es geht." },
         bereich: { type: "string", enum: BEREICHE, description: BEREICH_TEXT },
-        fenster_id: { type: "string", description: "Fenster, zu dem der Punkt gehÃ¶rt." },
+        fenster_id: { type: "string", description: "Fenster, zu dem der Punkt gehoert." },
         nachfassen_am: { type: "string", description: "Optional: ab wann nachfassen, JJJJ-MM-TT." },
       },
       required: ["text"],
@@ -327,23 +342,30 @@ async function werkzeug(name: string, a: Record<string, any>): Promise<unknown> 
       if (neu.length) {
         await db.from("tony_board_eingang").update({ gelesen: new Date().toISOString() }).in("id", neu.map((e: any) => e.id));
       }
+      // Das Board zeigt laufende Arbeit nur mit frischem bestaetigtem Signal; dieselbe Grenze gilt hier
+      const unbestaetigt = z.fenster.filter((f: any) =>
+        f.status === "arbeitet" && (!f.bestaetigt_am || Date.now() - Date.parse(f.bestaetigt_am) > FRISCH_MIN * 60000));
       return {
         fokus: z.fokus,
         ansicht: z.ansicht,
         bleibt_im_blick: z.blick,
         fenster: z.fenster.map((f: any) => ({
           id: f.id, titel: f.titel, app: f.app, bereich: f.bereich, status: f.status, freigabe: f.freigabe,
-          freigabe_kommentar: f.freigabe_kommentar, hinweis: f.hinweis,
+          freigabe_kommentar: f.freigabe_kommentar, von_dir: f.von_dir,
+          taetigkeit: f.taetigkeit, zustaendig: f.zustaendig, warten_auf: f.warten_auf, wartegrund: f.wartegrund,
+          naechste_aktion: f.naechste_aktion, bestaetigt_am: f.bestaetigt_am, fehler: f.fehler, hinweis: f.hinweis,
         })),
+        ...(unbestaetigt.length ? { hinweis: `Marcel sieht bei ${unbestaetigt.map((f: any) => f.id).join(", ")} 'Status nicht aktuell bestaetigt', weil seit ueber ${FRISCH_MIN} Minuten keine taetigkeit gemeldet wurde. Melde dort die echte Taetigkeit nach oder setze den passenden Status (wartet mit warten_auf und wartegrund, fertig, oder fehler).` } : {}),
         neue_eingaben_von_marcel: neu.reverse().map((e: any) => ({ fenster_id: e.fenster_id, art: e.art, text: e.text, zeit: e.erstellt })),
         neue_nachrichten_von_claude: await absprachenHolen("claude"),
       };
     }
     case "fenster_zeigen": {
       if (!a.id) throw new Error("id fehlt");
-      const { data: alt } = await db.from("tony_board_fenster").select("id").eq("id", a.id).maybeSingle();
+      const { data: alt } = await db.from("tony_board_fenster").select("id, von_dir, freigabe, warten_auf, wartegrund").eq("id", a.id).maybeSingle();
       const felder: Record<string, unknown> = { geaendert: new Date().toISOString(), geschlossen: false };
-      for (const k of ["titel", "auftrag", "kernaussage", "von_dir", "bereich", "app", "art", "kopf", "inhalt", "status", "schritte", "hinweis", "verlauf", "widgets"]) {
+      for (const k of ["titel", "auftrag", "kernaussage", "von_dir", "bereich", "app", "art", "kopf", "inhalt", "status", "schritte", "hinweis", "verlauf", "widgets",
+                       "taetigkeit", "zustaendig", "warten_auf", "wartegrund", "naechste_aktion", "bestaetigt_am", "fehler"]) {
         if (a[k] !== undefined) felder[k] = a[k];
       }
       if (felder.app && !APPS.includes(felder.app as string)) felder.app = "notiz";
@@ -354,18 +376,32 @@ async function werkzeug(name: string, a: Record<string, any>): Promise<unknown> 
         bereichHinweis = `bereich fehlte, eingeordnet als '${felder.bereich}'. Falls falsch: fenster_zeigen mit id und bereich (${BEREICHE.join(" | ")}).`;
       }
       if (felder.status && !STATUS.includes(felder.status as string)) felder.status = "arbeitet";
+      if (felder.warten_auf !== undefined && !WARTEN.includes(felder.warten_auf as string)) delete felder.warten_auf;
+      if (felder.bestaetigt_am !== undefined && isNaN(Date.parse(String(felder.bestaetigt_am)))) delete felder.bestaetigt_am;
+      if (felder.fehler !== undefined && !String(felder.fehler).trim()) felder.fehler = null;
+      // Eine genannte Taetigkeit ist das bestaetigte Signal; die Zeit einer Aktualisierung allein ist keines
+      if (felder.bestaetigt_am === undefined && typeof felder.taetigkeit === "string" && felder.taetigkeit.trim()) {
+        felder.bestaetigt_am = new Date().toISOString();
+      }
       // braucht_dich nur mit konkreter Frage; technisches Warten ist "wartet", Freigaben laufen ueber freigabe_anfragen
       if (felder.status === "braucht_dich") {
-        const { data: f } = alt ? await db.from("tony_board_fenster").select("von_dir, freigabe").eq("id", a.id).single() : { data: null };
         // Rueckwaertskompatibel: aeltere Clients ohne von_dir im Schema schreiben die Frage in hinweis
         if (felder.von_dir === undefined && typeof felder.hinweis === "string" && felder.hinweis.trim()) felder.von_dir = felder.hinweis;
-        const frage = String(felder.von_dir ?? f?.von_dir ?? "").trim();
-        if (f?.freigabe !== "angefragt" && (frage.length < 10 || /^von dir\b/i.test(frage))) throw new Error("status braucht_dich braucht in von_dir die konkrete Frage an Marcel (ganzer Satz). Wartest du nur technisch (Deploy, Build, Antwort von Claude), setze status wartet und von_dir leer. Fuer Freigaben nutze freigabe_anfragen.");
+        const frage = String(felder.von_dir ?? alt?.von_dir ?? "").trim();
+        if (alt?.freigabe !== "angefragt" && (frage.length < 10 || /^von dir\b/i.test(frage))) throw new Error("status braucht_dich braucht in von_dir die konkrete Frage an Marcel (ganzer Satz). Wartest du nur technisch (Deploy, Build, Antwort von Claude), setze status wartet und von_dir leer. Fuer Freigaben nutze freigabe_anfragen.");
+        if (felder.warten_auf === undefined && alt?.warten_auf !== "marcel") felder.warten_auf = "marcel";
+      }
+      // wartet ohne Wartegrund ist genau das, was Marcel am Board nicht lesen kann
+      if (felder.status === "wartet") {
+        const grund = String(felder.wartegrund ?? alt?.wartegrund ?? "").trim();
+        const art = String(felder.warten_auf ?? alt?.warten_auf ?? "").trim();
+        if (grund.length < 10 || !WARTEN.includes(art)) {
+          throw new Error(`status wartet braucht warten_auf (${WARTEN.join(" | ")}) und wartegrund, die konkrete Abhaengigkeit als ganzen Satz. ${WARTEN_TEXT} Wartet niemand und nichts, sondern du arbeitest, ist der status arbeitet mit taetigkeit.`);
+        }
       }
       // Neuer Inhalt nach Freigabe = neue Freigabe noetig
       if (alt && (a.inhalt !== undefined || a.kopf !== undefined)) {
-        const { data: f } = await db.from("tony_board_fenster").select("freigabe").eq("id", a.id).single();
-        if (f?.freigabe === "freigegeben" || f?.freigabe === "abgelehnt") felder.freigabe = "keine";
+        if (alt.freigabe === "freigegeben" || alt.freigabe === "abgelehnt") felder.freigabe = "keine";
       }
       if (alt) {
         const { error } = await db.from("tony_board_fenster").update(felder).eq("id", a.id);
@@ -374,9 +410,13 @@ async function werkzeug(name: string, a: Record<string, any>): Promise<unknown> 
         const { error } = await db.from("tony_board_fenster").insert({ id: a.id, titel: a.titel ?? a.id, ...felder });
         if (error) throw new Error(error.message);
       }
-      // Nach vorne nur auf Wunsch oder wenn Marcel gebraucht wird; laufende Arbeit drÃ¤ngt sich nicht vor
+      // Nach vorne nur auf Wunsch oder wenn Marcel gebraucht wird; laufende Arbeit draengt sich nicht vor
       if (a.fokus || (!alt && felder.status === "braucht_dich")) await setzeZustand({ fokus: a.id });
-      return { ok: true, id: a.id, angelegt: !alt, ...(bereichHinweis ? { hinweis: bereichHinweis } : {}),
+      const hinweise = bereichHinweis ? [bereichHinweis] : [];
+      if (felder.status === "arbeitet" && !String(felder.taetigkeit ?? "").trim()) {
+        hinweise.push("Ohne taetigkeit zeigt das Board 'Status nicht aktuell bestaetigt' statt laufender Arbeit. Nenne in einem Satz, was du gerade tatsaechlich tust.");
+      }
+      return { ok: true, id: a.id, angelegt: !alt, ...(hinweise.length ? { hinweis: hinweise.join(" ") } : {}),
         ...(felder.status === "fertig" ? { pruefen: "Steht nach 'fertig' noch etwas aus (Antwort, Termin, Zusage)? Dann im_blick_behalten." } : {}) };
     }
     case "fokus_setzen": {
@@ -389,6 +429,7 @@ async function werkzeug(name: string, a: Record<string, any>): Promise<unknown> 
     case "freigabe_anfragen": {
       const { error } = await db.from("tony_board_fenster").update({
         freigabe: "angefragt", freigabe_kommentar: null, status: "braucht_dich",
+        von_dir: a.frage ?? "Bitte gegenlesen und freigeben.", warten_auf: "marcel",
         hinweis: a.frage ?? "Bitte gegenlesen und freigeben.", geaendert: new Date().toISOString(),
       }).eq("id", a.id);
       if (error) throw new Error(error.message);
@@ -449,9 +490,9 @@ async function mcp(msg: any): Promise<any | null> {
       return ok({
         protocolVersion: params?.protocolVersion ?? "2025-06-18",
         capabilities: { tools: { listChanged: false } },
-        serverInfo: { name: "tony-board", title: "Tony Board", version: "1.4.0" },
+        serverInfo: { name: "tony-board", title: "Tony Board", version: "1.5.0" },
         instructions:
-          "Tony Board ist Marcels Bildschirm fuer deine Arbeit. Oberste Regel: Marcel muss jedes Fenster in 5 Sekunden verstehen, ohne zu lesen. Darum beginnt jedes Fenster mit auftrag (ein Satz), kernaussage als Stand (hoechstens 12 Woerter, Schluesselwoerter fett) und von_dir (die eine Frage an Marcel, sonst leer), dazu mindestens ein Widget; Fliesstext ist nur Detail. Lege fuer jede Aufgabe, an der du arbeitest, ein Fenster an (fenster_zeigen, immer mit bereich: technik, vertrieb oder organisation - jeder Bereich ist ein eigenes Rondell) und halte Inhalt, Schritte und Status aktuell. 'fertig' heisst: dein Teil ist getan. Bleibt danach etwas offen (Antwort auf eine gesendete Mail, Terminzusage, Freigabe von aussen) oder bleibt eine Aufgabe liegen, legst du es sofort mit im_blick_behalten an; kommt die Antwort, hakst du es mit im_blick_erledigt ab. Pruefe bei board_lesen die Liste bleibt_im_blick und fasse nach, was faellig ist. Bereite Ergebnisse visuell auf: Kennzahlen, Tabellen, Vergleiche, Link-Karten oder kleine Mockups als widgets, Mailwechsel als verlauf. Bei einem fertigen Feature ist die erste Link-Karte immer der Direktlink auf die Stelle in der App, ein GitHub-PR nur danach als technische Quelle. Hole das Fenster nach vorne, ueber das ihr gerade sprecht. status braucht_dich nur, wenn Marcel wirklich entscheiden oder etwas liefern muss, und dann immer mit der konkreten Frage in von_dir; wartest du nur technisch (Deploy, Build, Claude), ist der status wartet und von_dir leer. Vor dem Senden einer Mail: freigabe_anfragen, dann board_lesen bis freigegeben. Lies mit board_lesen regelmaessig, was Marcel eingegeben und Claude geantwortet hat. Code-, App-, Daten- und Deploy-Themen gibst du mit an_claude an Claude weiter.",
+          "Tony Board ist Marcels Bildschirm fuer deine Arbeit. Oberste Regel: Marcel muss jedes Fenster in 5 Sekunden verstehen, ohne zu lesen. Darum beginnt jedes Fenster mit auftrag (ein Satz), kernaussage als Stand (hoechstens 12 Woerter, Schluesselwoerter fett) und von_dir (die eine Frage an Marcel, sonst leer), dazu mindestens ein Widget; Fliesstext ist nur Detail. Lege fuer jede Aufgabe, an der du arbeitest, ein Fenster an (fenster_zeigen, immer mit bereich: technik, vertrieb oder organisation - jeder Bereich ist ein eigenes Rondell) und halte Inhalt, Schritte und Status aktuell. 'fertig' heisst: dein Teil ist getan. Bleibt danach etwas offen (Antwort auf eine gesendete Mail, Terminzusage, Freigabe von aussen) oder bleibt eine Aufgabe liegen, legst du es sofort mit im_blick_behalten an; kommt die Antwort, hakst du es mit im_blick_erledigt ab. Pruefe bei board_lesen die Liste bleibt_im_blick und fasse nach, was faellig ist. Bereite Ergebnisse visuell auf: Kennzahlen, Tabellen, Vergleiche, Link-Karten oder kleine Mockups als widgets, Mailwechsel als verlauf. Bei einem fertigen Feature ist die erste Link-Karte immer der Direktlink auf die Stelle in der App, ein GitHub-PR nur danach als technische Quelle. Hole das Fenster nach vorne, ueber das ihr gerade sprecht. Jede Karte traegt eine Statusleiste, die Marcel sofort sagt, wer was tut: taetigkeit (was gerade tatsaechlich passiert, als Satz), zustaendig (Tony, Claude, Marcel, GitHub Actions, eine Firma), bei Warten warten_auf (marcel | extern | agent | zugang) und wartegrund (die konkrete Abhaengigkeit), naechste_aktion (was als Naechstes passiert und wer es macht) und bei einem Abbruch fehler. Die Statuszeile allein beweist nichts: ohne taetigkeit schreibt das Board 'Status nicht aktuell bestaetigt', und wartende Karten zeigen keine laufende Arbeit an. Melde darum bei jedem Zwischenschritt die echte Taetigkeit nach, erfinde nie Prozentzahlen oder Restzeiten, und setze statt eines stillen Weiterwartens den passenden Status. status braucht_dich nur, wenn Marcel wirklich entscheiden oder etwas liefern muss, und dann immer mit der konkreten Frage in von_dir; wartest du nur technisch (Deploy, Build, Claude), ist der status wartet mit warten_auf und wartegrund und von_dir leer. Vor dem Senden einer Mail: freigabe_anfragen, dann board_lesen bis freigegeben. Lies mit board_lesen regelmaessig, was Marcel eingegeben und Claude geantwortet hat. Code-, App-, Daten- und Deploy-Themen gibst du mit an_claude an Claude weiter.",
       });
     case "ping":
       return ok({});
@@ -505,10 +546,17 @@ Deno.serve(async (req) => {
     if (!text && art === "nachricht") return json({ error: "leer" }, 400);
     await db.from("tony_board_eingang").insert({ fenster_id: b.fenster_id ?? null, art, text: text || art });
     if (b.fenster_id && art !== "nachricht") {
+      // Marcels Klick ist ein bestaetigtes Signal: die Karte darf danach ehrlich "arbeitet" zeigen
       await db.from("tony_board_fenster").update({
         freigabe: art === "freigabe" ? "freigegeben" : "abgelehnt",
         freigabe_kommentar: text || null,
         status: art === "freigabe" ? "arbeitet" : "braucht_dich",
+        taetigkeit: art === "freigabe"
+          ? "Marcel hat freigegeben, Tony nimmt die Arbeit wieder auf."
+          : "Marcel hat eine Aenderung gewuenscht, Tony ueberarbeitet.",
+        bestaetigt_am: new Date().toISOString(),
+        warten_auf: art === "freigabe" ? null : "marcel",
+        wartegrund: null,
         geaendert: new Date().toISOString(),
       }).eq("id", b.fenster_id);
     }

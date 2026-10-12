@@ -13,7 +13,7 @@
   --glas:rgba(255,255,255,.055); --glas-stark:rgba(255,255,255,.09);
   --kante:rgba(255,255,255,.14); --kante-hell:rgba(255,255,255,.3);
   --text:#f1f0f8; --text2:rgba(241,240,248,.72); --text3:rgba(241,240,248,.55);
-  --gruen:#7fe0b0; --gelb:#f3d27a; --violett:#7fb2ff; --blau:#8fb8ff;
+  --gruen:#7fe0b0; --gelb:#f3d27a; --violett:#7fb2ff; --blau:#8fb8ff; --rot:#ff8f8f;
 }
 /* Alles skaliert mit der Bildschirmbreite: 16 px am Laptop, bis 30 px auf 4K */
 html{font-size:clamp(15px, .6vw + 8px, 32px)}
@@ -84,6 +84,7 @@ body.v-rondell .bereiche{display:flex}
 }
 .fenster.vorn{cursor:default;border-color:var(--kante-hell)}
 .fenster.braucht{border-color:rgba(243,210,122,.55)}
+.fenster.fehlerhaft{border-color:rgba(255,143,143,.5)}
 .f-kopf{display:flex;align-items:center;gap:1rem;padding:1.2rem 1.5rem 1rem;border-bottom:1px solid rgba(255,255,255,.08)}
 .logo{flex:none;width:2.9rem;height:2.9rem;border-radius:.85rem;display:grid;place-items:center;background:rgba(255,255,255,.94);box-shadow:0 .3rem .9rem rgba(0,0,0,.3)}
 .logo svg{width:1.75rem;height:1.75rem}
@@ -92,39 +93,65 @@ body.v-rondell .bereiche{display:flex}
 .f-titel{flex:1;min-width:0}
 .f-titel small{display:block;font-size:.75rem;color:var(--text3);text-transform:capitalize;margin-bottom:.1rem}
 .f-titel b{display:block;font-size:1.3rem;font-weight:600;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* Statusmarke: ein Wort, abgeleitet aus derselben Lage wie die Statusleiste */
 .status{font-size:.8rem;color:var(--text2);display:flex;align-items:center;gap:.4rem;white-space:nowrap;padding:.35rem .8rem;border-radius:999px;border:1px solid var(--kante)}
-.status i{width:.45rem;height:.45rem;border-radius:50%;background:var(--violett)}
-.status.braucht_dich{border-color:rgba(243,210,122,.5);color:var(--text)}.status.braucht_dich i{background:var(--gelb)}
+.status i{width:.45rem;height:.45rem;border-radius:50%;background:var(--violett);flex:none}
+.status.marcel{border-color:rgba(243,210,122,.5);color:var(--text)}.status.marcel i{background:var(--gelb)}
+.status.fehler{border-color:rgba(255,143,143,.5);color:var(--text)}.status.fehler i{background:var(--rot)}
 .status.fertig i{background:var(--gruen)}
-.status.wartet i{background:none;border:1px dashed var(--text3)}
-/* Aktivitaet: nur "arbeitet" bewegt sich; wartet ruhig, fertig statisch */
+.status.zugang i{background:var(--gelb);box-shadow:0 0 0 .13rem rgba(243,210,122,.25)}
+.status.wartet i,.status.extern i,.status.agent i,.status.unbestaetigt i{background:none;border:1px dashed var(--text3)}
+/* Aktivitaet: nur bestaetigt laufende Arbeit bewegt sich; Warten, Fehler und Fertig bleiben ruhig */
 .status.arbeitet i{animation:puls 1.6s ease-in-out infinite}
 @keyframes puls{0%,100%{box-shadow:0 0 0 0 rgba(127,178,255,.6)}50%{box-shadow:0 0 0 .3rem rgba(127,178,255,0)}}
-.f-titel small.frisch{display:block;font-size:.7rem;color:var(--text3);margin-top:.15rem;text-transform:none}
-.f-titel small.frisch.alt{color:var(--gelb)}
 .lage .stand .laeuft{display:inline-flex;gap:.18rem;margin-left:.45rem;vertical-align:middle}
 .lage .stand .laeuft i{width:.3rem;height:.3rem;border-radius:50%;background:var(--violett);animation:tupf 1.2s ease-in-out infinite}
 .lage .stand .laeuft i:nth-child(2){animation-delay:.2s}.lage .stand .laeuft i:nth-child(3){animation-delay:.4s}
 @keyframes tupf{0%,80%,100%{opacity:.25}40%{opacity:1}}
-.fenster.arbeitet .schritt.akt .k{border-color:var(--violett) transparent var(--violett) var(--violett);background:none;animation:dreh 1s linear infinite}
+.fenster.aktiv .schritt.akt .k{border-color:var(--violett) transparent var(--violett) var(--violett);background:none;animation:dreh 1s linear infinite}
 @keyframes dreh{to{transform:rotate(360deg)}}
-.fenster.still .status i,.fenster.still .schritt.akt .k,.fenster.still .laeuft{animation:none}
-.fenster.still .laeuft{display:none}
 @media (prefers-reduced-motion:reduce){
-  .status.arbeitet i,.laeuft i,.fenster.arbeitet .schritt.akt .k{animation:none}
-  .fenster.arbeitet .schritt.akt .k{border-color:var(--violett);background:rgba(127,178,255,.45)}
+  .status.arbeitet i,.laeuft i,.fenster.aktiv .schritt.akt .k{animation:none}
+  .fenster.aktiv .schritt.akt .k{border-color:var(--violett);background:rgba(127,178,255,.45)}
 }
 
-/* Lage wie Claudes Antwortkopf: Auftrag, Stand, Von dir */
+/* Statusleiste in der Karte: wer tut gerade was, worauf wartet es, was kommt als Naechstes.
+   Eine Karte sieht nur dann beschaeftigt aus, wenn ein frisches bestaetigtes Signal da ist. */
+.sl{padding:.85rem 1.5rem .95rem;border-bottom:1px solid rgba(255,255,255,.08);display:flex;flex-direction:column;gap:.5rem;
+  background:rgba(127,178,255,.07)}
+.sl .wort{display:flex;align-items:baseline;gap:.5rem;font-size:1.1rem;font-weight:600;letter-spacing:-.01em;line-height:1.25}
+.sl .wort i{width:.55rem;height:.55rem;margin-top:.42rem;border-radius:50%;background:var(--violett);flex:none}
+.sl .wort em{font-style:normal;font-weight:500;font-size:.95rem;color:var(--text2)}
+.sl .z{display:grid;grid-template-columns:7.2rem 1fr;gap:.15rem 1rem;align-items:baseline}
+.sl .z > span{font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text3)}
+.sl .z > p{font-size:1rem;line-height:1.4;color:var(--text)}
+.sl .z.fehlt > p{color:var(--gelb)}
+.sl .signal{font-size:.78rem;color:var(--text3)}
+.sl .signal.alt{color:var(--gelb)}
+.sl .ruhig{font-size:.82rem;color:var(--text3)}
+.sl .aktion{display:flex;flex-wrap:wrap;gap:.55rem .9rem;align-items:center;padding:.6rem .85rem;border-radius:.8rem;
+  background:rgba(243,210,122,.13);border:1px solid rgba(243,210,122,.4)}
+.sl .aktion p{flex:1;min-width:12rem;font-size:1.06rem;font-weight:500;color:var(--text)}
+.sl.arbeitet .wort i{animation:puls 1.6s ease-in-out infinite}
+.sl.marcel{background:rgba(243,210,122,.1);border-bottom-color:rgba(243,210,122,.3)}
+.sl.marcel .wort i{background:var(--gelb)}
+.sl.fehler{background:rgba(255,143,143,.1);border-bottom-color:rgba(255,143,143,.35)}
+.sl.fehler .wort i{background:var(--rot)}
+.sl.fertig .wort i{background:var(--gruen)}
+.sl.zugang{background:rgba(243,210,122,.07)}.sl.zugang .wort i{background:var(--gelb)}
+.sl.wartet,.sl.extern,.sl.agent,.sl.unbestaetigt{background:rgba(255,255,255,.035)}
+.sl.wartet .wort i,.sl.extern .wort i,.sl.agent .wort i,.sl.unbestaetigt .wort i{background:none;border:1px dashed var(--text3)}
+.sl.unbestaetigt{border-bottom-style:dashed}
+.sl.unbestaetigt .wort{color:var(--text2)}
+@media (prefers-reduced-motion:reduce){.sl.arbeitet .wort i{animation:none}}
+
+/* Lage wie Claudes Antwortkopf: Auftrag und Stand; Status und Frage stehen in der Statusleiste */
 .lage{padding:1rem 1.5rem 1.1rem;border-bottom:1px solid rgba(255,255,255,.08);display:flex;flex-direction:column;gap:.55rem}
-.lage .z{display:grid;grid-template-columns:5.2rem 1fr;gap:1rem;align-items:baseline}
+.lage .z{display:grid;grid-template-columns:7.2rem 1fr;gap:1rem;align-items:baseline}
 .lage .z span{font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text3)}
 .lage .z p{font-size:1rem;color:var(--text2);line-height:1.4}
 .lage .z b{color:var(--text);font-weight:700}
 .lage .stand p{font-size:1.65rem;line-height:1.28;font-weight:500;letter-spacing:-.015em;color:var(--text2)}
-.lage .vondir{margin-top:.2rem;padding:.65rem .9rem;border-radius:.8rem;background:rgba(243,210,122,.1);border:1px solid rgba(243,210,122,.35);grid-template-columns:4.2rem 1fr}
-.lage .vondir span{color:var(--gelb)}
-.lage .vondir p{color:var(--text);font-size:1.08rem;font-weight:500}
 .f-koerper{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain}
 .f-spalte{padding:1.2rem 1.5rem}
 .f-koerper::-webkit-scrollbar{width:.4rem}.f-koerper::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:.4rem}
@@ -213,7 +240,10 @@ details.mehr-text > div{margin-top:.8rem}
 .schritt .k{width:1rem;height:1rem;border-radius:50%;border:1px solid var(--kante-hell);display:grid;place-items:center;font-size:.6rem}
 .schritt.erl{color:var(--text2)}.schritt.erl .k{background:rgba(127,224,176,.2);border-color:var(--gruen);color:var(--gruen)}
 .schritt.akt{color:var(--text)}.schritt.akt .k{border-color:var(--violett);background:rgba(127,178,255,.25)}
-.freigabe{display:flex;gap:.5rem;margin-left:auto}
+/* Angehalten: derselbe Schritt, aber ohne Laufanzeige - zwei Balken statt Kreisel */
+.schritt.halt{color:var(--text2)}
+.schritt.halt .k{border-style:dashed;border-color:var(--text3);background:none}
+.schritt.halt .k::after{content:"";width:.3rem;height:.45rem;border-left:.11rem solid var(--text3);border-right:.11rem solid var(--text3)}
 .glasknopf{padding:.55rem 1.1rem;border-radius:999px;font-size:.9rem;font-weight:500;
   background:linear-gradient(180deg,rgba(255,255,255,.18),rgba(255,255,255,.05));border:1px solid var(--kante-hell);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 .4rem 1.1rem rgba(0,0,0,.35)}
@@ -232,17 +262,20 @@ body.v-mehrfenster .todos{display:none}
 .leiste-liste{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:.4rem .5rem .6rem}
 .leiste-liste::-webkit-scrollbar{width:.4rem}.leiste-liste::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:.4rem}
 .gruppe{font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);padding:.7rem .5rem .3rem}
-.gruppe.braucht_dich{color:var(--gelb)}
+.gruppe.marcel{color:var(--gelb)}
+.gruppe.fehler{color:var(--rot)}
 .sitzung{width:100%;display:grid;grid-template-columns:auto 1fr;gap:.7rem;align-items:start;text-align:left;padding:.65rem .6rem;border-radius:.9rem;border:1px solid transparent;margin-bottom:.15rem;touch-action:manipulation}
 .sitzung .logo{width:2.3rem;height:2.3rem;border-radius:.7rem}.sitzung .logo svg{width:1.4rem;height:1.4rem}.sitzung .logo img{width:1.85rem;height:1.85rem}
 .sitzung .s-text{min-width:0}
 .sitzung b{display:block;font-size:.95rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sitzung .s-zeile{display:flex;align-items:center;gap:.45rem;margin-top:.15rem;font-size:.74rem;color:var(--text3);white-space:nowrap}
 .sitzung .s-zeile .status{padding:.1rem .5rem;font-size:.72rem}
-.sitzung .s-zeile .frisch{overflow:hidden;text-overflow:ellipsis}
-.sitzung .frisch.alt{color:var(--gelb)}
+.sitzung .s-zeile .signal{overflow:hidden;text-overflow:ellipsis}
+.sitzung .s-zeile .signal.alt{color:var(--gelb)}
 .sitzung .s-stand{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:.84rem;line-height:1.35;color:var(--text2);margin-top:.3rem}
 .sitzung .s-stand.vondir{color:var(--gelb)}
+.sitzung .s-stand.fehler{color:var(--rot)}
+.sitzung .s-stand b.art{font-weight:600;color:var(--text3)}
 .sitzung .tony{display:inline-block;font-size:.66rem;font-weight:600;padding:.05rem .45rem;border-radius:999px;background:rgba(127,178,255,.22);color:var(--text);margin-left:.35rem;vertical-align:.1rem}
 .sitzung{transition:background-color .18s ease}
 .sitzung .logo{transition:transform .18s ease}
@@ -252,8 +285,8 @@ body.v-mehrfenster .todos{display:none}
 @keyframes einblenden{from{opacity:.35}to{opacity:1}}
 @media (prefers-reduced-motion:reduce){.sitzung,.sitzung .logo{transition:none}.sitzung:hover .logo{transform:none}.detail .fenster.neu{animation:none}}
 .sitzung.gewaehlt{background:rgba(127,178,255,.14);border-color:rgba(127,178,255,.4)}
-.sitzung.braucht_dich{box-shadow:inset .2rem 0 0 var(--gelb)}
-.sitzung.still .status i{animation:none}
+.sitzung.marcel{box-shadow:inset .2rem 0 0 var(--gelb)}
+.sitzung.fehler{box-shadow:inset .2rem 0 0 var(--rot)}
 .sitzung:focus-visible{outline:2px solid var(--blau);outline-offset:1px}
 .leiste-todos{border-top:1px solid rgba(255,255,255,.08);padding:.6rem 1rem .8rem;max-height:30%;overflow:auto}
 .leiste-todos summary{cursor:pointer;font-size:.78rem;font-weight:600;color:var(--text2);list-style:none}
@@ -283,7 +316,6 @@ body.v-mehrfenster .todos{display:none}
 
 /* Hinweis + Eingabe */
 .unten{position:fixed;left:50%;bottom:1.4rem;transform:translateX(-50%);width:min(52rem,92vw);z-index:20;display:flex;flex-direction:column;gap:.7rem;align-items:center}
-.hinweis{font-size:1rem;color:var(--text2);text-align:center;min-height:1.4rem}
 .nav{display:flex;gap:.9rem;align-items:center;font-size:.8rem;color:var(--text3)}
 .nav button{width:2.1rem;height:2.1rem;border-radius:50%;display:grid;place-items:center;background:var(--glas);border:1px solid var(--kante);font-size:1.1rem}
 .eingabe{width:100%;display:flex;gap:.6rem;align-items:center;padding:.5rem .5rem .5rem 1.2rem;border-radius:999px;background:rgba(10,20,40,.94);border:1px solid var(--kante)}
@@ -341,7 +373,6 @@ body.v-mehrfenster .todos{display:none}
 </main>
 
 <div class="unten">
-  <div class="hinweis" id="hinweis"></div>
   <div class="nav" id="nav"><button id="zurueck" aria-label="Vorheriges Fenster">‹</button><span id="zaehler"></span><button id="vor" aria-label="Nächstes Fenster">›</button></div>
   <form class="eingabe" id="eingabe">
     <span class="ziel" id="ziel">An Tony</span>
@@ -367,7 +398,20 @@ const LOGOS = {
   dokument:'<svg viewBox="0 0 24 24" fill="none" stroke="#2b7bd6" stroke-width="1.8" stroke-linejoin="round"><path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5"/></svg>',
   noranotes:'<img src="logos/noranotes.png" alt="NoraNotes">'
 };
-const STATUS = {arbeitet:"Arbeitet", braucht_dich:"Braucht dich", wartet:"Wartet", fertig:"Fertig"};
+// Statuswahrheit an genau einer Stelle: aus status, warten_auf, wartegrund, fehler und dem
+// bestaetigten Signal wird eine Lage abgeleitet. Marke, Statusleiste, Sitzungsleiste und
+// Schrittauszeichnung lesen alle daraus - darum koennen sie nicht auseinanderlaufen.
+// Ohne frisches bestaetigtes Signal behauptet das Board keine laufende Arbeit.
+const FRISCH_MIN = 15;
+const WARTEN = {
+  marcel: {wort:"Wartet auf dich"},
+  extern: {wort:"Wartet auf einen externen Vorgang"},
+  agent:  {wort:"Wartet auf einen anderen Agenten"},
+  zugang: {wort:"Wartet auf einen fehlenden Zugang"},
+};
+const KURZ = {arbeitet:"Arbeitet", marcel:"Braucht dich", wartet:"Wartet", extern:"Wartet extern",
+  agent:"Wartet auf Agent", zugang:"Zugang fehlt", fertig:"Fertig", fehler:"Fehler",
+  unbestaetigt:"Nicht bestätigt"};
 
 let KEY = null;
 try { KEY = new URLSearchParams(location.hash.slice(1)).get("k") || localStorage.getItem("tonyBoardKey"); } catch(e) {
@@ -388,14 +432,14 @@ try { bereichWahl = localStorage.getItem("tonyBereich"); } catch(e) {}
 const bereichVon = f => BEREICH_NAME[f.bereich] ? f.bereich : "organisation";
 
 // Reihenfolge: was dich braucht vorn, laufende Arbeit hinten; innerhalb gleich bleibt die Anlage-Reihenfolge (nichts springt)
-const PRIO = ["braucht_dich","fertig","wartet","arbeitet"];
-const prio = s => { const i = PRIO.indexOf(s); return i < 0 ? 2 : i; };
-const nachPrio = F => F.map((f,i)=>({f,i})).sort((a,b)=>prio(a.f.status)-prio(b.f.status) || a.i-b.i).map(x=>x.f);
+const PRIO = ["marcel","fehler","fertig","zugang","wartet","extern","agent","unbestaetigt","arbeitet"];
+const prio = f => { const i = PRIO.indexOf(lage(f).art); return i < 0 ? 4 : i; };
+const nachPrio = F => F.map((f,i)=>({f,i})).sort((a,b)=>prio(a.f)-prio(b.f) || a.i-b.i).map(x=>x.f);
 const rondellListe = () => nachPrio(zustand.fenster.filter(f=>bereichVon(f)===bereichWahl));
 function vornIndex(RF){ const i = RF.findIndex(f=>f.id===vornId); return i < 0 ? 0 : i; }
 function vornFenster(){ const RF = rondellListe(); return RF[vornIndex(RF)] || null; }
 function bereichStart(){
-  const F = zustand.fenster, dich = F.find(f=>f.status==="braucht_dich");
+  const F = zustand.fenster, dich = F.find(f=>lage(f).art==="marcel");
   if (dich) return bereichVon(dich);
   if (BEREICH_NAME[bereichWahl]) return bereichWahl;
   return F.length ? bereichVon(nachPrio(F)[0]) : "technik";
@@ -428,6 +472,83 @@ function markdown(t){
   return out;
 }
 
+// Zeitangabe nur als Begleitung, nie als Beweis: "vor 3 Min." steht immer an einem
+// Ereignis, das ausdruecklich bestaetigt wurde.
+function vorMin(iso){
+  const m = Math.floor((Date.now() - new Date(iso)) / 60000);
+  return m < 1 ? "gerade eben" : m < 60 ? `vor ${m} Min.` : zeit(iso) + " Uhr";
+}
+
+function lage(f){
+  const sig = f.bestaetigt_am && !isNaN(new Date(f.bestaetigt_am)) ? f.bestaetigt_am : null;
+  const frisch = !!sig && Date.now() - new Date(sig) < FRISCH_MIN * 60000;
+  const fehler = (f.fehler || "").trim();
+  // Fenster von vorher haben im alten hinweis entweder die Taetigkeit oder den Wartegrund
+  const ersatz = (f.hinweis || "").trim();
+  let art, wort;
+  if (fehler) { art = "fehler"; wort = "Angehalten durch einen Fehler"; }
+  else if (f.status === "fertig") { art = "fertig"; wort = "Fertig"; }
+  else if (f.status === "braucht_dich" || f.status === "wartet") {
+    art = f.status === "braucht_dich" ? "marcel" : WARTEN[f.warten_auf] ? f.warten_auf : "wartet";
+    wort = WARTEN[art] ? WARTEN[art].wort : "Wartet";
+  }
+  else if (frisch) { art = "arbeitet"; wort = "Arbeitet"; }
+  else { art = "unbestaetigt"; wort = "Status nicht aktuell bestätigt"; }
+  const wartet = art === "marcel" || art === "wartet" || art === "extern" || art === "agent" || art === "zugang";
+  const taetigkeit = (f.taetigkeit || "").trim() || (wartet || fehler ? "" : ersatz);
+  const grund = (f.wartegrund || "").trim() || (wartet || fehler ? ersatz : "");
+  let signal, signalAlt = false;
+  if (sig){
+    signal = (art === "fertig" ? "Abschluss gemeldet " : "Zuletzt bestätigt ") + vorMin(sig);
+    signalAlt = !frisch && art !== "fertig";
+  } else {
+    signal = "Kein bestätigtes Signal" + (f.geaendert ? " · Karte geändert " + vorMin(f.geaendert) : "");
+    signalAlt = art !== "fertig";
+  }
+  const frage = art !== "marcel" ? ""
+    : (f.von_dir || "").trim()
+      || (f.freigabe === "angefragt" ? "Entwurf gegenlesen: freigeben oder ändern?" : grund)
+      || "Frage fehlt – frag Tony, was er von dir braucht.";
+  return {art, wort, kurz: KURZ[art] || art, aktiv: art === "arbeitet", wartet, fehler, grund, taetigkeit, frage,
+          zustaendig: (f.zustaendig || "").trim(), naechste: (f.naechste_aktion || "").trim(),
+          signal, signalAlt, signalKurz: sig ? (frisch ? "bestätigt " : "zuletzt bestätigt ") + vorMin(sig) : "nicht bestätigt"};
+}
+
+// Die Leiste in der Karte: Taetigkeit, Zustaendiger, Wartegrund, naechste Aktion, letztes
+// bestaetigtes Signal - und entweder eine konkrete Aktion fuer Marcel oder ausdruecklich keine.
+function statusleisteHTML(f, L){
+  const z = [];
+  if (L.fehler) z.push(["Fehler", L.fehler, ""]);
+  if (L.wartet && L.art !== "marcel") z.push(["Wartet auf", L.grund || "Grund nicht genannt – frag Tony", L.grund ? "" : "fehlt"]);
+  if (L.taetigkeit) z.push([L.art === "fertig" ? "Getan" : "Tätigkeit", L.taetigkeit, ""]);
+  if (L.naechste) z.push(["Als nächstes", L.naechste, ""]);
+  const aktion = L.art === "marcel"
+    ? `<div class="aktion"><p>${zeile(esc(L.frage))}</p>${f.freigabe === "angefragt"
+        ? `<button class="glasknopf" data-ab="${esc(f.id)}">Ändern …</button><button class="glasknopf ja" data-ja="${esc(f.id)}">Freigeben</button>`
+        : ""}</div>`
+    : `<div class="ruhig">Keine Aktion von dir nötig.</div>`;
+  return `<div class="sl ${L.art}">
+      <div class="wort"><i></i><span>${esc(L.wort)}${L.zustaendig && L.art !== "marcel" ? ` <em>· ${esc(L.zustaendig)}</em>` : ""}</span></div>
+      ${z.map(([k,v,c])=>`<div class="z ${c}"><span>${k}</span><p>${zeile(esc(v))}</p></div>`).join("")}
+      ${aktion}
+      <div class="signal ${L.signalAlt?"alt":""}">${esc(L.signal)}</div>
+    </div>`;
+}
+
+// Nur bestaetigt laufende Arbeit zeigt einen laufenden Schritt; Warten und Fehler zeigen
+// denselben Schritt angehalten, und ein fertiges Fenster hebt keinen Schritt mehr hervor.
+function schritteHTML(f, L){
+  const S = f.schritte || [];
+  const akt = L.art === "fertig" ? -1 : S.findIndex(s => s.aktuell && !s.erledigt);
+  return S.map((s,i)=>{
+    const k = s.erledigt ? "erl" : i === akt ? (L.aktiv ? "akt" : "halt") : "";
+    const titel = i === akt && !L.aktiv ? ` title="Hier angehalten: ${esc(L.wort)}"` : "";
+    return `<span class="schritt ${k}"${titel}><span class="k">${s.erledigt?"✓":""}</span>${esc(s.text)}</span>`;
+  }).join("");
+}
+
+const fensterKlassen = L => `fenster ${L.art==="marcel"?"braucht":""} ${L.art==="fehler"?"fehlerhaft":""} ${L.aktiv?"aktiv":""}`;
+
 function widget(w){
   const d = w.daten || {}, t = w.titel ? `<h4>${esc(w.titel)}</h4>` : "";
   try {
@@ -454,6 +575,7 @@ function verlaufHTML(v){
 }
 
 function fensterHTML(f){
+  const L = lage(f);
   const kopf = f.kopf && Object.keys(f.kopf).length
     ? `<dl class="f-meta">${Object.entries(f.kopf).map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>` : "";
   const text = f.inhalt ? `<div class="f-inhalt ${f.art==="code"?"code":""}">${f.art==="code"?esc(f.inhalt):markdown(f.inhalt)}</div>` : "";
@@ -464,19 +586,19 @@ function fensterHTML(f){
   const details = (kopf || text || verlauf)
     ? (textOffen ? `${kopf}${f.art==="chat"?verlauf+text:text+verlauf}` : `<details class="mehr-text"><summary>Details lesen</summary><div>${kopf}${text}${verlauf}</div></details>`)
     : "";
-  const schritte = (f.schritte||[]).map(s=>`<span class="schritt ${s.erledigt?"erl":s.aktuell?"akt":""}"><span class="k">${s.erledigt?"✓":""}</span>${esc(s.text)}</span>`).join("");
+  const schritte = schritteHTML(f, L);
+  // Die Freigabeknoepfe stehen in der Statusleiste bei der Frage, nicht unten am Rand
   let freigabe = "";
-  if (f.freigabe === "angefragt") freigabe = `<div class="freigabe"><button class="glasknopf" data-ab="${esc(f.id)}">Ändern …</button><button class="glasknopf ja" data-ja="${esc(f.id)}">Freigeben</button></div>`;
-  else if (f.freigabe === "freigegeben") freigabe = `<span class="marke-frei">Freigegeben</span>`;
+  if (f.freigabe === "freigegeben") freigabe = `<span class="marke-frei">Freigegeben</span>`;
   else if (f.freigabe === "abgelehnt") freigabe = `<span class="marke-ab">Änderung gewünscht</span>`;
   const archiv = `<button class="leise-knopf" data-archiv="${esc(f.id)}" style="${freigabe?"":"margin-left:auto"}">Archivieren</button>`;
   return `<div class="f-kopf"><div class="logo">${LOGOS[f.app]||LOGOS.notiz}</div>
-      <div class="f-titel"><small>${esc(f.app)}</small><b>${esc(f.titel)}</b>${f.geaendert?`<small class="frisch" data-t="${esc(f.geaendert)}"></small>`:""}</div>
-      <div class="status ${esc(f.status)}"><i></i>${STATUS[f.status]||esc(f.status)}</div></div>
-    ${(f.auftrag||f.kernaussage||f.von_dir)?`<div class="lage">
+      <div class="f-titel"><small>${esc(f.app)}</small><b>${esc(f.titel)}</b></div>
+      <div class="status ${L.art}"><i></i>${esc(L.kurz)}</div></div>
+    ${statusleisteHTML(f, L)}
+    ${(f.auftrag||f.kernaussage)?`<div class="lage">
       ${f.auftrag?`<div class="z"><span>Auftrag</span><p>${zeile(esc(f.auftrag))}</p></div>`:""}
-      ${f.kernaussage?`<div class="z stand"><span>Stand</span><p>${zeile(esc(f.kernaussage))}${f.status==="arbeitet"?'<span class="laeuft" aria-label="wird bearbeitet"><i></i><i></i><i></i></span>':""}</p></div>`:""}
-      ${f.von_dir?`<div class="z ${f.status==="braucht_dich"?"vondir":""}"><span>${f.status==="braucht_dich"?"Frage an dich":"Offen"}</span><p>${zeile(esc(f.von_dir))}</p></div>`:""}
+      ${f.kernaussage?`<div class="z stand"><span>Stand</span><p>${zeile(esc(f.kernaussage))}${L.aktiv?'<span class="laeuft" aria-label="wird bearbeitet"><i></i><i></i><i></i></span>':""}</p></div>`:""}
     </div>`:""}
     <div class="f-koerper"><div class="f-spalte">
       ${ws?`<div class="widgets">${ws}</div>`:""}
@@ -507,7 +629,7 @@ function blickHTML(){
 
 function bereicheZeichnen(){
   setzeHTML(document.getElementById("bereiche"), BEREICHE.map(([k,name])=>{
-    const G = zustand.fenster.filter(f=>bereichVon(f)===k), dich = G.some(f=>f.status==="braucht_dich");
+    const G = zustand.fenster.filter(f=>bereichVon(f)===k), dich = G.some(f=>lage(f).art==="marcel");
     return `<button data-bereich="${k}" class="${k===bereichWahl?"an":""}">${dich?'<i class="dich" title="braucht dich"></i>':""}${name}<span class="n">${G.length}</span></button>`;
   }).join(""));
 }
@@ -527,7 +649,7 @@ function rondellZeichnen(){
   RF.forEach((f,i)=>{
     let el = [...r.children].find(c=>c.dataset.id===f.id);
     if (!el){ el = document.createElement("section"); el.dataset.id = f.id; el.dataset.neu = "1"; r.appendChild(el); }
-    el.className = `fenster ${f.status==="braucht_dich"?"braucht":""} ${f.status==="arbeitet"?"arbeitet":""}`;
+    el.className = fensterKlassen(lage(f));
     el.dataset.i = i;
     const html = fensterHTML(f);
     if (el._h !== html){
@@ -568,7 +690,6 @@ function zeichnen(){
   document.body.classList.toggle("v-rondell", a==="rondell");
   document.getElementById("archiv").classList.toggle("an", a==="archiv");
   archivZeichnen();
-  document.getElementById("hinweis").style.visibility = a==="rondell" ? "visible" : "hidden";
   absprachZeichnen();
   bereicheZeichnen();
   rondellZeichnen();
@@ -577,11 +698,10 @@ function zeichnen(){
     setzeHTML(document.getElementById("detail"), `<div class="leerstand" style="position:static;padding:4rem 0"><div><b>Keine offene Sitzung.</b>Sobald Tony an etwas arbeitet, steht es links.</div></div>`);
     gezeigt = null; gezeigtHTML = "";
   } else detailZeichnen();
-  frischeZeigen();
   drehen();
 }
 
-const fensterSection = (f,i) => `<section class="fenster ${f.status==="braucht_dich"?"braucht":""} ${f.status==="arbeitet"?"arbeitet":""}" data-i="${i}">${fensterHTML(f)}</section>`;
+const fensterSection = (f,i) => `<section class="${fensterKlassen(lage(f))}" data-i="${i}">${fensterHTML(f)}</section>`;
 
 /* Mehrfenster: Auswahl durch Marcel hat Vorrang vor Tonys Fokus.
    auswahl = geklickt, angetippt oder mit der Maus kurz angesteuert; sie bleibt stehen, bis die naechste Wahl kommt.
@@ -597,21 +717,32 @@ function gewaehlt(){ return finde(auswahl) || tonysWahl(); }
 
 function leisteZeichnen(){
   const F = zustand.fenster;
-  const zahl = s => F.filter(f=>f.status===s).length;
-  const teile = [["braucht_dich","braucht dich","brauchen dich"],["arbeitet","arbeitet","arbeiten"],["wartet","wartet","warten"]]
-    .map(([s,e,m])=>{ const n = zahl(s); return n ? `${n} ${n===1?e:m}` : ""; }).filter(Boolean);
+  const A = F.map(f=>lage(f).art), zahl = a => A.filter(x=>x===a).length;
+  const teile = [
+    [zahl("marcel"), "braucht dich", "brauchen dich"],
+    [zahl("fehler"), "mit Fehler", "mit Fehler"],
+    [zahl("arbeitet"), "arbeitet", "arbeiten"],
+    [zahl("wartet")+zahl("extern")+zahl("agent")+zahl("zugang"), "wartet", "warten"],
+    [zahl("unbestaetigt"), "ohne bestätigtes Signal", "ohne bestätigtes Signal"],
+  ].map(([n,e,m])=>n ? `${n} ${n===1?e:m}` : "").filter(Boolean);
   setzeHTML(document.getElementById("lkopf"), `<b>Sitzungen · ${F.length}</b><span>${teile.join(" · ") || "nichts offen"}</span>`);
   const sortiert = nachPrio(F);
   const sel = gewaehlt()?.id;
   let gruppe = null, html = "";
   for (const f of sortiert){
-    if (f.status !== gruppe){ gruppe = f.status; html += `<div class="gruppe ${esc(f.status)}">${STATUS[f.status]||esc(f.status)}</div>`; }
-    const frage = f.status!=="braucht_dich" ? "" : f.von_dir ? f.von_dir : f.freigabe==="angefragt" ? "Freigabe: Freigeben oder Ändern?" : "Frage fehlt – Tony muss sie nennen";
-    const unter = frage ? `<span class="s-stand vondir">${zeile(esc(frage))}</span>` : f.kernaussage ? `<span class="s-stand">${zeile(esc(f.kernaussage))}</span>` : "";
-    html += `<button class="sitzung ${esc(f.status)} ${f.id===sel?"gewaehlt":""}" data-sid="${esc(f.id)}" aria-current="${f.id===sel}">
+    const L = lage(f);
+    if (L.art !== gruppe){ gruppe = L.art; html += `<div class="gruppe ${L.art}">${esc(L.kurz)}</div>`; }
+    // Knapp, aber nie leer: was dich gefragt wird, woran es haengt oder was gerade getan wird
+    const unter = L.art === "marcel" ? `<span class="s-stand vondir">${zeile(esc(L.frage))}</span>`
+      : L.fehler ? `<span class="s-stand fehler"><b class="art">Fehler:</b> ${esc(L.fehler)}</span>`
+      : L.wartet ? `<span class="s-stand"><b class="art">Wartet auf:</b> ${zeile(esc(L.grund || "Grund nicht genannt"))}</span>`
+      : L.art === "fertig" && f.kernaussage ? `<span class="s-stand">${zeile(esc(f.kernaussage))}</span>`
+      : L.taetigkeit ? `<span class="s-stand">${zeile(esc(L.taetigkeit))}</span>`
+      : f.kernaussage ? `<span class="s-stand">${zeile(esc(f.kernaussage))}</span>` : "";
+    html += `<button class="sitzung ${L.art} ${f.id===sel?"gewaehlt":""}" data-sid="${esc(f.id)}" aria-current="${f.id===sel}">
       <div class="logo">${LOGOS[f.app]||LOGOS.notiz}</div>
       <div class="s-text"><b title="${esc(f.titel)}">${esc(f.titel)}${f.id===zustand.fokus?'<span class="tony">Tony hier</span>':""}</b>
-        <div class="s-zeile"><span class="status ${esc(f.status)}"><i></i>${STATUS[f.status]||esc(f.status)}</span>${f.geaendert?`<small class="frisch" data-t="${esc(f.geaendert)}"></small>`:""}</div>
+        <div class="s-zeile"><span class="status ${L.art}"><i></i>${esc(L.kurz)}</span><small class="signal ${L.signalAlt?"alt":""}">${esc(L.signalKurz)}</small></div>
         ${unter}</div></button>`;
   }
   setzeHTML(document.getElementById("lliste"), html);
@@ -625,7 +756,7 @@ function detailZeichnen(){
   const f = gewaehlt(), tony = tonysWahl();
   let band = "";
   if (auswahl && tony && tony.id !== f.id){
-    const b = tony.status==="braucht_dich";
+    const b = lage(tony).art==="marcel";
     band = `<div class="band ${b?"braucht_dich":""}"><span>${b?"Braucht dich":"Tony ist gerade bei"}: <b>${esc(tony.titel)}</b></span><button class="glasknopf" data-folgen>Dorthin</button></div>`;
   }
   const html = band + fensterSection(f, zustand.fenster.indexOf(f));
@@ -638,7 +769,6 @@ function detailZeichnen(){
   if (offen) d.querySelector("details.mehr-text")?.setAttribute("open","");
   if (top) d.querySelector(".f-koerper").scrollTop = top;
   gezeigt = f.id; gezeigtHTML = html;
-  frischeZeigen();
   zielSetzen();
 }
 
@@ -651,19 +781,6 @@ function waehlen(id){
   auswahl = id;
   if (rondellListe().some(f=>f.id===id)) vornId = id;
   leisteZeichnen(); detailZeichnen(); drehen();
-}
-
-// Letzte Meldung je Fenster; arbeitet ohne Meldung seit 15 Min. -> Animation aus, gelb markiert
-function frischeZeigen(){
-  document.querySelectorAll(".frisch").forEach(el=>{
-    const min = Math.floor((Date.now() - new Date(el.dataset.t)) / 60000);
-    const fe = el.closest(".fenster, .sitzung");
-    const alt = fe.classList.contains("arbeitet") && min >= 15;
-    el.textContent = "letzte Meldung " + (min < 1 ? "gerade eben" : min < 60 ? `vor ${min} Min.` : zeit(el.dataset.t) + " Uhr");
-    if (alt) el.textContent = "keine Meldung seit " + (min < 60 ? `${min} Min.` : zeit(el.dataset.t) + " Uhr");
-    el.classList.toggle("alt", alt);
-    fe.classList.toggle("still", alt);
-  });
 }
 
 function drehen(){
@@ -683,9 +800,7 @@ function drehen(){
   });
   const neue = document.querySelectorAll("#rondell .fenster[data-neu]");
   if (neue.length){ void document.body.offsetWidth; neue.forEach(el=>{ el.style.transition = ""; delete el.dataset.neu; }); }
-  const f = F[vorn];
   document.getElementById("zaehler").textContent = `${String(vorn+1).padStart(2,"0")} / ${String(n).padStart(2,"0")}`;
-  document.getElementById("hinweis").textContent = f?.hinweis || "";
   zielSetzen();
 }
 
@@ -818,7 +933,7 @@ function start(){
     t.value = ""; t.placeholder = "Gesendet. Tony liest es beim nächsten Blick aufs Board.";
   });
   document.getElementById("asuche").addEventListener("input", archivZeichnen);
-  laden(); setInterval(laden, 1500); setInterval(frischeZeigen, 20000);
+  laden(); setInterval(laden, 1500); setInterval(zeichnen, 20000);
 }
 
 if (KEY) start();

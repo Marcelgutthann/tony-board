@@ -3,3 +3,5 @@ waechter/*.log
 waechter/*.lock
 waechter/antwort.json
 .pruef-state.json
+node_modules
+/[0-9]-*.png

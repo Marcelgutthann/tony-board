@@ -3,14 +3,21 @@ import { pathToFileURL } from "node:url";
 const DATEI = new URL("docs/index.html", pathToFileURL(import.meta.dirname + "/")).href + "#k=test";
 const vor = m => new Date(Date.now()-m*60000).toISOString();
 const F = [
-  {id:"logo", app:"noranotes", titel:"Echtes NoraNotes-Logo im Board", status:"fertig", kernaussage:"**Logo** und Aktivitaetsanzeige liegen bereit.", geaendert:vor(5), schritte:[{text:"Bauen",erledigt:true}]},
-  {id:"volker", app:"gmail", titel:"Volker Maegdefrau – Nachweise fuer Termin 12.10.", status:"arbeitet", kernaussage:"Sechs Punkte abgeglichen, Belege werden nachgeschaerft.", auftrag:"Funktionsnachweise zeigen", geaendert:vor(2), widgets:[{typ:"kennzahlen",titel:"Stand",daten:{werte:[{wert:"6",label:"Punkte"},{wert:"0",label:"live getestet"}]}}], schritte:[{text:"Abgleich",erledigt:true},{text:"Belege",aktuell:true}]},
-  {id:"mail", app:"outlook", titel:"Antwort an Kanzlei zum AVV", status:"braucht_dich", kernaussage:"Entwurf fertig.", von_dir:"Darf die Mail so raus?", freigabe:"angefragt", geaendert:vor(1), inhalt:"Sehr geehrte Damen und Herren,\n\nanbei ..."},
-  {id:"alt", app:"jira", titel:"NN-240 Sync pruefen", status:"arbeitet", kernaussage:"Seit Laengerem ohne Meldung.", geaendert:vor(25)},
-  {id:"kal", app:"kalender", titel:"Termine naechste Woche", status:"wartet", kernaussage:"Wartet auf Rueckmeldung von Sebastian.", von_dir:"Build laeuft noch", geaendert:vor(40)},
+  {id:"logo", app:"noranotes", titel:"Echtes NoraNotes-Logo im Board", status:"fertig", kernaussage:"**Logo** und Aktivitaetsanzeige liegen bereit.",
+   taetigkeit:"Logo eingebaut und im Rondell gegengesehen.", zustaendig:"Claude", bestaetigt_am:vor(6), geaendert:vor(5), schritte:[{text:"Bauen",erledigt:true}]},
+  {id:"nachweise", app:"gmail", titel:"Projektnachweise fuer den Jour fixe", status:"arbeitet", kernaussage:"Sechs Punkte abgeglichen, Belege werden nachgeschaerft.", auftrag:"Funktionsnachweise zeigen",
+   taetigkeit:"Beleg 4 von 6 wird in der Oberflaeche nachgestellt.", zustaendig:"Claude", naechste_aktion:"Belege 5 und 6 aufnehmen, dann an Tony uebergeben.", bestaetigt_am:vor(2), geaendert:vor(2),
+   widgets:[{typ:"kennzahlen",titel:"Stand",daten:{werte:[{wert:"6",label:"Punkte"},{wert:"0",label:"live getestet"}]}}], schritte:[{text:"Abgleich",erledigt:true},{text:"Belege",aktuell:true}]},
+  {id:"mail", app:"outlook", titel:"Antwort an Kanzlei zum AVV", status:"braucht_dich", kernaussage:"Entwurf fertig.", von_dir:"Darf die Mail so raus?", freigabe:"angefragt",
+   warten_auf:"marcel", zustaendig:"Tony", bestaetigt_am:vor(1), geaendert:vor(1), inhalt:"Sehr geehrte Damen und Herren,\n\nanbei ..."},
+  {id:"alt", app:"jira", titel:"NN-240 Sync pruefen", status:"arbeitet", kernaussage:"Seit Laengerem ohne Meldung.",
+   taetigkeit:"Sync-Lauf angestossen.", zustaendig:"Claude", bestaetigt_am:vor(25), geaendert:vor(25)},
+  {id:"kal", app:"kalender", titel:"Termine naechste Woche", status:"wartet", kernaussage:"Serie haengt an einer Rueckmeldung.",
+   warten_auf:"agent", wartegrund:"Claude prueft die Kalenderrechte und meldet zurueck.", naechste_aktion:"Nach der Rueckmeldung die Serie anlegen.", zustaendig:"Claude", bestaetigt_am:vor(4), geaendert:vor(40)},
   {id:"ohne", app:"notiz", titel:"Frage vergessen", status:"braucht_dich", kernaussage:"Tony hat keine Frage gesetzt.", geaendert:vor(3)},
 ];
-let zustand = {fenster:F, fokus:"volker", ansicht:"mehrfenster", todos:[{text:"AVV klaeren"},{text:"Logo live",erledigt:true}], absprache:[], eingang:[], archiv:[]};
+const BLICK = [{id:1, text:"AVV klaeren", bereich:"organisation", erstellt:vor(600)}, {id:2, text:"Logo live stellen", bereich:"technik", erstellt:vor(60)}];
+let zustand = {fenster:F, fokus:"nachweise", ansicht:"mehrfenster", blick:BLICK, absprache:[], eingang:[], archiv:[]};
 const ok = (b,m) => { console.log((b?"OK   ":"FEHL ")+m); if(!b) process.exitCode=1; };
 const browser = await chromium.launch({executablePath: process.env.CHROME ?? "C:/Program Files/Google/Chrome/Application/chrome.exe"});
 async function seite(opts){
@@ -29,10 +36,11 @@ const reihen = await p.$$eval("#lliste .sitzung", es=>es.map(e=>e.dataset.sid));
 ok(reihen.length===6, "Leiste zeigt alle 6 Sitzungen");
 ok(reihen[0]==="mail", "Braucht-dich steht oben: "+reihen.join(","));
 ok(await p.$eval("#lliste", e=>e.querySelector(".gruppe").textContent)==="Braucht dich", "Gruppenueberschrift Braucht dich");
-ok((await detailTitel(p)).startsWith("Volker"), "Ohne Auswahl folgt Inhalt Tonys Fokus");
-ok(await p.$eval('[data-sid="volker"] .tony', e=>!!e), "Marke 'Tony hier' an Fokus-Sitzung");
-ok(await p.$eval('[data-sid="alt"]', e=>e.classList.contains("still")), "Arbeitet ohne Meldung 25 Min -> still");
-ok(await p.$eval('[data-sid="volker"]', e=>!e.classList.contains("still")), "Frische arbeitet-Sitzung animiert");
+ok((await detailTitel(p)).startsWith("Projektnachweise"), "Ohne Auswahl folgt Inhalt Tonys Fokus");
+ok(await p.$eval('[data-sid="nachweise"] .tony', e=>!!e), "Marke 'Tony hier' an Fokus-Sitzung");
+ok(await p.$eval('[data-sid="alt"]', e=>e.classList.contains("unbestaetigt")), "Arbeitet ohne bestaetigtes Signal seit 25 Min -> nicht bestaetigt");
+ok(await p.$eval('[data-sid="alt"] .status', e=>e.textContent.trim())==="Nicht bestätigt", "Marke sagt es auch in der Leiste");
+ok(await p.$eval('[data-sid="nachweise"]', e=>e.classList.contains("arbeitet")), "Frische arbeitet-Sitzung bleibt arbeitet");
 ok(await p.$eval(".todos", e=>getComputedStyle(e).display)==="none", "Schwebende To-dos in Mehrfenster ausgeblendet");
 ok((await p.$$("#ltodos li")).length===2, "To-dos in der Leiste");
 ok(await p.$eval('[data-sid="mail"] .s-stand', e=>e.textContent)==="Darf die Mail so raus?", "Braucht-dich zeigt die konkrete Frage in der Leiste");
@@ -44,7 +52,8 @@ await p.screenshot({path:"1-desktop.png"});
 await p.hover('[data-sid="kal"]'); await warte(350);
 ok((await detailTitel(p)).startsWith("Termine"), "Hover oeffnet Sitzung gross");
 ok(await p.$eval('[data-sid="kal"] .logo', e=>new DOMMatrix(getComputedStyle(e).transform).a > 1.05), "Hover vergroessert das Logo im Knopf");
-ok(await p.$$eval("#detail .lage .z", es=>es.some(e=>e.querySelector("span").textContent==="Offen" && !e.classList.contains("vondir")) && !es.some(e=>e.classList.contains("vondir"))), "Wartet mit von_dir wird nicht als Frage an Marcel gezeigt");
+ok(await p.$eval("#detail .sl", e=>e.classList.contains("agent")) && await p.$eval("#detail .sl .ruhig", e=>e.textContent.includes("Keine Aktion")), "Wartet auf einen Agenten: ausdruecklich keine Aktion von Marcel");
+ok((await p.$$("#detail .sl .aktion")).length===0, "Wartende Karte zeigt keinen Aktionskasten");
 await p.screenshot({path:"2-hover.png"});
 await p.mouse.move(1300,450); await warte(100);
 ok((await detailTitel(p)).startsWith("Termine"), "Maus raus -> Sitzung bleibt gross stehen");
@@ -77,7 +86,7 @@ await p.click('#umschalter [data-a="rondell"]'); await warte(700);
 ok((await p.$$("#rondell .fenster")).length===6 && await p.$eval("#mehr", e=>getComputedStyle(e).display)==="none", "Rondell eigene Ansicht mit 6 Fenstern");
 await p.screenshot({path:"4-rondell.png"});
 ok(p.fehler.length===0, "Keine JS-Fehler Desktop "+p.fehler.join("|"));
-zustand = {...zustand, fokus:"volker", ansicht:"mehrfenster"};
+zustand = {...zustand, fokus:"nachweise", ansicht:"mehrfenster"};
 // Reduced motion: kein Vergroessern
 p = await seite({viewport:{width:1440,height:900}, reducedMotion:"reduce"});
 await p.hover('[data-sid="kal"]'); await warte(350);

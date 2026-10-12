@@ -1,0 +1,98 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Arbeitsstatus im Board · 12.10.2026</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+ body{font:16px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;max-width:900px;margin:0 auto;padding:24px;color:#14323a}
+ h1{font-size:22px;margin:0 0 4px} h2{font-size:16px;margin:28px 0 6px}
+ .u{background:#eef5f6;border:1px solid #cfe0e3;border-radius:8px;padding:12px;font-size:14px}
+ figure{margin:0 0 26px} img{width:100%;border:1px solid #d7e2e4;border-radius:8px}
+ figcaption{font-size:14px;color:#3c5a62;margin-top:6px}
+ .tag{display:inline-block;background:#e4efdb;border:1px solid #c2d6ad;border-radius:4px;
+      padding:0 6px;font-size:12px;color:#3f5c2c;margin-right:6px}
+ ul{font-size:15px} a{color:#14323a}
+</style>
+<h1>Arbeitsstatus im Board: was die Karte jetzt sagt</h1>
+<p>Vorschau vom 12.10.2026. Alle Bilder zeigen <b>Schaudaten</b> aus dem Prüflauf
+<code>status-test.mjs</code> — keine echten Vorgänge, keine Kundennamen.</p>
+
+<div class="u">
+<b>Was sich geändert hat:</b> Jede Karte trägt oben eine Statusleiste mit der tatsächlichen
+Tätigkeit, dem Zuständigen, dem konkreten Wartegrund, der nächsten Aktion und dem letzten
+<i>bestätigten</i> Signal. Der Status allein beweist nichts mehr: Nur wenn Tony oder Claude
+ausdrücklich meldet, was gerade getan wird, zeigt das Board laufende Arbeit. Sonst steht dort
+„Status nicht aktuell bestätigt“. Wartende Karten drehen nichts mehr und der aktive Schritt
+wird als angehalten gezeichnet, statt weiter blau zu laufen.
+</div>
+
+<h2>Ein Vorgang durch alle Zustände</h2>
+
+<figure><img src="1-arbeitet.png" alt="Karte im Zustand Arbeitet">
+<figcaption><span class="tag">arbeitet</span>Marke und Leiste sagen dasselbe. Die Tätigkeit ist
+ein Satz über die Sache, nicht „in Arbeit“. Nur hier bewegt sich etwas: der Punkt pulst, der
+laufende Schritt dreht. Dazu die nächste Aktion und ausdrücklich „Keine Aktion von dir nötig.“</figcaption></figure>
+
+<figure><img src="2-wartet-person.png" alt="Karte wartet auf Marcel">
+<figcaption><span class="tag">wartet auf dich</span>Die Frage steht im gelben Kasten, direkt
+daneben die Knöpfe. Der angefangene Schritt ist als angehalten gezeichnet (zwei Balken statt
+Kreisel) — der Widerspruch aus dem Screenshot kann so nicht mehr entstehen.</figcaption></figure>
+
+<figure><img src="3-wartet-extern.png" alt="Karte wartet auf externen Job">
+<figcaption><span class="tag">wartet extern</span>Der Wartegrund ist die konkrete Abhängigkeit
+mit Nummer, nicht „wartet auf Antwort“. Nichts dreht sich, und es steht da, dass Marcel nichts
+tun muss.</figcaption></figure>
+
+<figure><img src="4-fertig.png" alt="Karte fertig">
+<figcaption><span class="tag">fertig</span>Kein Schritt ist mehr hervorgehoben, auch wenn Tony
+noch einen als aktuell markiert hatte. Statt „Tätigkeit“ steht dort „Getan“.</figcaption></figure>
+
+<h2>Wenn kein verlässliches Signal da ist</h2>
+
+<figure><img src="5-nicht-bestaetigt.png" alt="Karte ohne bestätigtes Signal">
+<figcaption><span class="tag">nicht bestätigt</span>Status „arbeitet“, aber seit 40 Minuten keine
+Meldung: Das Board behauptet dann keine laufende Arbeit mehr, sondern sagt, wann zuletzt etwas
+bestätigt wurde. Keine Prozentzahl, keine Restzeit, kein ewiger Spinner.</figcaption></figure>
+
+<figure><img src="6-fehler.png" alt="Karte mit Fehler">
+<figcaption><span class="tag">Fehler</span>Die Abbruchmeldung steht zuoberst im Klartext, darunter
+was daraufhin getan wurde und was als Nächstes passiert.</figcaption></figure>
+
+<figure><img src="7-zugang-fehlt.png" alt="Karte wartet auf fehlenden Zugang">
+<figcaption><span class="tag">Zugang fehlt</span>Ein fehlender Schlüssel oder ein fehlendes Recht
+ist ein eigener Zustand, nicht irgendein Warten.</figcaption></figure>
+
+<h2>Fenster aus der Zeit davor</h2>
+
+<figure><img src="8-alt-arbeitet.png" alt="Altes Fenster ohne neue Felder, Zustand arbeitet">
+<figcaption>Ohne die neuen Felder wandert der alte Hinweis in die Karte — dort, wo Marcel ihn
+sucht, statt klein unter die Bühne. Ohne bestätigtes Signal gilt die Karte als nicht
+bestätigt.</figcaption></figure>
+
+<figure><img src="9-alt-wartet.png" alt="Altes Fenster ohne neue Felder, Zustand wartet">
+<figcaption>Dasselbe beim Warten: der alte Hinweis wird als Wartegrund gezeigt, die Wartungsart
+bleibt neutral „Wartet“ — geraten wird nichts. Fehlt auch der Hinweis, steht dort offen
+„Grund nicht genannt“.</figcaption></figure>
+
+<h2>Übersicht: Rondell und Sitzungsleiste</h2>
+
+<figure><img src="10-leiste.png" alt="Sitzungsleiste mit allen Zuständen">
+<figcaption>Die Kopfzeile beantwortet die Frage, warum nichts vorangeht: „1 braucht dich · 1 mit
+Fehler · 1 arbeitet · 1 wartet · 1 ohne bestätigtes Signal“. Jede Zeile trägt Marke, Signal und
+entweder die Frage, den Fehler oder den Wartegrund.</figcaption></figure>
+
+<figure><img src="11-rondell.png" alt="Rondell mit Statusleiste in der Karte">
+<figcaption>Im Rondell steht dieselbe Leiste in der Karte; vorn steht, was Marcel braucht.</figcaption></figure>
+
+<h2>Geprüft</h2>
+<ul>
+<li><code>status-test.mjs</code> — 46 Prüfungen: der Verlauf arbeitet → wartet auf Person →
+wartet auf externen Job → fertig, dazu veraltetes Signal, Fehler, fehlender Zugang, Fenster ohne
+die neuen Felder, Sitzungsleiste und Rondell. Dabei auch: keine Animation außer bei bestätigt
+laufender Arbeit, keine erfundenen Zahlen, keine reine Änderungszeit als Lebenszeichen.</li>
+<li><code>sidebar-test.mjs</code> — 43 Prüfungen: Leiste, Auswahl, Tastatur, iPad, Handy,
+reduzierte Bewegung bleiben unverändert in Ordnung.</li>
+<li><code>compat-test.mjs</code> — 18 Prüfungen an der Schnittstelle: alte Aufrufe ohne die neuen
+Felder funktionieren weiter, „wartet“ ohne konkreten Grund wird abgelehnt, ein bestätigtes Signal
+entsteht nur aus einer genannten Tätigkeit.</li>
+</ul>
