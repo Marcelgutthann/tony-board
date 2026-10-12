@@ -47,8 +47,11 @@ await t("Freigabe-Fenster ohne Frage bleibt erlaubt", async () => {
 await t("braucht_dich setzt warten_auf marcel", async () => {
   if (fenster.get("neu1").warten_auf !== "marcel") throw new Error("warten_auf fehlt: " + fenster.get("neu1").warten_auf);
 });
-await t("wartet ohne Wartegrund und Art wird abgelehnt", () =>
-  wirft(werkzeug("fenster_zeigen", { id: "w1", titel: "Build", status: "wartet" })));
+await t("wartet ohne Wartegrund: alter Client wird angenommen, neuer abgelehnt", async () => {
+  await werkzeug("fenster_zeigen", { id: "w1", titel: "Build", status: "wartet" });
+  if (fenster.get("w1").status !== "wartet") throw new Error("alter Client faelschlich abgelehnt");
+  await wirft(werkzeug("fenster_zeigen", { id: "w1b", titel: "Build", status: "wartet", zustaendig: "Claude" }));
+});
 await t("wartet nur mit Art, ohne Grund, wird abgelehnt", () =>
   wirft(werkzeug("fenster_zeigen", { id: "w2", titel: "Build", status: "wartet", warten_auf: "extern" })));
 await t("wartet mit erfundener Art wird abgelehnt", () =>
@@ -100,5 +103,26 @@ await t("Freigabe durch Marcel traegt Taetigkeit und Signal nach", async () => {
   await werkzeug("freigabe_anfragen", { id: "f2", frage: "Darf die Mail so raus?" });
   const f = fenster.get("f2");
   if (f.von_dir !== "Darf die Mail so raus?" || f.warten_auf !== "marcel") throw new Error("Freigabefrage nicht in von_dir/warten_auf");
+});
+
+// --- Altes Werkzeugschema (Tools in ChatGPT noch nicht aktualisiert) darf nicht scheitern ---
+await t("alter Client: wartet ohne neue Felder wird angenommen, Grund aus hinweis", async () => {
+  const r = await werkzeug("fenster_zeigen", { id: "ac1", titel: "CI", status: "wartet", hinweis: "Kein Job laeuft mehr, die Blockermeldung wird geprueft." });
+  const f = fenster.get("ac1");
+  if (f.status !== "wartet") throw new Error("status nicht gesetzt");
+  if (f.wartegrund !== "Kein Job laeuft mehr, die Blockermeldung wird geprueft.") throw new Error("hinweis nicht als Wartegrund uebernommen");
+  if (f.warten_auf) throw new Error("Warteart erfunden: " + f.warten_auf);
+  if (!String(r.hinweis ?? "").includes("Tools aktualisieren")) throw new Error("kein Hinweis auf das Schema: " + r.hinweis);
+});
+await t("alter Client: wartet ganz ohne Text wird angenommen, aber benannt", async () => {
+  const r = await werkzeug("fenster_zeigen", { id: "ac2", titel: "X", status: "wartet" });
+  if (fenster.get("ac2").status !== "wartet") throw new Error("status nicht gesetzt");
+  if (!String(r.hinweis ?? "").includes("unbestimmtes")) throw new Error("kein Hinweis: " + r.hinweis);
+});
+await t("neuer Client bleibt streng: ein neues Feld dabei, Wartegrund fehlt -> Fehler", () =>
+  wirft(werkzeug("fenster_zeigen", { id: "ac3", titel: "X", status: "wartet", taetigkeit: "Lauf beobachtet." })));
+await t("neuer Client mit vollstaendigen Feldern geht weiter durch", async () => {
+  await werkzeug("fenster_zeigen", { id: "ac4", titel: "X", status: "wartet", warten_auf: "extern", wartegrund: "Lauf 1148 muss durchlaufen." });
+  if (fenster.get("ac4").warten_auf !== "extern") throw new Error("nicht gespeichert");
 });
 console.log(`${ok}/${ok+nok}`); process.exit(nok ? 1 : 0);

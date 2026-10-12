@@ -369,7 +369,7 @@ async function werkzeug(name: string, a: Record<string, any>): Promise<unknown> 
         if (a[k] !== undefined) felder[k] = a[k];
       }
       if (felder.app && !APPS.includes(felder.app as string)) felder.app = "notiz";
-      let bereichHinweis: string | undefined;
+      let bereichHinweis: string | undefined, altesSchema: string | undefined;
       if (felder.bereich !== undefined && !BEREICHE.includes(felder.bereich as string)) delete felder.bereich;
       if (!alt && felder.bereich === undefined) {
         felder.bereich = bereichAusApp(String(felder.app ?? "notiz"));
@@ -391,12 +391,24 @@ async function werkzeug(name: string, a: Record<string, any>): Promise<unknown> 
         if (alt?.freigabe !== "angefragt" && (frage.length < 10 || /^von dir\b/i.test(frage))) throw new Error("status braucht_dich braucht in von_dir die konkrete Frage an Marcel (ganzer Satz). Wartest du nur technisch (Deploy, Build, Antwort von Claude), setze status wartet und von_dir leer. Fuer Freigaben nutze freigabe_anfragen.");
         if (felder.warten_auf === undefined && alt?.warten_auf !== "marcel") felder.warten_auf = "marcel";
       }
+      // Kennt der Aufrufer die neuen Felder ueberhaupt? Ein Client mit altem Schema (Tools in
+      // ChatGPT noch nicht aktualisiert) kann sie nicht senden und darf daran nicht scheitern.
+      const kenntNeu = ["taetigkeit", "zustaendig", "warten_auf", "wartegrund", "naechste_aktion", "bestaetigt_am", "fehler"]
+        .some((k) => a[k] !== undefined);
       // wartet ohne Wartegrund ist genau das, was Marcel am Board nicht lesen kann
       if (felder.status === "wartet") {
+        // Rueckwaertskompatibel: altes Schema schreibt den Grund in hinweis
+        if (!kenntNeu && felder.wartegrund === undefined && typeof felder.hinweis === "string" && felder.hinweis.trim()) {
+          felder.wartegrund = felder.hinweis;
+        }
         const grund = String(felder.wartegrund ?? alt?.wartegrund ?? "").trim();
         const art = String(felder.warten_auf ?? alt?.warten_auf ?? "").trim();
         if (grund.length < 10 || !WARTEN.includes(art)) {
-          throw new Error(`status wartet braucht warten_auf (${WARTEN.join(" | ")}) und wartegrund, die konkrete Abhaengigkeit als ganzen Satz. ${WARTEN_TEXT} Wartet niemand und nichts, sondern du arbeitest, ist der status arbeitet mit taetigkeit.`);
+          // Nur wer die Felder kennt, wird darauf festgenagelt; alle anderen bekommen einen Hinweis
+          if (kenntNeu) {
+            throw new Error(`status wartet braucht warten_auf (${WARTEN.join(" | ")}) und wartegrund, die konkrete Abhaengigkeit als ganzen Satz. ${WARTEN_TEXT} Wartet niemand und nichts, sondern du arbeitest, ist der status arbeitet mit taetigkeit.`);
+          }
+          altesSchema = `status wartet wurde ohne warten_auf und wartegrund uebernommen, das Board zeigt darum nur ein unbestimmtes 'Wartet'. Dein Werkzeugschema ist veraltet: in ChatGPT unter Plugins > Tony Board > Verwalten 'Tools aktualisieren' klicken, dann warten_auf (${WARTEN.join(" | ")}) und wartegrund mitgeben.`;
         }
       }
       // Neuer Inhalt nach Freigabe = neue Freigabe noetig
@@ -413,6 +425,7 @@ async function werkzeug(name: string, a: Record<string, any>): Promise<unknown> 
       // Nach vorne nur auf Wunsch oder wenn Marcel gebraucht wird; laufende Arbeit draengt sich nicht vor
       if (a.fokus || (!alt && felder.status === "braucht_dich")) await setzeZustand({ fokus: a.id });
       const hinweise = bereichHinweis ? [bereichHinweis] : [];
+      if (altesSchema) hinweise.push(altesSchema);
       if (felder.status === "arbeitet" && !String(felder.taetigkeit ?? "").trim()) {
         hinweise.push("Ohne taetigkeit zeigt das Board 'Status nicht aktuell bestaetigt' statt laufender Arbeit. Nenne in einem Satz, was du gerade tatsaechlich tust.");
       }
