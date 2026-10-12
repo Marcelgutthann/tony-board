@@ -1,0 +1,131 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Herzschlag oder Ereignis? · Konzept 12.10.2026</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+ body{font:16px/1.55 -apple-system,Segoe UI,Roboto,sans-serif;max-width:860px;margin:0 auto;padding:24px;color:#14323a}
+ h1{font-size:22px;margin:0 0 4px} h2{font-size:17px;margin:30px 0 8px}
+ .e{background:#f2f7ee;border:1px solid #cdddbe;border-radius:8px;padding:14px;font-size:15px}
+ .w{background:#fdf4e7;border:1px solid #e8d2ab;border-radius:8px;padding:14px;font-size:15px;margin-top:14px}
+ table{border-collapse:collapse;width:100%;font-size:14.5px;margin-top:8px}
+ th,td{border:1px solid #d7e2e4;padding:8px 10px;text-align:left;vertical-align:top}
+ th{background:#eef5f6;font-weight:600}
+ td.ja{color:#2f6b36}td.nein{color:#9b3b3b}
+ code{background:#eef5f6;padding:1px 5px;border-radius:4px;font-size:13.5px}
+ pre{background:#f7fafb;border:1px solid #dde7e9;border-radius:8px;padding:12px;font-size:13px;overflow:auto}
+ ul{margin:8px 0 0 20px}
+ .q{color:#54707a;font-size:14px}
+</style>
+
+<h1>Braucht es einen Herzschlag alle 10 Minuten?</h1>
+<p class="q">Konzeptantwort, 12.10.2026. Nichts davon ist eingerichtet — kein Dienst, kein Zeitplan,
+kein wiederkehrender KI-Aufruf, kein neuer Zugang.</p>
+
+<div class="e">
+<b>Empfehlung: ja zur 10-Minuten-Kontrolle, nein zum 10-Minuten-KI-Aufruf.</b>
+Die Kontrolle alle 10 Minuten soll <i>rechnen</i>, nicht <i>überlegen</i>. Sie vergleicht Tatsachen
+(Status, bestätigtes Signal, Freigabe, Eingaben von dir) und weckt die KI nur, wenn sich wirklich
+etwas geändert hat. Kosten im Leerlauf: null. Das „Überlegen, was wir daran machen müssten“
+passiert dann in der Sitzung, die ohnehin für dieses Fenster läuft — mit vollem Zusammenhang.
+</div>
+
+<h2>Was es schon gibt (und was dadurch entfällt)</h2>
+<p>Die Hälfte der Frage ist bereits gebaut und läuft seit gestern: <code>tony-waechter.service</code>
+schaut <b>alle 5 Sekunden</b> nach, ob Tony an mich geschrieben hat. Kein KI-Aufruf, nur eine kleine
+Abfrage. Erst wenn Post da ist, startet eine Claude-Sitzung — und zwar genau eine je Fenster
+(<code>flock</code> auf <code>fenster-&lt;id&gt;.lock</code>), höchstens drei gleichzeitig
+(<code>platz-1..3.lock</code>), und sie setzt die bisherige Sitzung fort statt neu anzufangen.</p>
+<p><b>Damit ist „keine doppelten Jobs durch konkurrierende Prüfer“ schon gelöst</b> — vorausgesetzt,
+die neue Kontrolle startet nichts selbst, sondern legt ihren Befund in dasselbe Postfach. Dann erbt
+sie die Sperren, die Platzbegrenzung und den Sitzungszusammenhang geschenkt.</p>
+
+<h2>Die Lücke, die bleibt</h2>
+<p>Ereignisse von Tony erreichen mich in 5 Sekunden. Vier Dinge erzeugen aber <i>kein</i> Ereignis:</p>
+<table>
+<tr><th>Was passiert</th><th>Merkt es heute jemand?</th><th>Ohne KI prüfbar?</th></tr>
+<tr><td>Ein Fenster meldet „arbeitet“, aber seit 15+ Minuten keine Tätigkeit</td><td class="nein">nein</td><td class="ja">ja, reine Rechnung</td></tr>
+<tr><td>Du schreibst etwas auf eine Karte</td><td class="nein">nur Tony beim nächsten Blick</td><td class="ja">ja, steht im Board</td></tr>
+<tr><td>Eine Freigabe liegt erteilt da, die Karte wartet weiter</td><td class="nein">nein</td><td class="ja">ja, zwei Felder vergleichen</td></tr>
+<tr><td>Ein externer Lauf (CI, Build) ist fertig — Blocker weg</td><td class="nein">nein</td><td>nur mit Quellenangabe, siehe unten</td></tr>
+</table>
+
+<h2>Der eine echte Fehlbestand</h2>
+<div class="w">
+<b>„Wartet auf einen externen Vorgang“ ist heute nicht nachprüfbar.</b> Eine Karte sagt zwar seit
+heute, <i>dass</i> sie extern wartet und <i>warum</i> — aber nicht, <i>woran man es nachsieht</i>.
+Ohne Lauf-Nummer oder Link kann keine Kontrolle feststellen, ob der Vorgang noch läuft; sie müsste
+raten, und genau das soll sie nicht. Vorschlag: ein Feld <code>wartequelle</code> (Link oder
+Lauf-Nummer). Damit wird aus „wartet auf GitHub“ ein prüfbarer Satz. Aufwand etwa eine Stunde,
+dieselbe Bauart wie die heute ergänzten Statusfelder.
+</div>
+
+<h2>Die drei Bauarten im Vergleich</h2>
+<table>
+<tr><th>Variante</th><th>Was alle 10 Min. passiert</th><th>Laufende Kosten</th><th>Risiko</th></tr>
+<tr><td><b>A — Kontrolle ohne KI</b><br>(Empfehlung)</td>
+    <td>Ein <code>GET /state</code>, feste Regeln rechnen. Nur bei echter Änderung ein Eintrag ins
+        bestehende Postfach → bestehende Sitzung wacht auf.</td>
+    <td><b>0 €</b></td>
+    <td>Erkennt nur, was sich als Regel schreiben lässt.</td></tr>
+<tr><td><b>B — kleiner KI-Blick</b></td>
+    <td>Ein kurzer Aufruf mit nur der Statusliste (~3k Token), ohne Sitzungsverlauf, der beurteilt,
+        ob etwas auffällt.</td>
+    <td>≈ <b>0,50 €/Tag</b> (Haiku) bis 1 €/Tag (Sonnet), also 15–30 €/Monat</td>
+    <td>Kann Aktivität behaupten, die es nicht gibt — gegen genau das haben wir heute gebaut.</td></tr>
+<tr><td><b>C — Herzschlag in der Sitzung</b><br>(„alle 10 Min. überlegen“)</td>
+    <td>Je Fenster ein <code>claude --resume</code>: Die Sitzung wird mit vollem Verlauf erneut gelesen.</td>
+    <td><b>70–840 €/Tag</b></td>
+    <td>Unbezahlbar, siehe Rechnung.</td></tr>
+</table>
+
+<h2>Warum Variante C so teuer ist</h2>
+<p>Gemessen an den echten Sitzungen auf diesem Server: ein Fenster trägt heute
+<b>113.000 bis 367.000 Token</b> Zusammenhang. Jeder <code>--resume</code> liest den ganzen Verlauf
+erneut. Bei 200k Token, 6 Aufrufen je Stunde, 16 Stunden, 7 offenen Fenstern sind das 672 Aufrufe
+am Tag — je nachdem, ob der Zwischenspeicher noch warm ist, zwischen 70 € und 840 € täglich.
+Zum Vergleich: heute liefen <b>68 Läufe in anderthalb Tagen</b>, im Schnitt 6,7 Minuten.
+Ein 10-Minuten-Takt wäre das Zehnfache an Aufrufen für überwiegend „nichts zu tun“.</p>
+
+<h2>Belegt, nicht geschätzt</h2>
+<p>Die Erkennungslogik aus Variante A ist geschrieben und geprüft
+(<code>herzschlag-probe.py</code>, läuft von Hand, richtet nichts ein). Neun konstruierte Fälle,
+neun Treffer:</p>
+<pre>OK   a: erwartet signal_veraltet, bekommen {'signal_veraltet'}
+OK   b: erwartet signal_veraltet, bekommen {'signal_veraltet'}
+OK   c: erwartet nichts, bekommen nichts
+OK   d: erwartet antwort_offen, bekommen {'antwort_offen'}
+OK   e: erwartet nichts, bekommen nichts
+OK   f: erwartet freigabe_ungenutzt, bekommen {'freigabe_ungenutzt'}
+OK   g: erwartet extern_pruefbar, bekommen {'extern_pruefbar'}
+OK   h: erwartet extern_blind, bekommen {'extern_blind'}
+OK   i: erwartet zugang_offen, bekommen {'zugang_offen'}</pre>
+<p>Gegen das echte Board gelaufen: <b>8 offene Fenster, 0 Befunde</b>, Laufzeit 1,4 Sekunden.
+Ein Herzschlag hätte in diesem Moment niemanden geweckt — was genau der Punkt ist.</p>
+
+<h2>Die Regeln, an die sich die Kontrolle halten muss</h2>
+<ul>
+<li><b>Kein erfundenes Lebenszeichen.</b> Die Kontrolle setzt <code>bestaetigt_am</code> nur, wenn
+sie etwas tatsächlich nachgesehen hat, und schreibt dann dazu, was sie gelesen hat. Ein Takt allein
+ist kein Signal.</li>
+<li><b>Keine doppelten Jobs.</b> Sie startet nie selbst eine Sitzung, sondern schreibt ins
+bestehende Postfach. Die vorhandenen Sperren gelten damit automatisch.</li>
+<li><b>Keine übergangene Freigabe, kein Geld.</b> Sie meldet nur. Alles, was kostet oder nach außen
+geht, bleibt bei den bestehenden Regeln — inklusive deiner ausdrücklichen Freigabe für
+kostenpflichtige CI-Läufe.</li>
+<li><b>Nur bei echter Änderung wecken.</b> Jeder Befund wird gemerkt; derselbe Befund weckt kein
+zweites Mal. Dazu eine Obergrenze je Fenster und Tag.</li>
+<li><b>Zuständigkeit und Prüfzeitpunkt sichtbar</b> — das steht seit heute ohnehin in jeder Karte
+(<code>zustaendig</code> und „Zuletzt bestätigt vor …“). Dafür braucht es nichts Neues.</li>
+</ul>
+
+<h2>Aufwand, wenn du es willst</h2>
+<table>
+<tr><th>Schritt</th><th>Aufwand</th><th>Laufende Kosten</th></tr>
+<tr><td>Feld <code>wartequelle</code> + Anzeige in der Karte</td><td>≈ 1 h</td><td>0 €</td></tr>
+<tr><td>Variante A produktiv: Merker gegen Doppelmeldung, Eintrag ins Postfach, Obergrenze, Zeitplan</td><td>≈ 2–3 h</td><td>0 € im Leerlauf</td></tr>
+<tr><td>Prüfung externer Läufe über das schon angemeldete <code>gh</code></td><td>≈ 1 h</td><td>0 €</td></tr>
+<tr><td><i>optional später</i> Variante B als Ergänzung</td><td>≈ 2 h</td><td>15–30 €/Monat</td></tr>
+</table>
+<p>Ein neuer Zeitplan (systemd-Timer) wäre der einzige dauerhaft neue Bestandteil — deshalb liegt
+genau der bis zu deiner Freigabe still.</p>
