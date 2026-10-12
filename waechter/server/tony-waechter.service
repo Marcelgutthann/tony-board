@@ -1,0 +1,13 @@
+[Unit]
+Description=Tony-Board-Waechter (Dauerdienst, schaut alle 5 s nach Post von Tony)
+After=network-online.target
+
+[Service]
+Environment=HOME=/root
+ExecStart=/bin/bash -c "while true; do /opt/tony/waechter/waechter.sh; sleep 5; done"
+Restart=always
+RestartSec=5
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target

@@ -36,9 +36,12 @@ schaut <b>alle 5 Sekunden</b> nach, ob Tony an mich geschrieben hat. Kein KI-Auf
 Abfrage. Erst wenn Post da ist, startet eine Claude-Sitzung — und zwar genau eine je Fenster
 (<code>flock</code> auf <code>fenster-&lt;id&gt;.lock</code>), höchstens drei gleichzeitig
 (<code>platz-1..3.lock</code>), und sie setzt die bisherige Sitzung fort statt neu anzufangen.</p>
-<p><b>Damit ist „keine doppelten Jobs durch konkurrierende Prüfer“ schon gelöst</b> — vorausgesetzt,
-die neue Kontrolle startet nichts selbst, sondern legt ihren Befund in dasselbe Postfach. Dann erbt
-sie die Sperren, die Platzbegrenzung und den Sitzungszusammenhang geschenkt.</p>
+<p><b>„Keine doppelten Jobs durch konkurrierende Prüfer“ ist damit weitgehend abgedeckt</b> —
+vorausgesetzt, die neue Kontrolle startet nichts selbst, sondern legt ihren Befund in dasselbe
+Postfach. Dann erbt sie Sperre, Platzbegrenzung und Sitzungszusammenhang geschenkt. Eine
+<i>absolute</i> Garantie ist eine Dateisperre allerdings nicht: sie wirkt nur zwischen Prozessen,
+die sie auch nehmen, und fällt beim Abschuss eines Prozesses sofort weg. Was sie genau leistet und
+was nicht, steht im <a href="../aktivierung/">Aktivierungs-Nachweis</a>.</p>
 
 <h2>Die Lücke, die bleibt</h2>
 <p>Ereignisse von Tony erreichen mich in 5 Sekunden. Vier Dinge erzeugen aber <i>kein</i> Ereignis:</p>
@@ -62,30 +65,39 @@ dieselbe Bauart wie die heute ergänzten Statusfelder.
 
 <h2>Die drei Bauarten im Vergleich</h2>
 <table>
-<tr><th>Variante</th><th>Was alle 10 Min. passiert</th><th>Laufende Kosten</th><th>Risiko</th></tr>
+<tr><th>Variante</th><th>Was alle 10 Min. passiert</th><th>Laufender Verbrauch</th><th>Risiko</th></tr>
 <tr><td><b>A — Kontrolle ohne KI</b><br>(Empfehlung)</td>
     <td>Ein <code>GET /state</code>, feste Regeln rechnen. Nur bei echter Änderung ein Eintrag ins
         bestehende Postfach → bestehende Sitzung wacht auf.</td>
-    <td><b>0 €</b></td>
+    <td><b>kein KI-Aufruf</b>, eine HTTP-Abfrage je Takt</td>
     <td>Erkennt nur, was sich als Regel schreiben lässt.</td></tr>
 <tr><td><b>B — kleiner KI-Blick</b></td>
     <td>Ein kurzer Aufruf mit nur der Statusliste (~3k Token), ohne Sitzungsverlauf, der beurteilt,
         ob etwas auffällt.</td>
-    <td>≈ <b>0,50 €/Tag</b> (Haiku) bis 1 €/Tag (Sonnet), also 15–30 €/Monat</td>
+    <td><b>klein</b>: ~3k Token je Takt, ~100 Takte am Tag</td>
     <td>Kann Aktivität behaupten, die es nicht gibt — gegen genau das haben wir heute gebaut.</td></tr>
 <tr><td><b>C — Herzschlag in der Sitzung</b><br>(„alle 10 Min. überlegen“)</td>
     <td>Je Fenster ein <code>claude --resume</code>: Die Sitzung wird mit vollem Verlauf erneut gelesen.</td>
-    <td><b>70–840 €/Tag</b></td>
-    <td>Unbezahlbar, siehe Rechnung.</td></tr>
+    <td><b>sehr groß</b>: 672 Läufe am Tag mit je 113k–367k Token</td>
+    <td>Mit Abstand teuerster Weg, siehe Rechnung.</td></tr>
 </table>
 
 <h2>Warum Variante C so teuer ist</h2>
-<p>Gemessen an den echten Sitzungen auf diesem Server: ein Fenster trägt heute
-<b>113.000 bis 367.000 Token</b> Zusammenhang. Jeder <code>--resume</code> liest den ganzen Verlauf
-erneut. Bei 200k Token, 6 Aufrufen je Stunde, 16 Stunden, 7 offenen Fenstern sind das 672 Aufrufe
-am Tag — je nachdem, ob der Zwischenspeicher noch warm ist, zwischen 70 € und 840 € täglich.
-Zum Vergleich: heute liefen <b>68 Läufe in anderthalb Tagen</b>, im Schnitt 6,7 Minuten.
-Ein 10-Minuten-Takt wäre das Zehnfache an Aufrufen für überwiegend „nichts zu tun“.</p>
+<p><b>Gemessen</b> ist das Volumen, nicht der Preis: ein Fenster trägt heute <b>113.000 bis
+367.000 Eingabe-Token</b> Zusammenhang (aus den <code>usage</code>-Feldern von vier echten
+Sitzungen), und heute liefen <b>68 Läufe in anderthalb Tagen</b>, im Schnitt 6,7 Minuten. Jeder
+<code>--resume</code> liest den ganzen Verlauf erneut. Bei 6 Aufrufen je Stunde, 16 Stunden und
+7 offenen Fenstern wären das <b>672 Läufe am Tag</b> statt der heutigen rund 45 — das Zehnfache,
+für überwiegend „nichts zu tun“.</p>
+<div class="w">
+<b>Keine Preisangabe, und zwar bewusst.</b> Der Runner startet die CLI mit
+<code>env -u ANTHROPIC_API_KEY</code>, läuft also über Marcels Anmeldung und nicht über eine
+tokenweise abgerechnete Schnittstelle. Was ein Lauf kostet, hängt damit an Tarif, Modell,
+Cache-Zustand und Ausgabelänge — nichts davon ist hier gemessen. Belastbar ist allein das
+Mengenverhältnis: Variante C ist um den Faktor zehn aufwendiger als der heutige Betrieb und
+stößt bei einem Abo zuerst an die Nutzungsgrenzen. Eine belastbare Zahl bekäme man nur aus der
+Abrechnung selbst.
+</div>
 
 <h2>Belegt, nicht geschätzt</h2>
 <p>Die Erkennungslogik aus Variante A ist geschrieben und geprüft
@@ -121,11 +133,11 @@ zweites Mal. Dazu eine Obergrenze je Fenster und Tag.</li>
 
 <h2>Aufwand, wenn du es willst</h2>
 <table>
-<tr><th>Schritt</th><th>Aufwand</th><th>Laufende Kosten</th></tr>
+<tr><th>Schritt</th><th>Aufwand</th><th>Laufender Verbrauch</th></tr>
 <tr><td>Feld <code>wartequelle</code> + Anzeige in der Karte</td><td>≈ 1 h</td><td>0 €</td></tr>
 <tr><td>Variante A produktiv: Merker gegen Doppelmeldung, Eintrag ins Postfach, Obergrenze, Zeitplan</td><td>≈ 2–3 h</td><td>0 € im Leerlauf</td></tr>
 <tr><td>Prüfung externer Läufe über das schon angemeldete <code>gh</code></td><td>≈ 1 h</td><td>0 €</td></tr>
-<tr><td><i>optional später</i> Variante B als Ergänzung</td><td>≈ 2 h</td><td>15–30 €/Monat</td></tr>
+<tr><td><i>optional später</i> Variante B als Ergänzung</td><td>≈ 2 h</td><td>kleiner KI-Aufruf je Takt</td></tr>
 </table>
 <p>Ein neuer Zeitplan (systemd-Timer) wäre der einzige dauerhaft neue Bestandteil — deshalb liegt
 genau der bis zu deiner Freigabe still.</p>

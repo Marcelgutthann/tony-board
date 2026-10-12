@@ -1,0 +1,129 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Aktivierung: was auf dem Server wirklich läuft · 12.10.2026</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+ body{font:16px/1.55 -apple-system,Segoe UI,Roboto,sans-serif;max-width:900px;margin:0 auto;padding:24px;color:#14323a}
+ h1{font-size:22px;margin:0 0 4px} h2{font-size:17px;margin:30px 0 8px}
+ .e{background:#f2f7ee;border:1px solid #cdddbe;border-radius:8px;padding:14px;font-size:15px}
+ .w{background:#fdf4e7;border:1px solid #e8d2ab;border-radius:8px;padding:14px;font-size:15px;margin-top:14px}
+ table{border-collapse:collapse;width:100%;font-size:14.5px;margin-top:8px}
+ th,td{border:1px solid #d7e2e4;padding:8px 10px;text-align:left;vertical-align:top}
+ th{background:#eef5f6;font-weight:600}
+ code{background:#eef5f6;padding:1px 5px;border-radius:4px;font-size:13.5px}
+ pre{background:#f7fafb;border:1px solid #dde7e9;border-radius:8px;padding:12px;font-size:13px;overflow:auto}
+ .q{color:#54707a;font-size:14px} ul{margin:8px 0 0 20px}
+</style>
+
+<h1>Aktivierung: was auf dem Server wirklich läuft</h1>
+<p class="q">Read-only erhoben am 12.10.2026, 13:2x UTC. Nichts verändert: kein Timer, kein Deploy,
+keine Datenbank, keine Zugangsdaten. Alle Angaben stammen aus <code>systemctl</code>, dem
+Wächter-Log und den Skripten selbst.</p>
+
+<div class="w">
+<b>Die wichtigste Richtigstellung:</b> <code>waechter.ps1</code> im Repo ist die alte Fassung für
+Marcels <b>Windows-Laptop</b>. Auf dem Server existiert diese Datei nicht
+(<code>ls: cannot access '/opt/tony/waechter/waechter.ps1': No such file or directory</code>).
+Produktiv läuft ein anderes Skript. Ein Patch gegen <code>waechter.ps1</code> ändert am
+Serververhalten nichts. Die wirklich laufenden Dateien liegen jetzt versioniert unter
+<code>waechter/server/</code>.
+</div>
+
+<h2>1. Hosttyp, Pfade, Zustand</h2>
+<table>
+<tr><th>Frage</th><th>Befund</th></tr>
+<tr><td>Hosttyp</td><td>Ubuntu 26.04.1 LTS, Linux 7.0.0-31-generic, x86_64 (Hetzner), systemd</td></tr>
+<tr><td>Unit</td><td><code>/etc/systemd/system/tony-waechter.service</code></td></tr>
+<tr><td>Start-Skript</td><td><code>/opt/tony/waechter/waechter.sh</code> (1518 B, <code>sha256 c85ef04ac5089b9b…</code>)</td></tr>
+<tr><td>Arbeiter-Skript</td><td><code>/opt/tony/waechter/bearbeite.sh</code> (3930 B, <code>sha256 9586dbea201205f1…</code>)</td></tr>
+<tr><td>Dienstzustand</td><td><code>ActiveState=active</code>, <code>SubState=running</code>, <code>NRestarts=0</code></td></tr>
+<tr><td>Letzter erfolgreicher Start</td><td><code>So 2026-10-11 18:48:38 UTC</code>, PID 3703175 — seitdem ununterbrochen</td></tr>
+<tr><td>Versionierter Code</td><td>bis heute <b>gar nicht</b> — die Server-Skripte lagen nur auf der Platte. Deshalb zeigte das Repo nur die Windows-Fassung. Jetzt als wortgetreue Kopie unter <code>waechter/server/</code>.</td></tr>
+</table>
+<p>Kein Zeitplan, kein Cron: Der Dienst ist eine Dauerschleife.</p>
+<pre>ExecStart=/bin/bash -c "while true; do /opt/tony/waechter/waechter.sh; sleep 5; done"</pre>
+
+<h2>2. Der Auftrag von 12:24</h2>
+<table>
+<tr><th>Schritt</th><th>Beleg aus dem Log</th></tr>
+<tr><td>Nachricht abgesetzt</td><td><code>2026-10-12T12:24:32.450Z</code> (Zeitstempel in der Nachricht)</td></tr>
+<tr><td>Vom Wächter abgeholt</td><td><code>12:24:37</code> — rund <b>5 Sekunden</b> später</td></tr>
+<tr><td>Arbeiter gestartet</td><td><code>12:24:37 [board-arbeitsstatus-verbessern] Start (Platz frei)</code></td></tr>
+<tr><td>Auftrags-Kennung</td><td>transiente Unit <code>tony-board-arbeitsstatus-verbessern--&lt;ns&gt;.service</code>, Postdatei <code>post/board-arbeitsstatus-verbessern.&lt;ns&gt;.txt</code></td></tr>
+<tr><td>Claude-Sitzung</td><td><code>22336c6c-9c13-4722-ba17-82846fe7a323</code> (fortgesetzt per <code>--resume</code>)</td></tr>
+<tr><td>Lauf beendet</td><td><code>12:59:31</code>, Code 0, <b>2090 s</b></td></tr>
+</table>
+<p><b>Die Aktivierung hat also funktioniert.</b> Was fehlte, war jede Rückmeldung dazwischen:
+35 Minuten lang gab es für dich kein Lebenszeichen.</p>
+
+<h2>3. Sperren — und was sie <i>nicht</i> garantieren</h2>
+<p>Du hast recht: eine Dateisperre ist keine absolute Doppelstartgarantie. Genau, was sie leistet:</p>
+<table>
+<tr><th>Mechanismus</th><th>Garantiert</th><th>Garantiert <b>nicht</b></th></tr>
+<tr><td><code>flock 8</code> auf <code>locks/fenster-&lt;id&gt;.lock</code> (blockierend, Zeile 14)</td>
+    <td>Höchstens ein Arbeiter je Fenster gleichzeitig, solange jeder Starter durch <code>bearbeite.sh</code> geht</td>
+    <td>Nichts gegen einen Starter, der die Sperre umgeht (Handstart, künftige Kontrolle, die <code>claude</code> direkt aufruft). Beim Abschuss des Prozesses fällt die Sperre sofort — ein halb erledigter Lauf ist dann nicht erkennbar.</td></tr>
+<tr><td><code>flock -n 7</code> auf <code>locks/platz-1..3.lock</code> (Zeile 19)</td>
+    <td>Höchstens drei Claude-Sitzungen gleichzeitig auf dem Host</td>
+    <td>Keine Priorisierung: wer zuerst kommt, nimmt den Platz.</td></tr>
+<tr><td><code>flock -n 9</code> auf <code>verteiler.lock</code></td>
+    <td>Nur ein Verteilerlauf gleichzeitig</td>
+    <td>—</td></tr>
+</table>
+
+<h2>4. Claim/Ack und Absturz zwischen Lesen und Start</h2>
+<p>Hier liegt der echte Mangel. Zeile 24 in <code>bearbeite.sh</code>:</p>
+<pre>text=$(cat "$datei"); rm -f "$datei"</pre>
+<p>Die Nachricht wird <b>gelöscht, bevor</b> <code>claude</code> startet (Zeile 46). Das heißt:</p>
+<ul>
+<li><b>Kein Ack.</b> Weder beim Abholen noch beim Start wird dir etwas gemeldet. Du erfährst erst
+etwas, wenn der ganze Lauf fertig ist.</li>
+<li><b>Kein Claim mit Rückweg.</b> Stirbt der Prozess zwischen Zeile 24 und dem ersten Ausgabe-Byte
+von Claude, ist die Nachricht <b>verloren</b> — sie wird nicht erneut zugestellt. Zustellung ist
+heute „höchstens einmal“, nicht „genau einmal“.</li>
+<li><b>Keine Statusantwort während eines Laufs.</b> Es gibt keinen Weg, einen laufenden Arbeiter zu
+fragen. Deine Zwischenfrage legt sich hinter die blockierende Sperre und wird erst nach dem
+laufenden Auftrag bearbeitet.</li>
+<li><b>Jede Nachricht wird ein eigener Arbeiter.</b> Vier Nachrichten zu einem Fenster = vier
+nacheinander laufende Claude-Sitzungen, jede mit dem vollen Sitzungsverlauf. Zusammengefasst wird
+nichts.</li>
+</ul>
+<p class="q">Gemessen an diesem Fenster: vier Läufe heute, die Nachrichten von 12:34, 12:43, 12:47
+und 13:06 wurden einzeln abgearbeitet — die von 12:47 sogar doppelt, weil sie schon vorab aus der
+Warteschlange gelesen und beantwortet war.</p>
+
+<h2>5. Korrektur zu meinen Kostenangaben</h2>
+<div class="e">
+Du hast zu Recht beanstandet, dass ich Beträge ohne Grundlage genannt habe. Richtig ist:
+<ul>
+<li><b>Gemessen</b> ist nur das Tokenvolumen: 113.000 / 175.000 / 358.000 / 367.000 Eingabe-Token
+bei der jeweils letzten Anfrage von vier Sitzungen (aus den <code>usage</code>-Feldern der
+Sitzungsdateien), sowie 68 Läufe mit im Schnitt 401 s.</li>
+<li><b>Nicht gemessen, sondern angenommen</b> waren Modell, Tarif, Cache-Zustand und Ausgabelänge.</li>
+<li><b>Entscheidend und von mir übersehen:</b> der Runner startet die CLI mit
+<code>env -u ANTHROPIC_API_KEY</code>, läuft also über Marcels <b>Anmeldung/Abo</b> und nicht über
+eine tokenweise abgerechnete API. Meine „€/Tag“ waren damit <b>Listenpreis-Äquivalente eines
+Tokenvolumens</b>, keine Rechnungsbeträge.</li>
+</ul>
+Was trotzdem gilt und für die Entscheidung reicht: ein 10-Minuten-Takt je Fenster würde das
+Zehnfache der heutigen Läufe erzeugen, jeder mit dem vollen Sitzungsverlauf — unabhängig vom Tarif
+ist das der mit Abstand teuerste Weg, und er stößt bei einem Abo zuerst an die Nutzungsgrenzen.
+</div>
+
+<h2>6. Was ich getan und was ich nicht angefasst habe</h2>
+<table>
+<tr><th>Angefasst</th><th>Nicht angefasst</th></tr>
+<tr><td>
+<ul><li><code>docs/index.html</code> (Statusleiste)</li>
+<li><code>supabase/tony-board/index.ts</code> (Statusfelder, danach Rückwärtskompatibilität)</li>
+<li><code>compat-test.mjs</code>, <code>sidebar-test.mjs</code>, <code>status-test.mjs</code>, <code>herzschlag-probe.py</code></li>
+<li>Dokumentseiten unter <code>docs/</code>, Kopien unter <code>waechter/server/</code></li></ul>
+</td><td>
+<ul><li><code>/opt/tony/waechter/waechter.sh</code></li>
+<li><code>/opt/tony/waechter/bearbeite.sh</code></li>
+<li>die systemd-Unit und jeder Zeitplan</li>
+<li>Queue-, Claim-, Ack- und Sperrlogik</li>
+<li>Zugangsdaten, Hosteinstellungen, CI</li></ul>
+</td></tr>
+</table>
