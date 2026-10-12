@@ -20,15 +20,17 @@ Hier liegen nur Entwürfe, ein Diff, ein Prüfstand und der Plan zum Scharfschal
 2. **Warten sichtbar mit Grund.** `bearbeite.sh` versucht die Sperre erst ohne Blockieren. Klappt
    das nicht, meldet es „Wartet: … läuft bereits ein Arbeiter (Prozess N)" und blockiert erst
    danach. Auch ein belegter Arbeitsplatz wird einmalig gemeldet.
-3. **Arbeitsstart erst nach Erwerb und Prozessstart.** Die Startmeldung steht hinter Sperre,
-   Platz und Übernahme der Post, unmittelbar vor dem `claude`-Aufruf — sie sagt ausdrücklich
-   „Vorher war nur der Empfang bestätigt, jetzt läuft der Prozess". Gleichzeitig bekommt die Karte
-   `taetigkeit` und `zustaendig`, damit die Statusleiste ein echtes bestätigtes Signal zeigt.
+3. **Arbeitsstart erst nach belegtem Prozessstart.** Die Startmeldung steht hinter Sperre, Platz,
+   Übernahme der Post **und** dem Nachweis, dass wirklich ein Prozess lief (siehe Revision 2).
+   Sie nennt die PID und sagt ausdrücklich „Vorher war nur der Empfang bestätigt". Gleichzeitig
+   bekommt die Karte `taetigkeit` und `zustaendig`, damit die Statusleiste ein echtes bestätigtes
+   Signal zeigt.
 4. **Statusfragen stapeln sich nicht mehr.** Unter der Fenstersperre wird **alles** Offene zu
    diesem Fenster zu *einem* Lauf zusammengefasst. Weitere Arbeiter finden nichts mehr vor und
    beenden sich ohne `claude`-Aufruf. Der Auftragstext weist Claude an, reine Statusnachfragen
    kurz zu beantworten und dafür keine neue Umsetzung zu beginnen.
-5. **Abschluss und Fehler sauber.** Nach einem sauberen Lauf wird die übernommene Post entfernt.
+5. **Abschluss und Fehler sauber.** Nach einem Lauf mit belegter Ergebniszustellung wird die
+   übernommene Post entfernt.
    Bei Abbruch wandert der Text nach `fehlgeschlagen/`, Tony bekommt eine Fehlermeldung, die Karte
    bekommt den Fehlertext — **kein** automatischer Neuversuch.
 6. **Nebenbefund, trennbar:** Die Post wird nicht mehr vor dem Start gelöscht, sondern nach
