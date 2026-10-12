@@ -111,7 +111,20 @@ Zehnfache der heutigen Läufe erzeugen, jeder mit dem vollen Sitzungsverlauf —
 ist das der mit Abstand teuerste Weg, und er stößt bei einem Abo zuerst an die Nutzungsgrenzen.
 </div>
 
-<h2>6. Was ich getan und was ich nicht angefasst habe</h2>
+<h2>6. Der Patch dazu — vorgeschlagen, nicht installiert</h2>
+<p>Die Empfangs-, Warte- und Startrückmeldung ist geschrieben und geprüft, aber <b>nicht
+eingespielt</b>: Diff, Prüfstand und Aktivierungs-/Rollbackplan liegen unter
+<code>waechter/server/patch/</code> im Repo. Der Prüfstand läuft gegen eine nachgebildete
+Board-API und ein nachgebildetes <code>claude</code> in einem Wegwerf-Ordner —
+<b>29 von 29 Prüfungen bestanden</b>, darunter: vier Nachrichten werden ein Lauf statt vier,
+Warten wird mit Grund und vor dem Start gemeldet, ein zweiter Arbeiter ohne offene Post startet
+kein <code>claude</code>, ein Abbruch sichert den Text ohne Wiederholung, und ein Absturz nach der
+Übernahme verliert nichts mehr.</p>
+<p>Die Umstellung greift ohne Dienst-Neustart binnen fünf Sekunden, weil die Dauerschleife das
+Skript bei jedem Durchlauf neu liest; der Rollback geht denselben Weg zurück. Beides steht
+Schritt für Schritt in <code>waechter/server/patch/README.md</code>.</p>
+
+<h2>7. Was ich getan und was ich nicht angefasst habe</h2>
 <table>
 <tr><th>Angefasst</th><th>Nicht angefasst</th></tr>
 <tr><td>
