@@ -1,6 +1,6 @@
 --- a/waechter.sh
 +++ b/waechter.sh
-@@ -1,26 +1,46 @@
+@@ -1,26 +1,47 @@
  #!/bin/bash
 -# Tony-Board-Waechter (Server): laeuft jede Minute per systemd-Timer.
 +# Tony-Board-Waechter (Server): laeuft als Dauerdienst, schaut alle 5 s nach Post von Tony.
@@ -22,7 +22,8 @@
 +
 +# Kurze Meldung an Tony, ohne KI. Darf nie blockieren und nie den Lauf abbrechen.
 +an_tony() {
-+  jq -n --arg t "$1" --arg f "$2" \
++  # Gleiches Kennzeichen wie im Arbeiter: eine Meldung des Runners ist nie ein Arbeitsergebnis.
++  jq -n --arg t "[Runner] $1" --arg f "$2" \
 +    '{text:$t} + (if $f != "" and $f != "ohne-fenster" then {fenster_id:$f} else {} end)' \
 +    | curl -s --max-time 10 -X POST "$api/an-tony" -H 'content-type: application/json' --data-binary @- >/dev/null 2>&1 || true
 +}

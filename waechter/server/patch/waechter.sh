@@ -15,7 +15,8 @@ api=${TONY_BOARD_API:-"https://lzrfyxejlejxfpvqpket.supabase.co/functions/v1/ton
 
 # Kurze Meldung an Tony, ohne KI. Darf nie blockieren und nie den Lauf abbrechen.
 an_tony() {
-  jq -n --arg t "$1" --arg f "$2" \
+  # Gleiches Kennzeichen wie im Arbeiter: eine Meldung des Runners ist nie ein Arbeitsergebnis.
+  jq -n --arg t "[Runner] $1" --arg f "$2" \
     '{text:$t} + (if $f != "" and $f != "ohne-fenster" then {fenster_id:$f} else {} end)' \
     | curl -s --max-time 10 -X POST "$api/an-tony" -H 'content-type: application/json' --data-binary @- >/dev/null 2>&1 || true
 }
