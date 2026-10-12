@@ -7,70 +7,90 @@
  body{font:16px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;max-width:900px;margin:0 auto;padding:24px;color:#14323a}
  h1{font-size:22px;margin:0 0 4px} h2{font-size:16px;margin:28px 0 6px}
  .u{background:#eef5f6;border:1px solid #cfe0e3;border-radius:8px;padding:12px;font-size:14px}
- .w{background:#fff7e6;border:1px solid #f0d49a;border-radius:8px;padding:12px;font-size:14px;margin-top:12px}
+ .a{background:#f2f7ee;border:1px solid #cdddbe;border-radius:8px;padding:12px;font-size:14px;margin-top:12px}
  figure{margin:0 0 26px} img{width:100%;border:1px solid #d7e2e4;border-radius:8px}
  figcaption{font-size:14px;color:#3c5a62;margin-top:6px}
+ .tag{display:inline-block;background:#e4efdb;border:1px solid #c2d6ad;border-radius:4px;
+      padding:0 6px;font-size:12px;color:#3f5c2c;margin-right:6px}
  a{color:#14323a}
 </style>
 <h1>Belege für den Termin mit Volker</h1>
 <p>Erhoben am 12.10.2026 zwischen 08:18 und 08:51 Uhr (Europe/Berlin).</p>
 
 <div class="u">
-<b>Umgebung für alle Bilder:</b> staging.noranotes.ai, angemeldete Sitzung in einem eigens
-angelegten Testkonto, Workspace „TEST 1“ (Marcels eigener), Projekte
-„Benchmark Kinderhaus Sonnenfeld“ und „Neubau Kita Sonnenweg (Testlauf)“ — Schaudaten.
+<b>Umgebung für alle Bilder:</b> staging.noranotes.ai, angemeldete Sitzung, Workspace „TEST 1“,
+Projekte „Benchmark Kinderhaus Sonnenfeld“ und „Neubau Kita Sonnenweg (Testlauf)“ — Schaudaten.
 Der Balken „Interner Account — unbegrenzt“ gehört zum internen Konto, nicht zum Funktionsstand.
 Auf der Produktivumgebung wurde ausschließlich gelesen.
 </div>
 
-<div class="w">
-<b>Nachtrag 12.10.2026, 09:10 Uhr:</b> Zwei zuvor hier gezeigte Bilder des Zuordnungsdialogs wurden
-wieder entfernt. In der Hintergrundliste war der Eintrag eines realen Vorhabens lesbar. Das war ein
-Fehler bei der Auswahl, die Bilder sind nicht mehr abrufbar.
-</div>
-
-<div class="w">
-<b>Sechs Bilder fehlen hier bewusst.</b> Sie zeigen Namen, die auch in der
-Produktivdatenbank vorkommen, und gehören deshalb nicht auf eine öffentlich erreichbare Seite.
-Sie liegen auf dem Server und können nur auf nicht öffentlichem Weg übergeben werden.
+<div class="a">
+<b>Anonymisierte Bilder.</b> Sieben Bilder sind nachträglich anonymisiert und unten mit
+<span class="tag">anonymisiert</span> gekennzeichnet. Ersetzt wurden ausschließlich Firmen-, Personen-
+und Ortsangaben durch eindeutig fiktive: <b>Musterbau GmbH</b>, <b>Jonas Muster</b>, <b>Paul Muster</b>,
+<b>Beispielprojekt Musterbau</b>, <b>TEST MUSTER</b>, <b>MUSTERSTADT</b>,
+<b>Beispielweg 1, 12345 Musterstadt</b>.
+Alles andere ist unverändert: Zahlen, Datumsangaben, Prozentwerte, Spaltenbreiten, Status- und
+Knopftexte, Meldungen. Die Funktionsnachweise sind dadurch nicht verändert.
 </div>
 
 <h2>Angemeldete Oberfläche</h2>
 <figure><img src="01-angemeldet-staging.png">
 <figcaption>1 — Angemeldete Sitzung auf Staging, Dashboard mit 12 Projekten.</figcaption></figure>
+<figure><img src="02-projekt-anon.png">
+<figcaption><span class="tag">anonymisiert</span>2 — Projektansicht: zwei fortlaufende Protokolle,
+drei Einzelmeetings, 17 Projektteilnehmer.</figcaption></figure>
 <figure><img src="03-serie.png">
-<figcaption>2 — Fortlaufendes Protokoll mit 120 Punkten, Nummern- und Themensicht, PDF-Knopf.</figcaption></figure>
+<figcaption>3 — Fortlaufendes Protokoll mit 120 Punkten, Nummern- und Themensicht, PDF-Knopf.</figcaption></figure>
+
+<h2>Datum bei Ergänzungen</h2>
+<figure><img src="04-datum-ergaenzung-verlauf-anon.png">
+<figcaption><span class="tag">anonymisiert</span>4 — Punkt 14 mit aufgeklapptem Verlauf,
+Verantwortlichem, Frist und Status.</figcaption></figure>
+<figure><img src="05-datum-bei-ergaenzung-anon.png">
+<figcaption><span class="tag">anonymisiert</span>5 — Jede Ergänzung trägt Herkunftsmeeting und Datum
+(„Aktualisiert · Jour fixe Nr. 3 — 05.05.2025“), die Art der Ergänzung steht als Etikett daneben
+(Aktualisiert, Klarstellung), einzelne Zusätze sind mit „+“ markiert.</figcaption></figure>
 
 <h2>PDF-Export und Spaltenbreiten</h2>
 <figure><img src="06-pdf-dialog.png">
-<figcaption>3 — Menü „PDF erstellen“ und „PDF versenden“.</figcaption></figure>
+<figcaption>6 — Menü „PDF erstellen“ und „PDF versenden“.</figcaption></figure>
 <figure><img src="07-pdf-erstellen-ergebnis.png">
-<figcaption>4 — Der Export läuft auf Staging durch: „PDF erstellt und heruntergeladen!“. Die Datei
+<figcaption>7 — Der Export läuft auf Staging durch: „PDF erstellt und heruntergeladen!“. Die Datei
 selbst blieb im Download-Puffer des Automatisierungsbrowsers, ihr Inhalt ist aus diesem Lauf
 also nicht belegt.</figcaption></figure>
-<figure><img src="08-protokollvorlage.png">
-<figcaption>5 — Vorlageneditor mit Live-Vorschau: Klassisch/Klar/Akzent, A4 hoch und quer,
-Kopfzeile, Logo, Anschrift.</figcaption></figure>
+<figure><img src="08-protokollvorlage-anon.png">
+<figcaption><span class="tag">anonymisiert</span>8 — Vorlageneditor mit Live-Vorschau:
+Klassisch/Klar/Akzent, A4 hoch und quer, Kopfzeile, Logo, Anschrift.</figcaption></figure>
 <figure><img src="09-spaltenbreiten-ui.png">
-<figcaption>6 — Spaltenbreiten einzeln ziehbar und sofort gespeichert: Lfd.-Nr. 6 %, Datum 9 %,
+<figcaption>9 — Spaltenbreiten einzeln ziehbar und sofort gespeichert: Lfd.-Nr. 6 %, Datum 9 %,
 Bereich 8 %, Thema 8 %, Besprechungspunkt 31 %, Verantw. 10 %, Bis 9 %, Status 8 %,
 Bemerkungen 11 %. Spalten ein- und ausblendbar, Breiten zurücksetzbar.</figcaption></figure>
 
 <h2>Gerenderte PDF-Seiten (lokaler Renderer, nicht die Oberfläche)</h2>
 <figure><img src="protokoll-standard-1.png">
-<figcaption>7 — Standardbreiten, gerendert aus derselben Vorlagensteuerung.
+<figcaption>10 — Standardbreiten, gerendert aus derselben Vorlagensteuerung.
 <a href="protokoll-standard.pdf">PDF öffnen</a></figcaption></figure>
 <figure><img src="protokoll-breit_punkt-1.png">
-<figcaption>8 — Gegenprobe mit breitem Besprechungspunkt und sehr schmalen Spalten. Sichtbar:
+<figcaption>11 — Gegenprobe mit breitem Besprechungspunkt und sehr schmalen Spalten. Sichtbar:
 bei 4 % bricht Text zeichenweise um, der Mindestwert schützt nicht vor unlesbaren Spalten.
 <a href="protokoll-breit_punkt.pdf">PDF öffnen</a></figcaption></figure>
 
 <h2>Aufnahme umordnen</h2>
+<figure><img src="10-aufzeichnungen-anon.png">
+<figcaption><span class="tag">anonymisiert</span>12 — Aufnahmeliste mit Filtern Mobile/Online und
+Offen/Nur Projekt/Verknüpft, je Zeile der Knopf „Umordnen“.</figcaption></figure>
+<figure><img src="11-aufnahme-umordnen-anon.png">
+<figcaption><span class="tag">anonymisiert</span>13 — Zuordnung in einem Schritt: Bereich, Projekt
+und Ziel, wahlweise nur Projekt, neues Einzelmeeting, bestehendes Meeting oder fortlaufendes
+Protokoll.</figcaption></figure>
+<figure><img src="12-umordnen-vorher-anon.png">
+<figcaption><span class="tag">anonymisiert</span>14 — Gesetztes neues Ziel vor dem Übernehmen.</figcaption></figure>
 <figure><img src="13-umordnen-nachher.png">
-<figcaption>11 — Nach dem Übernehmen öffnet sich das Zielmeeting und zeigt weiterhin seine alten
+<figcaption>15 — Nach dem Übernehmen öffnet sich das Zielmeeting und zeigt weiterhin seine alten
 4 Punkte und seine alte Zusammenfassung. In diesem Durchlauf entstanden keine Duplikate: Quelle
 behielt 6 Punkte, Ziel 4. Das ist ein Einzelbefund, keine allgemeine Zusage.</figcaption></figure>
 <figure><img src="14-analyse-gestartet.png">
-<figcaption>12 — Vor dem Analyselauf warnt die App: bestehende Punkte werden ersetzt, nicht
+<figcaption>16 — Vor dem Analyselauf warnt die App: bestehende Punkte werden ersetzt, nicht
 ergänzt, und erst nach Bestätigung im Prüf-Schritt. Der Lauf wurde abgebrochen, das Ersetzen
 ist also nicht durchgespielt.</figcaption></figure>
