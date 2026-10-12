@@ -1,6 +1,6 @@
 # Empfangs-, Warte- und Startrückmeldung — Patch zur Prüfung
 
-**Revision 2** (nach Tonys Review von `5de9265`; Revision 1 ist dort nachlesbar).
+**Revision 3** (nach Tonys zweitem Review; Revision 1 in `5de9265`, Revision 2 in `937600e`).
 **Stand: vorgeschlagen, nicht installiert.** Der produktive Runner unter `/opt/tony/waechter/`
 ist unverändert (Prüfsummen `c85ef04ac5089b9b` / `9586dbea201205f1`, Dienst ohne Neustart).
 Hier liegen nur Entwürfe, ein Diff, ein Prüfstand und der Plan zum Scharfschalten.
@@ -20,17 +20,16 @@ Hier liegen nur Entwürfe, ein Diff, ein Prüfstand und der Plan zum Scharfschal
 2. **Warten sichtbar mit Grund.** `bearbeite.sh` versucht die Sperre erst ohne Blockieren. Klappt
    das nicht, meldet es „Wartet: … läuft bereits ein Arbeiter (Prozess N)" und blockiert erst
    danach. Auch ein belegter Arbeitsplatz wird einmalig gemeldet.
-3. **Arbeitsstart erst nach belegtem Prozessstart.** Die Startmeldung steht hinter Sperre, Platz,
-   Übernahme der Post **und** dem Nachweis, dass wirklich ein Prozess lief (siehe Revision 2).
-   Sie nennt die PID und sagt ausdrücklich „Vorher war nur der Empfang bestätigt". Gleichzeitig
-   bekommt die Karte `taetigkeit` und `zustaendig`, damit die Statusleiste ein echtes bestätigtes
-   Signal zeigt.
+3. **Arbeitsstart erst nach belegtem Prozessstart — und während der Prozess noch läuft.** Starten
+   und Abwarten sind getrennt (`lauf_starten` / `lauf_abwarten`). Gemeldet wird, sobald die PID
+   nachweislich lebt; erst danach wartet der Arbeiter auf das Ende. Die Meldung nennt PID und
+   Lauf-ID. Gleichzeitig bekommt die Karte `taetigkeit` und `zustaendig`.
 4. **Statusfragen stapeln sich nicht mehr.** Unter der Fenstersperre wird **alles** Offene zu
    diesem Fenster zu *einem* Lauf zusammengefasst. Weitere Arbeiter finden nichts mehr vor und
    beenden sich ohne `claude`-Aufruf. Der Auftragstext weist Claude an, reine Statusnachfragen
    kurz zu beantworten und dafür keine neue Umsetzung zu beginnen.
-5. **Abschluss und Fehler sauber.** Nach einem Lauf mit belegter Ergebniszustellung wird die
-   übernommene Post entfernt.
+5. **Abschluss und Fehler sauber.** Nach einem Lauf mit belegtem, diesem Lauf zugeordnetem
+   Ergebnis wird die übernommene Post entfernt.
    Bei Abbruch wandert der Text nach `fehlgeschlagen/`, Tony bekommt eine Fehlermeldung, die Karte
    bekommt den Fehlertext — **kein** automatischer Neuversuch.
 6. **Nebenbefund, trennbar:** Die Post wird nicht mehr vor dem Start gelöscht, sondern nach
@@ -40,6 +39,31 @@ Hier liegen nur Entwürfe, ein Diff, ein Prüfstand und der Plan zum Scharfschal
 
 Zusätzlich sind Pfade, Zeitgrenze und das `claude`-Binary über Umgebungsvariablen überschreibbar
 (Vorgabe = bisheriges Verhalten). Nur dadurch ist der Prüfstand ohne echten Runner möglich.
+
+## Was Revision 3 gegenüber Revision 2 korrigiert
+
+Tonys zweiter Review fand drei weitere Blocker — alle berechtigt, alle behoben.
+
+**A) Die Ergebnisprüfung akzeptierte ihre eigene Startmeldung.** `an-tony` speichert *jede*
+Meldung als `von = claude`, auch die des Runners. Revision 2 prüfte nur Absender, Fenster und
+Zeit — und bestätigte sich damit selbst. Dass der Prüfstand das nicht fand, war der zweite Teil
+des Fehlers: die nachgebildete API legte `an-tony`-Meldungen gar nicht in `absprache` ab und
+bildete die echte Semantik damit falsch nach. Jetzt gilt: jede Runner-Meldung trägt das
+Kennzeichen `[Runner]` und ist von der Ergebnisprüfung ausdrücklich ausgeschlossen; der Lauf
+erzeugt eine **eindeutige Lauf-ID**, und als Ergebnis zählt nur eine Antwortdatei, die **genau
+diese Lauf-ID** und den **Ergebnistyp** `art: "ergebnis"` trägt — zusätzlich zu einer im Board
+angekommenen Antwort ohne `[Runner]`. Die Fake-API persistiert `an-tony` jetzt exakt wie das
+Original.
+
+**B) Die Startmeldung kam erst nach dem Prozessende.** `starte_lauf` wartete intern auf das Ende,
+die Meldung ging also bei einem 35-Minuten-Lauf 35 Minuten zu spät raus — womit der ganze Zweck
+verfehlt war. Starten und Abwarten sind jetzt zwei Funktionen; die Meldung liegt dazwischen.
+Belegt durch einen blockierenden Fakeprozess, dessen Boardzustand **vor** dem Ende ausgelesen wird.
+
+**C) Die Resume-Heuristik ist kein Beweis für fehlende Teilwirkung.** Richtig. Der automatische
+zweite fachliche Aufruf entfällt für diesen minimalen Patch **vollständig**. Jeder Fehlschlag
+führt zu einer Meldung mit ausdrücklich unklarer Wirkung, gesichertem Text und keinem
+Neuversuch; war eine Sitzung im Spiel, nennt die Meldung den manuellen Ausweg.
 
 ## Was Revision 2 gegenüber Revision 1 korrigiert
 
@@ -54,10 +78,8 @@ ausdrückliche *Nicht-gestartet*-Meldung samt Fehlereintrag auf der Karte — ni
 
 **2) Der pauschale zweite Versuch ist entfernt.** Vorher wurde nach *jedem* nicht erfolgreichen
 `--resume` der komplette Auftrag ohne Resume wiederholt — auch nach einem Timeout, bei dem Claude
-schon gewirkt haben kann. Jetzt gilt: ein zweiter Lauf nur, wenn der Resume nachweislich **vor
-jeder Ausführung** gescheitert ist (Exit ≠ 0 **und** keinerlei Ausgabe **und** Ende unter 15
-Sekunden **und** eine Fehlermeldung, die die Sitzung benennt). Trifft auch nur eines davon nicht
-zu, gibt es keinen zweiten Lauf, sondern den Fehlerpfad mit gesichertem Text.
+schon gewirkt haben kann. (Revision 2 ließ dafür noch einen eng umgrenzten Sonderfall zu;
+Revision 3 streicht auch den — siehe C.)
 
 **3) Exit 0 gilt nicht mehr als Beleg für ein Ergebnis.** Vor dem Lauf wird ein Zeitstempel
 genommen; danach wird im Board geprüft, ob seitdem eine Antwort von Claude **zu diesem Fenster**
@@ -70,7 +92,7 @@ schreiben ihn nach `meldefehler.log`.
 ## Prüfergebnis
 
 ```
-bash waechter/server/patch/test-aktivierung.sh     →  49/49 Prüfungen bestanden
+bash waechter/server/patch/test-aktivierung.sh     →  65/65 Prüfungen bestanden
 ```
 
 Jeder Fall zählt **Aufrufzahl und Außenwirkung** getrennt, damit ein stiller zweiter Versuch
@@ -87,11 +109,15 @@ auffliegt. Die wichtigsten Zusicherungen im Wortlaut:
 | 7/8 | Verteiler meldet Empfang sofort, mit Grund wenn besetzt |
 | 9 | fehlendes Binary: **0** Startmeldungen, ausdrückliche Nicht-gestartet-Meldung, Fehler auf der Karte |
 | 10 | Timeout (124) mit Teilwirkung: **1** Aufruf, **1** Außenwirkung — keine Verdopplung |
-| 11 | Resume vor Ausführung gescheitert: **2** Aufrufe, aber nur **1** Außenwirkung |
+| 11 | gescheiterter Resume: **1** Aufruf, **0** Außenwirkungen, unklare Wirkung gemeldet, manueller Ausweg benannt |
 | 12 | Exit 0 ohne Zustellung: nicht fertig, Inhalt in `ohne-ergebnis/`, **1** Aufruf |
 | 13 | HTTP 500/503 auf Melde- und Kartenweg: protokolliert und in `meldefehler.log` |
 | 14 | hängender Meldeweg: Arbeiter endet sauber, Lauf fand statt, Hänger vermerkt |
 | 15 | Ende zu Ende: Empfang vor belegtem Start, Ergebnis genau einmal, Sitzung gemerkt |
+| 16 | **blockierender Prozess:** Startmeldung ist da, **während** der Lauf noch läuft und bevor Claude irgendetwas geliefert hat |
+| 17 | **die eigene Startmeldung zählt nicht:** sie steht als `von=claude` im Board, trotzdem gilt der Lauf als ohne Ergebnis |
+| 18 | Antwortdatei mit fremder Lauf-ID zählt nicht als eigenes Ergebnis |
+| 19 | vollständig belegtes Ergebnis (Lauf-ID + Typ + Zustellung) wird als fertig gewertet |
 
 Die nachgebildete API kann dafür HTTP-Fehler erzwingen und Antworten hängen lassen. Der Prüfstand
 läuft vollständig in einem Wegwerf-Ordner; es wird kein Dienst angelegt und nichts Produktives
@@ -106,9 +132,11 @@ angefasst.
   Fehlalarm ist möglich. Nichts geht dabei verloren.
 - **Fenster `ohne-fenster`.** Für Nachrichten ohne Fensterbezug kann die Zustellprüfung nicht auf
   die Fenster-Kennung filtern; dort genügt irgendeine Claude-Antwort seit Laufbeginn.
-- **Die Resume-Sonderbehandlung ist eine Heuristik** auf der Fehlermeldung von `claude`. Ändert
-  sich deren Wortlaut, greift sie nicht mehr — dann gibt es keinen zweiten Lauf, sondern den
-  Fehlerpfad. Die Abweichung geht also in die sichere Richtung.
+- **Eine unbrauchbare gespeicherte Sitzung blockiert das Fenster dauerhaft.** Da es keinen
+  automatischen zweiten Aufruf mehr gibt, scheitert dann jeder Lauf. Die Meldung sagt das und
+  nennt den Handgriff (`sitzungen/<fenster>` entfernen); automatisch passiert bewusst nichts.
+- **Das Ergebnis hängt daran, dass Claude die Lauf-ID zurückschreibt.** Tut er das nicht, gilt der
+  Lauf als ohne Ergebnis — konservativ, der Text bleibt erhalten, aber ein Fehlalarm ist möglich.
 - **`fuser` ist optional.** Fehlt es, steht in der Wartemeldung keine Prozessnummer, sonst ändert
   sich nichts.
 - **0,4 s Startprobe.** Ein Lauf, der schneller als das fertig wird, wird am Exitcode erkannt und

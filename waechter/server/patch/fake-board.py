@@ -66,8 +66,10 @@ class H(BaseHTTPRequestHandler):
         if self.path.startswith("/sim/antwort"):
             # Claude stellt ein Ergebnis zu (das, was der echte Lauf am Ende selbst tut)
             from datetime import datetime, timezone
-            zustand["absprache"].append({"von": "claude", "text": "Ergebnis", "fenster_id": "testfenster",
-                                         "erstellt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")})
+            with sperre:
+                zustand["absprache"].append({"von": "claude", "text": "Ergebnis von Claude",
+                                             "fenster_id": "testfenster",
+                                             "erstellt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")})
             return self._antwort({"ok": True})
         if self.path.endswith("/fuer-claude"):
             return self._antwort({"offen": len(zustand["nachrichten"])})
@@ -93,6 +95,13 @@ class H(BaseHTTPRequestHandler):
             return self._antwort({"nachrichten": raus})
         if self.path.endswith("/an-tony"):
             if self._stoert("an-tony"): return
+            # Echte Semantik: JEDE Meldung ueber diesen Weg wird als von="claude" gespeichert -
+            # auch die des Runners. Genau deshalb darf der Absender allein kein Ergebnisbeleg sein.
+            from datetime import datetime, timezone
+            with sperre:
+                zustand["absprache"].append({"von": "claude", "text": b.get("text", ""),
+                                             "fenster_id": b.get("fenster_id"),
+                                             "erstellt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")})
             notiere({"art": "an-tony", "text": b.get("text", ""), "fenster_id": b.get("fenster_id")})
             return self._antwort({"ok": True})
         if "/mcp/" in self.path:

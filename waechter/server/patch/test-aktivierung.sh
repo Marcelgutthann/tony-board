@@ -24,7 +24,8 @@ for _ in $(seq 1 50); do curl -sf "http://127.0.0.1:$port/api/testkey/fuer-claud
 # wenn es das auch soll - genau wie ein echter Lauf, der am Ende selbst an Tony schreibt.
 cat > "$arbeit/claude-fake" <<'EOF'
 #!/bin/bash
-cat > "$TEST_ARBEIT/auftrag-$(date +%s%N).txt"
+auftragdatei="$TEST_ARBEIT/auftrag-$(date +%s%N).txt"
+cat > "$auftragdatei"
 echo "$*" >> "$TEST_ARBEIT/aufrufe.txt"
 if [ "${TEST_RESUME_FEHLT:-0}" = 1 ] && [[ "$*" == *--resume* ]]; then
   echo "No conversation found with session ID abc" >&2
@@ -32,6 +33,11 @@ if [ "${TEST_RESUME_FEHLT:-0}" = 1 ] && [[ "$*" == *--resume* ]]; then
 fi
 sleep "${TEST_CLAUDE_DAUER:-1.2}"
 if [ "${TEST_CLAUDE_WIRKUNG:-1}" = 1 ]; then
+  # wie der echte Lauf: Antwortdatei mit Lauf-ID und Ergebnistyp, dann zustellen
+  lid=$(grep -o '"lauf_id": "[^"]*"' "$auftragdatei" | head -1 | cut -d'"' -f4)
+  [ "${TEST_FALSCHE_LAUFID:-0}" = 1 ] && lid="ein-ganz-anderer-lauf"
+  adatei=$(grep -o 'schreib die Datei [^ ]*' "$auftragdatei" | head -1 | awk '{print $4}')
+  [ -n "$adatei" ] && printf '{"text":"fertig","fenster_id":"testfenster","lauf_id":"%s","art":"ergebnis"}\n' "$lid" > "$adatei"
   curl -s "$TEST_SIM/sim/antwort" >/dev/null
   echo wirkung >> "$TEST_ARBEIT/wirkung.txt"
 fi
@@ -88,7 +94,7 @@ pruefe "$(hat "$protokoll" 'laeuft bereits ein Arbeiter')" "3 Warten mit Grund g
 pruefe "$(python3 - "$protokoll" <<'PY'
 import json,sys
 t=[json.loads(l)["text"] for l in open(sys.argv[1],encoding='utf-8') if json.loads(l)["art"]=="an-tony"]
-w=[i for i,s in enumerate(t) if s.startswith("Wartet:")]; g=[i for i,s in enumerate(t) if s.startswith("Arbeit gestartet")]
+w=[i for i,s in enumerate(t) if "Wartet:" in s]; g=[i for i,s in enumerate(t) if "Arbeit gestartet" in s]
 print("ja" if w and g and w[0] < g[0] else "nein")
 PY
 )" "3 erst Warten, dann Start"
@@ -152,20 +158,22 @@ pruefe "$(gleich "$(wirkungen)" 1)" "10 genau EINE Aussenwirkung, keine Verdoppl
 pruefe "$(hat "$protokoll" 'Fehlgeschlagen')" "10 als Fehler gemeldet"
 pruefe "$([ -n "$(ls "$TONY_WAECHTER_DIR/fehlgeschlagen" 2>/dev/null)" ] && echo ja || echo nein)" "10 Text gesichert statt wiederholt"
 
-echo "== 11. Nur ein vor Ausfuehrung gescheiterter Resume wird einmal neu gestartet =="
+echo "== 11. Gescheiterter Resume: KEIN zweiter fachlicher Aufruf, nur unklar melden =="
 frisch; post 110 "Sitzung ist weg"
 echo "tote-sitzung" > "$TONY_WAECHTER_DIR/sitzungen/testfenster"
 TEST_RESUME_FEHLT=1 bash "$hier/bearbeite.sh" testfenster "$(irgendeine)" >/dev/null 2>&1
-pruefe "$(gleich "$(aufrufe)" 2)" "11 genau zwei Aufrufe: Resume + ein Neustart (war: $(aufrufe))"
-pruefe "$(gleich "$(wirkungen)" 1)" "11 nur eine Aussenwirkung - der Resume wirkte nicht"
-pruefe "$(hat "$protokoll" 'nicht mehr verwendbar')" "11 der Sonderfall wird ausdruecklich benannt"
-pruefe "$(hat "$arbeit/aufrufe.txt" '--resume')" "11 erster Aufruf war wirklich ein Resume"
+pruefe "$(gleich "$(aufrufe)" 1)" "11 genau EIN Aufruf, kein automatischer zweiter (war: $(aufrufe))"
+pruefe "$(gleich "$(wirkungen)" 0)" "11 keine Aussenwirkung"
+pruefe "$(hat "$protokoll" 'Ob dabei schon etwas gewirkt hat, ist unklar')" "11 Wirkung wird ausdruecklich als unklar gemeldet"
+pruefe "$(hat "$protokoll" 'sitzungen/testfenster')" "11 der manuelle Ausweg wird benannt"
+pruefe "$([ -n "$(ls "$TONY_WAECHTER_DIR/fehlgeschlagen" 2>/dev/null)" ] && echo ja || echo nein)" "11 Text gesichert"
+pruefe "$(hat "$arbeit/aufrufe.txt" '--resume')" "11 der eine Aufruf war der Resume"
 
 echo "== 12. Exit 0 ohne zugestelltes Ergebnis gilt NICHT als fertig =="
 frisch; post 120 "endet ohne Antwort"
 rm -f "$TONY_WAECHTER_DIR/sitzungen/testfenster"
 TEST_CLAUDE_WIRKUNG=0 bash "$hier/bearbeite.sh" testfenster "$(irgendeine)" >/dev/null 2>&1
-pruefe "$(hat "$protokoll" 'keine Antwort von Claude im Board angekommen')" "12 fehlende Zustellung wird benannt"
+pruefe "$(hat "$protokoll" 'kein belegtes Ergebnis')" "12 fehlende Zustellung wird benannt"
 pruefe "$([ -n "$(ls "$TONY_WAECHTER_DIR/ohne-ergebnis" 2>/dev/null)" ] && echo ja || echo nein)" "12 Inhalt in eindeutigem Zustand erhalten"
 pruefe "$([ ! -e "$TONY_WAECHTER_DIR/laufend/testfenster.txt" ] && echo ja || echo nein)" "12 nichts bleibt in der Schwebe"
 pruefe "$(gleich "$(aufrufe)" 1)" "12 kein automatischer Neuversuch"
@@ -197,14 +205,61 @@ bash "$hier/bearbeite.sh" testfenster "$(irgendeine)" >/dev/null 2>&1
 pruefe "$(python3 - "$protokoll" <<'PY'
 import json,sys
 t=[json.loads(l)["text"] for l in open(sys.argv[1],encoding='utf-8') if json.loads(l)["art"]=="an-tony"]
-e=[i for i,s in enumerate(t) if s.startswith("Empfang bestaetigt")]
-g=[i for i,s in enumerate(t) if s.startswith("Arbeit gestartet und belegt")]
+e=[i for i,s in enumerate(t) if "Empfang bestaetigt" in s]
+g=[i for i,s in enumerate(t) if "Arbeit gestartet und belegt" in s]
 print("ja" if e and g and e[0] < g[0] else "nein")
 PY
 )" "15 Reihenfolge Empfang vor belegtem Start"
 pruefe "$(gleich "$(wirkungen)" 1)" "15 Ergebnis genau einmal zugestellt"
 pruefe "$([ ! -e "$TONY_WAECHTER_DIR/laufend/testfenster.txt" ] && echo ja || echo nein)" "15 Auftrag erst nach Beleg abgeschlossen"
 pruefe "$([ -s "$TONY_WAECHTER_DIR/sitzungen/testfenster" ] && echo ja || echo nein)" "15 Sitzung fuer das naechste Mal gemerkt"
+
+echo "== 16. Startmeldung erscheint WAEHREND der Prozess noch laeuft =="
+frisch; post 160 "langer Lauf"
+rm -f "$TONY_WAECHTER_DIR/sitzungen/testfenster"
+TEST_CLAUDE_DAUER=6 bash "$hier/bearbeite.sh" testfenster "$(irgendeine)" >/dev/null 2>&1 &
+arbeiterpid=$!
+sleep 2.5
+# Boardzustand VOR dem Prozessende auslesen
+fruehgemeldet=$(hat "$protokoll" 'Arbeit gestartet und belegt')
+laeuft_noch=$(kill -0 $arbeiterpid 2>/dev/null && echo ja || echo nein)
+wirkung_bisher=$(wirkungen)
+wait $arbeiterpid 2>/dev/null
+pruefe "$laeuft_noch" "16 der Lauf dauerte zum Messzeitpunkt noch an"
+pruefe "$fruehgemeldet" "16 Startmeldung war da, bevor der Prozess endete"
+pruefe "$(gleich "$wirkung_bisher" 0)" "16 und zwar bevor Claude irgendetwas geliefert hatte"
+pruefe "$(gleich "$(aufrufe)" 1)" "16 genau ein Aufruf"
+
+echo "== 17. Die eigene Startmeldung zaehlt NICHT als Ergebnis =="
+frisch; post 170 "niemand antwortet"
+rm -f "$TONY_WAECHTER_DIR/sitzungen/testfenster" "$TONY_WAECHTER_DIR/antwort-testfenster.json"
+TEST_CLAUDE_WIRKUNG=0 bash "$hier/bearbeite.sh" testfenster "$(irgendeine)" >/dev/null 2>&1
+pruefe "$(python3 - "$protokoll" <<'PY2'
+import json,sys
+z=[json.loads(l) for l in open(sys.argv[1],encoding='utf-8')]
+t=[x["text"] for x in z if x["art"]=="an-tony"]
+print("ja" if any("Arbeit gestartet und belegt" in s for s in t) else "nein")
+PY2
+)" "17 die Startmeldung ging raus (und steht als von=claude im Board)"
+pruefe "$(hat "$protokoll" 'kein belegtes Ergebnis')" "17 trotzdem KEIN Ergebnis - die eigene Meldung zaehlt nicht"
+pruefe "$([ -n "$(ls "$TONY_WAECHTER_DIR/ohne-ergebnis" 2>/dev/null)" ] && echo ja || echo nein)" "17 Inhalt erhalten statt fertiggemeldet"
+pruefe "$([ ! -e "$TONY_WAECHTER_DIR/laufend/testfenster.txt" ] && echo ja || echo nein)" "17 eindeutiger Zustand"
+
+echo "== 18. Antwort eines fremden Laufs zaehlt nicht als eigenes Ergebnis =="
+frisch; post 180 "falsche Lauf-ID"
+rm -f "$TONY_WAECHTER_DIR/sitzungen/testfenster" "$TONY_WAECHTER_DIR/antwort-testfenster.json"
+TEST_FALSCHE_LAUFID=1 bash "$hier/bearbeite.sh" testfenster "$(irgendeine)" >/dev/null 2>&1
+pruefe "$(hat "$protokoll" 'keine Antwortdatei mit der Lauf-ID')" "18 fehlende Zuordnung wird benannt"
+pruefe "$([ -n "$(ls "$TONY_WAECHTER_DIR/ohne-ergebnis" 2>/dev/null)" ] && echo ja || echo nein)" "18 nicht als fertig gewertet"
+
+echo "== 19. Vollstaendig belegtes Ergebnis wird als fertig gewertet =="
+frisch; post 190 "sauberer Durchlauf"
+rm -f "$TONY_WAECHTER_DIR/sitzungen/testfenster" "$TONY_WAECHTER_DIR/antwort-testfenster.json"
+bash "$hier/bearbeite.sh" testfenster "$(irgendeine)" >/dev/null 2>&1
+pruefe "$([ ! -e "$TONY_WAECHTER_DIR/laufend/testfenster.txt" ] && echo ja || echo nein)" "19 Post abgeschlossen"
+pruefe "$([ -z "$(ls "$TONY_WAECHTER_DIR/ohne-ergebnis" 2>/dev/null)" ] && echo ja || echo nein)" "19 nichts in ohne-ergebnis gelandet"
+pruefe "$(hat "$TONY_WAECHTER_DIR/waechter.log" 'belegt und zugestellt')" "19 Abschluss ausdruecklich belegt"
+pruefe "$(gleich "$(aufrufe)" 1)" "19 genau ein Aufruf"
 
 echo
 echo "$ok/$((ok+nok)) Pruefungen bestanden"

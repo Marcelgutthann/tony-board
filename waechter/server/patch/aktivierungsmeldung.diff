@@ -54,7 +54,7 @@
  done
 --- a/bearbeite.sh
 +++ b/bearbeite.sh
-@@ -1,29 +1,126 @@
+@@ -1,29 +1,138 @@
  #!/bin/bash
  # Ein Arbeiter je Fenster: setzt die Claude-Sitzung dieses Fensters fort (--resume),
  # hoechstens $MAX Arbeiter gleichzeitig.
@@ -62,11 +62,11 @@
 +# Grundsatz, der hier ueberall gilt: Es wird nur gemeldet, was nachweisbar passiert ist.
 +#  - "Arbeit gestartet" erst, wenn ein Prozess nachweislich laeuft (PID lebt). Ein fehlendes
 +#    Binary oder ein gescheiterter Spawn ergibt NIE "arbeitet", sondern einen Fehler.
-+#  - Kein pauschaler zweiter Versuch. Nur ein Resume, der nachweislich vor jeder Ausfuehrung
-+#    gescheitert ist, wird ohne Resume wiederholt; alles andere ist "unklar" und wartet auf
-+#    manuelle Pruefung.
-+#  - Exit 0 allein ist kein Beleg fuer ein zugestelltes Ergebnis. Erst wenn eine Antwort an Tony
-+#    nachweisbar im Board steht, gilt der Auftrag als erledigt und die Post wird entfernt.
++#  - Gar kein automatischer zweiter fachlicher Aufruf. Scheitert ein Lauf, wird er als unklar
++#    gemeldet und der Text gesichert - nie wiederholt.
++#  - Exit 0 allein ist kein Beleg fuer ein Ergebnis. Es zaehlt nur eine Antwort, die ueber die
++#    Lauf-ID DIESES Laufs und den Ergebnistyp zugeordnet ist. Eigene Meldungen des Runners
++#    tragen das Kennzeichen [Runner] und koennen nie als Ergebnis gelten.
 +#  - Meldewege verschlucken keine Fehler: jede nicht zugestellte Meldung wird gezaehlt und geloggt.
  fenster=$1; datei=$2
 -hier=/opt/tony/waechter
@@ -86,12 +86,15 @@
 +
 +fid=""; [ "$fenster" != "ohne-fenster" ] && fid="$fenster"
 +antwortdatei="$hier/antwort-$fenster.json"
++# Eindeutige Kennung dieses Laufs: nur ein Ergebnis mit genau dieser Kennung zaehlt als Ergebnis.
++lauf_id="$fenster-$(date +%s%N)-$$"
 +meldefehler=0
 +
 +# Meldung an Tony. Schlucken ist verboten: ein Fehlschlag wird gezaehlt und protokolliert.
 +an_tony() {
 +  local http
-+  http=$(jq -n --arg t "$1" --arg f "$fid" '{text:$t} + (if $f != "" then {fenster_id:$f} else {} end)' \
++  # Kennzeichen: Meldungen des Runners sind keine Arbeitsergebnisse und duerfen nie so zaehlen.
++  http=$(jq -n --arg t "[Runner] $1" --arg f "$fid" '{text:$t} + (if $f != "" then {fenster_id:$f} else {} end)' \
 +    | curl -s -o /dev/null -w '%{http_code}' --max-time "${TONY_HTTP_FRIST:-10}" \
 +        -X POST "$api/an-tony" -H 'content-type: application/json' --data-binary @- 2>/dev/null)
 +  if [ "$http" != "200" ]; then
@@ -127,12 +130,21 @@
 +  return 0
 +}
 +
-+# Hat Claude seit $1 (ISO-Zeit) nachweislich eine Antwort an Tony abgesetzt?
++# Beleg 1 (lokal): Hat Claude fuer GENAU diesen Lauf ein Ergebnis hinterlegt?
++# Die Antwortdatei muss die Lauf-ID dieses Laufs und den Ergebnistyp tragen.
++ergebnis_lokal() {
++  [ -s "$antwortdatei" ] || return 1
++  jq -e --arg l "$lauf_id" '.lauf_id == $l and .art == "ergebnis"' "$antwortdatei" >/dev/null 2>&1
++}
++
++# Beleg 2 (Board): Ist seit $1 eine Antwort angekommen, die NICHT vom Runner stammt?
++# Eigene Status- und Startmeldungen tragen [Runner] und werden hier ausdruecklich ausgeschlossen.
 +ergebnis_zugestellt() {
 +  curl -s --max-time "${TONY_HTTP_FRIST:-10}" "$api/state" 2>/dev/null \
 +    | jq -e --arg s "$1" --arg f "$fid" \
-+        '[.absprache[]? | select(.von=="claude" and .erstellt > $s
-+                                 and ($f == "" or .fenster_id == $f or .fenster_id == null))] | length > 0' \
++        '[.absprache[]? | select(.von=="claude" and .erstellt >= $s
++                                 and ($f == "" or .fenster_id == $f or .fenster_id == null)
++                                 and ((.text // "") | startswith("[Runner]") | not))] | length > 0' \
 +        >/dev/null 2>&1
 +}
 +
@@ -194,16 +206,19 @@
  
  auftrag="Du bist Claude auf Marcels Hetzner-Server. Tony ist Marcels proaktiver ChatGPT-Agent (Dots, per Sprache auf dem iPad). Ihr teilt euch das Tony Board. Tony hat dir ueber das Board geschrieben${fid:+ (Fenster $fid)}:
  
-@@ -38,18 +135,112 @@
+@@ -36,20 +145,97 @@
+ 2. Parallel zu dir arbeiten andere Claude-Sitzungen an anderen Fenstern. Arbeite in Git nie direkt in /opt/tony/repos/<repo>, sondern in einem eigenen Worktree: git -C /opt/tony/repos/<repo> worktree add /opt/tony/arbeit/${fenster}/<repo> <branch> (gibt es ihn schon, dort weitermachen). Bleib bei einem Branch je Fenster, statt neue -v2-Branches anzulegen.
+ 3. Ist die Aufgabe gross, teile sie und lass Teile parallel von Subagenten (Agent-Werkzeug) erledigen. Du laeufst nicht interaktiv: deine Sitzung endet, sobald du aufhoerst zu antworten. Starte darum nichts im Hintergrund (kein run_in_background, kein Monitor, kein ScheduleWakeup) und warte auf jeden Subagenten, bevor du Tony antwortest.
  4. Halte nur an, wenn wirklich Marcel entscheiden muss; dann erledige vorher alles, was ohne ihn geht, und schreib Tony genau die eine Frage.
- 5. Antworte Tony am Ende IMMER, kurz (hoechstens 6 Saetze): schreib die Datei $antwortdatei mit {\"text\": \"...\"${fid:+, \"fenster_id\": \"$fid\"}} und fuehre aus:
+-5. Antworte Tony am Ende IMMER, kurz (hoechstens 6 Saetze): schreib die Datei $antwortdatei mit {\"text\": \"...\"${fid:+, \"fenster_id\": \"$fid\"}} und fuehre aus:
++5. Antworte Tony am Ende IMMER, kurz (hoechstens 6 Saetze): schreib die Datei $antwortdatei mit {\"text\": \"...\"${fid:+, \"fenster_id\": \"$fid\"}, \"lauf_id\": \"$lauf_id\", \"art\": \"ergebnis\"} und fuehre aus:
     curl -s -X POST \"$api/an-tony\" -H \"content-type: application/json\" --data-binary @$antwortdatei
 -Sag Tony, was erledigt ist und was er Marcel sagen oder fragen soll."
 +Sag Tony, was erledigt ist und was er Marcel sagen oder fragen soll.
-+
-+Hinweis: Stehen oben mehrere Nachrichten, sind sie waehrend eines laufenden Auftrags eingegangen und zusammengefasst worden. Reine Statusnachfragen beantwortest du kurz aus dem, was du schon weisst, und beginnst dafuer keine neue Umsetzung."
  
 -cd /opt/tony
++Hinweis: Stehen oben mehrere Nachrichten, sind sie waehrend eines laufenden Auftrags eingegangen und zusammengefasst worden. Reine Statusnachfragen beantwortest du kurz aus dem, was du schon weisst, und beginnst dafuer keine neue Umsetzung."
++
 +cd "${TONY_ARBEITSORDNER:-/opt/tony}"
  sitzung=""; [ -s "$hier/sitzungen/$fenster" ] && sitzung=$(cat "$hier/sitzungen/$fenster")
 -logz "Start (Platz frei${sitzung:+, setzt Sitzung $sitzung fort})"
@@ -220,74 +235,49 @@
 +  exit 1
 +fi
 +
-+# Einen Lauf starten und den echten Prozessstart belegen.
-+# Setzt: $code, $ausgabe, $fehlertext, $dauer, $gestartet (ja/nein), $pid
-+starte_lauf() {
-+  local aus fehl t0 t1
-+  aus=$(mktemp); fehl=$(mktemp); t0=$(date +%s)
++# Lauf anstossen, OHNE auf das Ende zu warten. Setzt $pid, $gestartet, $beendet, ggf. $code.
++# Getrennt vom Abwarten, damit die Startmeldung waehrend des laufenden Prozesses rausgeht.
++lauf_starten() {
++  ausgabedatei=$(mktemp); fehlerdatei=$(mktemp); t0=$(date +%s)
 +  printf '%s' "$auftrag" | env -u ANTHROPIC_API_KEY IS_SANDBOX=1 CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 \
 +    timeout "${TONY_ZEITGRENZE:-5400}" "$claude_bin" -p --permission-mode bypassPermissions --output-format json "$@" \
-+    >"$aus" 2>"$fehl" &
++    >"$ausgabedatei" 2>"$fehlerdatei" &
 +  pid=$!
-+  # Ueberpruefbares Ereignis: lebt der Prozess nach kurzer Zeit noch, laeuft er wirklich.
++  beendet=nein
++  # Ueberpruefbares Ereignis: lebt die PID nach kurzer Zeit, laeuft der Prozess wirklich.
 +  sleep "${TONY_STARTPROBE:-0.4}"
-+  if kill -0 "$pid" 2>/dev/null; then
-+    gestartet=ja
-+  else
-+    wait "$pid"; code=$?
-+    # 126/127 = Binary nicht ausfuehrbar / nicht gefunden -> es lief nie etwas
-+    if [ "$code" = 127 ] || [ "$code" = 126 ]; then gestartet=nein; else gestartet=ja; fi
-+  fi
-+  if [ "$gestartet" = ja ] && kill -0 "$pid" 2>/dev/null; then
-+    wait "$pid"; code=$?
-+  fi
-+  t1=$(date +%s); dauer=$((t1-t0))
-+  ausgabe=$(cat "$aus"); fehlertext=$(cat "$fehl")
-+  cat "$fehl" >> "$hier/fehler.log"
-+  rm -f "$aus" "$fehl"
++  if kill -0 "$pid" 2>/dev/null; then gestartet=ja; return 0; fi
++  wait "$pid"; code=$?; beendet=ja
++  # 126/127 = nicht ausfuehrbar / nicht gefunden -> es lief nie etwas
++  if [ "$code" = 127 ] || [ "$code" = 126 ]; then gestartet=nein; else gestartet=ja; fi
 +}
 +
-+# Nur ein Resume, der nachweislich vor jeder Ausfuehrung scheiterte, darf ohne Resume laufen:
-+# keinerlei Ausgabe, schnelles Ende und eine Fehlermeldung, die die Sitzung benennt.
-+resume_scheiterte_vor_ausfuehrung() {
-+  [ "$code" -ne 0 ] || return 1
-+  [ -z "$ausgabe" ] || return 1
-+  [ "$dauer" -lt "${TONY_RESUME_SCHNELL:-15}" ] || return 1
-+  echo "$fehlertext" | grep -qiE 'session|sitzung|resume|conversation|not found' || return 1
-+  return 0
++lauf_abwarten() {
++  [ "$beendet" = ja ] || { wait "$pid"; code=$?; }
++  dauer=$(( $(date +%s) - t0 ))
++  ausgabe=$(cat "$ausgabedatei"); fehlertext=$(cat "$fehlerdatei")
++  cat "$fehlerdatei" >> "$hier/fehler.log"
++  rm -f "$ausgabedatei" "$fehlerdatei"
 +}
 +
 +seit=$(date -u +%Y-%m-%dT%H:%M:%S)
-+versuche=0
-+if [ -n "$sitzung" ]; then
-+  starte_lauf --resume "$sitzung"; versuche=1
-+  if [ "$gestartet" != ja ]; then
-+    ziel=$(ablegen unklar)
-+    logz "ABBRUCH: Prozess startete nicht (Code $code), Text gesichert unter ${ziel:-?}"
-+    an_tony "Nicht gestartet: Der Prozess fuer '$fenster' konnte nicht gestartet werden (Code $code). Es laeuft keine Arbeit. Text gesichert, kein automatischer Neuversuch."
-+    karte_melden "Prozess konnte nicht gestartet werden." "Claude" "Spawn fehlgeschlagen, Code $code."
-+    exit 1
-+  fi
-+  if [ "$code" -ne 0 ] && resume_scheiterte_vor_ausfuehrung; then
-+    logz "Resume scheiterte nachweislich vor jeder Ausfuehrung (Code $code, ${dauer}s, keine Ausgabe) - ein Lauf ohne Resume"
-+    an_tony "Hinweis: Die gespeicherte Sitzung fuer '$fenster' war nicht mehr verwendbar (Abbruch nach ${dauer}s ohne jede Ausgabe). Ich starte denselben Auftrag genau einmal als neue Sitzung; eine Doppelwirkung ist dabei ausgeschlossen, weil nichts ausgefuehrt wurde."
-+    starte_lauf; versuche=2
-+  fi
-+else
-+  starte_lauf; versuche=1
-+  if [ "$gestartet" != ja ]; then
-+    ziel=$(ablegen unklar)
-+    logz "ABBRUCH: Prozess startete nicht (Code $code), Text gesichert unter ${ziel:-?}"
-+    an_tony "Nicht gestartet: Der Prozess fuer '$fenster' konnte nicht gestartet werden (Code $code). Es laeuft keine Arbeit. Text gesichert, kein automatischer Neuversuch."
-+    karte_melden "Prozess konnte nicht gestartet werden." "Claude" "Spawn fehlgeschlagen, Code $code."
-+    exit 1
-+  fi
++if [ -n "$sitzung" ]; then lauf_starten --resume "$sitzung"; else lauf_starten; fi
++
++if [ "$gestartet" != ja ]; then
++  ziel=$(ablegen unklar)
++  logz "ABBRUCH: Prozess startete nicht (Code $code), Text gesichert unter ${ziel:-?}"
++  an_tony "Nicht gestartet: Der Prozess fuer '$fenster' konnte nicht gestartet werden (Code $code). Es laeuft keine Arbeit. Text gesichert, kein automatischer Neuversuch."
++  karte_melden "Prozess konnte nicht gestartet werden." "Claude" "Spawn fehlgeschlagen, Code $code."
++  exit 1
 +fi
 +
-+# Jetzt ist belegt, dass ein Prozess lief: erst hier darf von Arbeit die Rede sein.
-+logz "Lauf belegt (PID $pid, ${dauer}s, Code $code, $versuche Aufruf(e)), $anzahl Nachricht(en) zusammengefasst"
-+an_tony "Arbeit gestartet und belegt: Fuer '$fenster' lief ein Prozess (PID $pid), $anzahl Nachricht(en) zusammengefasst, Sitzung ${sitzung:-neu}. Vorher war nur der Empfang bestaetigt."
++# Der Prozess laeuft jetzt nachweislich - und genau jetzt, nicht erst nach seinem Ende,
++# geht die Startmeldung raus.
++logz "Prozess belegt gestartet (PID $pid, Lauf $lauf_id), $anzahl Nachricht(en) zusammengefasst"
++an_tony "Arbeit gestartet und belegt: Fuer '$fenster' laeuft jetzt ein Prozess (PID $pid, Lauf $lauf_id), $anzahl Nachricht(en) zusammengefasst, Sitzung ${sitzung:-neu}. Vorher war nur der Empfang bestaetigt."
 +karte_melden "Claude-Lauf fuer dieses Fenster belegt gestartet (PID $pid), $anzahl Nachricht(en) uebernommen." "Claude"
++
++lauf_abwarten
 +
  neu=$(echo "$ausgabe" | jq -r '.session_id // empty' 2>/dev/null)
  [ -n "$neu" ] && echo "$neu" > "$hier/sitzungen/$fenster"
@@ -297,20 +287,28 @@
 -    | curl -s --max-time 20 -X POST "$api/an-tony" -H "content-type: application/json" --data-binary @- > /dev/null
 +logz "claude beendet (Code $code, ${dauer}s): $(echo "$ausgabe" | jq -r '.result // empty' 2>/dev/null | head -c 300)"
 +
-+# Abschluss nur mit Beleg: Exit 0 allein genuegt nicht, es muss auch ein Ergebnis angekommen sein.
-+if [ "$code" -eq 0 ] && ergebnis_zugestellt "$seit"; then
-+  rm -f "$laufend"
-+  logz "Ergebnis zugestellt und belegt - Post abgeschlossen"
-+elif [ "$code" -eq 0 ]; then
-+  ziel=$(ablegen ohne-ergebnis)
-+  logz "Lauf endete mit Code 0, aber ohne nachweisbare Antwort an Tony - Text gesichert unter ${ziel:-?}"
-+  an_tony "Unklar: Der Lauf fuer '$fenster' endete ohne Fehler, aber es ist keine Antwort von Claude im Board angekommen. Ich erklaere das deshalb NICHT fuer fertig. Der Nachrichtentext ist unter ${ziel:-dem Wartebereich} unveraendert erhalten und wird nicht automatisch wiederholt."
-+  karte_melden "Lauf beendet, aber ohne nachweisbare Ergebniszustellung - nicht als fertig gewertet." "Claude" "Kein Ergebnis von Claude im Board nach dem Lauf; Text gesichert unter ${ziel:-Wartebereich}."
-+else
++# Abschluss nur mit doppeltem Beleg: ein Ergebnis dieses Laufs (Lauf-ID + Ergebnistyp) UND
++# eine im Board angekommene Antwort, die nicht vom Runner selbst stammt.
++if [ "$code" -ne 0 ]; then
++  # Ein einziger Fehlerpfad: ob der Resume oder die Arbeit scheiterte, laesst sich nicht sicher
++  # trennen - also wird beides gleich behandelt, gesichert und nie wiederholt.
 +  ziel=$(ablegen fehlgeschlagen)
++  sitzungshinweis=""
++  [ -n "$sitzung" ] && sitzungshinweis=" Der Lauf setzte Sitzung $sitzung fort; scheitert das wiederholt, ist sie vermutlich unbrauchbar und jemand muss $hier/sitzungen/$fenster von Hand entfernen."
 +  logz "Lauf fehlgeschlagen (Code $code nach ${dauer}s), Text gesichert unter ${ziel:-?}"
-+  an_tony "Fehlgeschlagen: Claude konnte '$fenster' nicht bearbeiten (Code $code nach ${dauer}s). Der Nachrichtentext ist gesichert und wird NICHT automatisch wiederholt. Bitte Marcel Bescheid geben."
-+  karte_melden "Claude-Lauf abgebrochen, kein automatischer Neuversuch." "Claude" "Arbeiter mit Code $code beendet; Nachrichtentext gesichert unter ${ziel:-Wartebereich}."
++  an_tony "Fehlgeschlagen: Claude konnte '$fenster' nicht bearbeiten (Code $code nach ${dauer}s). Ob dabei schon etwas gewirkt hat, ist unklar - deshalb wird NICHTS automatisch wiederholt. Der Nachrichtentext ist unter ${ziel:-dem Wartebereich} gesichert.$sitzungshinweis Bitte Marcel Bescheid geben."
++  karte_melden "Claude-Lauf abgebrochen, Wirkung unklar - kein automatischer Neuversuch." "Claude" "Code $code nach ${dauer}s; Text gesichert unter ${ziel:-Wartebereich}."
++elif ergebnis_lokal && ergebnis_zugestellt "$seit"; then
++  rm -f "$laufend"
++  logz "Ergebnis fuer Lauf $lauf_id belegt und zugestellt - Post abgeschlossen"
++else
++  fehlt=""
++  ergebnis_lokal || fehlt="keine Antwortdatei mit der Lauf-ID $lauf_id"
++  ergebnis_zugestellt "$seit" || fehlt="${fehlt:+$fehlt und }keine Antwort von Claude im Board (Runner-Meldungen zaehlen nicht)"
++  ziel=$(ablegen ohne-ergebnis)
++  logz "Lauf endete mit Code 0, aber ohne belegtes Ergebnis ($fehlt) - Text unter ${ziel:-?}"
++  an_tony "Unklar: Der Lauf fuer '$fenster' endete ohne Fehler, aber es gibt kein belegtes Ergebnis - $fehlt. Ich erklaere das deshalb NICHT fuer fertig. Der Nachrichtentext ist unter ${ziel:-dem Wartebereich} unveraendert erhalten und wird nicht automatisch wiederholt."
++  karte_melden "Lauf beendet, aber ohne belegtes Ergebnis - nicht als fertig gewertet." "Claude" "Kein zuordenbares Ergebnis fuer Lauf $lauf_id: $fehlt."
 +fi
 +
 +if [ "$meldefehler" -gt 0 ]; then
