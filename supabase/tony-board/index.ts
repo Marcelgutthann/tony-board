@@ -31,6 +31,11 @@ async function schluesselOk(s: string | undefined) {
 
 const APPS = ["gmail", "outlook", "github", "jira", "kalender", "drive", "slack", "notion", "web", "code", "notiz", "noranotes", "dokument"];
 const STATUS = ["arbeitet", "braucht_dich", "wartet", "fertig"];
+const BEREICHE = ["technik", "vertrieb", "organisation"];
+// Ohne Angabe: Einordnung nach App, Tony bekommt einen Hinweis zum Korrigieren
+const bereichAusApp = (app: string) =>
+  ["code", "github", "jira"].includes(app) ? "technik" : ["gmail", "outlook"].includes(app) ? "vertrieb" : "organisation";
+const BEREICH_TEXT = "technik = Technische Entwicklung (Code, App, Daten, Deploys), vertrieb = Vertrieb/Sales (Kunden, Interessenten, Partner, Angebote, AuÃŸenauftritt), organisation = Organisation (BÃ¼ro, Termine, Verwaltung, Einkauf, PersÃ¶nliches).";
 
 const TOOLS = [
   {
@@ -58,6 +63,7 @@ const TOOLS = [
             "PFLICHT, wird als 'Stand' angezeigt: was jetzt gilt, in hoechstens 12 Woertern, die Marcel in 5 Sekunden erfasst. Wichtigste Woerter mit **fett**. Trenne ehrlich zwischen erledigt und nur vorbereitet. Beispiel: '**3 Versprechen** auf der Website ohne Beleg, **Impressum** veraltet.'",
         },
         von_dir: { type: "string", description: "Die EINE konkrete Frage an Marcel als ganzer Satz (z. B. \"Soll der Umbau live gehen?\"), Pflicht bei status braucht_dich. Leer lassen (\"\"), wenn nichts von Marcel noetig ist; technisches Warten ist kein von_dir." },
+        bereich: { type: "string", enum: BEREICHE, description: "PFLICHT beim Anlegen: in welchem Rondell das Fenster steht. " + BEREICH_TEXT },
         app: { type: "string", enum: APPS, description: "Logo oben links im Fenster." },
         art: { type: "string", enum: ["mail", "text", "code", "chat"], description: "mail = Kopfzeilen An/Betreff + Text; code = Monospace; chat = Verlauf steht im Vordergrund." },
         kopf: {
@@ -156,9 +162,40 @@ const TOOLS = [
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
   },
   {
+    name: "im_blick_behalten",
+    title: "Im Blick behalten",
+    description:
+      "Legt einen Punkt in 'Bleibt im Blick' an: etwas, das nicht fertig ist und weiterverfolgt werden muss, auch wenn das Fenster dazu fertig ist. Pflicht, sobald eine Reaktion von auÃŸen aussteht (Mail gesendet und Antwort/Termin erwartet, Angebot raus, Zusage offen) oder eine Aufgabe liegen bleibt. Beispiel: Mail an Herrn Arends mit Terminvorschlag gesendet -> text 'Antwort auf Terminvorschlag abwarten', wer 'Christian Arends'. Der Punkt bleibt, bis du ihn mit im_blick_erledigt abhakst oder Marcel ihn abhakt. Gleiche fenster_id und offener Punkt = wird aktualisiert statt doppelt angelegt.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        text: { type: "string", description: "Was offen ist, ein kurzer Satz." },
+        wer: { type: "string", description: "Von wem etwas aussteht oder um wen es geht." },
+        bereich: { type: "string", enum: BEREICHE, description: BEREICH_TEXT },
+        fenster_id: { type: "string", description: "Fenster, zu dem der Punkt gehÃ¶rt." },
+        nachfassen_am: { type: "string", description: "Optional: ab wann nachfassen, JJJJ-MM-TT." },
+      },
+      required: ["text"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+  },
+  {
+    name: "im_blick_erledigt",
+    title: "Im Blick: erledigt",
+    description: "Hakt einen Punkt aus 'Bleibt im Blick' ab (id aus board_lesen), z. B. wenn die erwartete Antwort gekommen ist.",
+    inputSchema: {
+      type: "object",
+      properties: { id: { type: "number" } },
+      required: ["id"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+  },
+  {
     name: "todos_setzen",
-    title: "To-dos setzen",
-    description: "Ersetzt die feste To-do-Liste oben links auf dem Board.",
+    title: "To-dos setzen (alt)",
+    description: "Veraltet, nutze im_blick_behalten. Legt jeden Eintrag als Punkt in 'Bleibt im Blick' an; erledigt:true hakt einen gleichlautenden offenen Punkt ab. Entfernt nie etwas.",
     inputSchema: {
       type: "object",
       properties: {
@@ -208,7 +245,7 @@ const TOOLS = [
   {
     name: "fenster_schliessen",
     title: "Fenster archivieren",
-    description: "Nimmt ein erledigtes Fenster vom Board ins Archiv. Es bleibt ueber archiv_suchen auffindbar.",
+    description: "Nimmt ein erledigtes Fenster vom Board ins Archiv. Es bleibt ueber archiv_suchen auffindbar. Ist der status nicht fertig, landet es automatisch in 'Bleibt im Blick'.",
     inputSchema: {
       type: "object",
       properties: { id: { type: "string" } },
@@ -220,14 +257,52 @@ const TOOLS = [
 ];
 
 async function zustandLesen() {
-  const [{ data: fenster }, { data: z }, { data: eingang }, { data: absprache }, { data: archiv }] = await Promise.all([
+  const [{ data: fenster }, { data: z }, { data: eingang }, { data: absprache }, { data: archiv }, { data: blick }] = await Promise.all([
     db.from("tony_board_fenster").select("*").eq("geschlossen", false).order("erstellt"),
-    db.from("tony_board_zustand").select("fokus, ansicht, todos, geaendert").eq("id", 1).single(),
+    db.from("tony_board_zustand").select("fokus, ansicht, geaendert").eq("id", 1).single(),
     db.from("tony_board_eingang").select("*").order("id", { ascending: false }).limit(30),
     db.from("tony_board_absprache").select("*").order("id", { ascending: false }).limit(30),
-    db.from("tony_board_fenster").select("id, titel, kernaussage, app, geaendert").eq("geschlossen", true).order("geaendert", { ascending: false }).limit(100),
+    db.from("tony_board_fenster").select("id, titel, kernaussage, app, bereich, geaendert").eq("geschlossen", true).order("geaendert", { ascending: false }).limit(100),
+    db.from("tony_board_blick").select("id, text, wer, bereich, fenster_id, nachfassen_am, quelle, erstellt").is("erledigt_am", null).order("erstellt"),
   ]);
-  return { fenster: fenster ?? [], fokus: z?.fokus ?? null, ansicht: z?.ansicht ?? "rondell", todos: z?.todos ?? [], eingang: eingang ?? [], absprache: absprache ?? [], archiv: archiv ?? [] };
+  return { fenster: fenster ?? [], fokus: z?.fokus ?? null, ansicht: z?.ansicht ?? "rondell", blick: blick ?? [], eingang: eingang ?? [], absprache: absprache ?? [], archiv: archiv ?? [] };
+}
+
+// Punkt in "Bleibt im Blick": offener Punkt zum selben Fenster wird aktualisiert statt verdoppelt
+async function blickMerken(p: { text: string; wer?: string | null; bereich?: string; fenster_id?: string | null; nachfassen_am?: string | null; quelle: string }) {
+  const text = String(p.text ?? "").trim().slice(0, 500);
+  if (!text) throw new Error("text fehlt");
+  let bereich = BEREICHE.includes(p.bereich as string) ? p.bereich : null;
+  if (!bereich && p.fenster_id) {
+    const { data: f } = await db.from("tony_board_fenster").select("bereich").eq("id", p.fenster_id).maybeSingle();
+    bereich = f?.bereich ?? null;
+  }
+  const felder: Record<string, unknown> = { text, bereich: bereich ?? "organisation", quelle: p.quelle };
+  if (p.wer !== undefined) felder.wer = p.wer || null;
+  if (p.fenster_id !== undefined) felder.fenster_id = p.fenster_id || null;
+  if (p.nachfassen_am !== undefined) felder.nachfassen_am = /^\d{4}-\d{2}-\d{2}$/.test(String(p.nachfassen_am)) ? p.nachfassen_am : null;
+  const { data: alt } = p.fenster_id
+    ? await db.from("tony_board_blick").select("id").eq("fenster_id", p.fenster_id).is("erledigt_am", null).limit(1).maybeSingle()
+    : await db.from("tony_board_blick").select("id").eq("text", text).is("erledigt_am", null).limit(1).maybeSingle();
+  if (alt) {
+    const { error } = await db.from("tony_board_blick").update(felder).eq("id", alt.id);
+    if (error) throw new Error(error.message);
+    return alt.id;
+  }
+  const { data, error } = await db.from("tony_board_blick").insert(felder).select("id").single();
+  if (error) throw new Error(error.message);
+  return data.id;
+}
+
+// Archivieren: was nicht fertig ist, geht nicht verloren, sondern bleibt im Blick
+async function archivieren(id: string) {
+  const { data: f } = await db.from("tony_board_fenster").select("titel, status, kernaussage, bereich").eq("id", id).maybeSingle();
+  const { error } = await db.from("tony_board_fenster").update({ geschlossen: true, geaendert: new Date().toISOString() }).eq("id", id);
+  if (error) throw new Error(error.message);
+  if (f && f.status !== "fertig") {
+    const stand = String(f.kernaussage ?? "").replace(/\*\*/g, "").trim();
+    await blickMerken({ text: `${f.titel}: ${stand || "nicht fertig"} (archiviert, Status ${f.status})`, bereich: f.bereich, fenster_id: id, quelle: "archiviert" });
+  }
 }
 
 // Ungelesene Nachrichten eines Absenders holen und als gelesen markieren
@@ -255,9 +330,9 @@ async function werkzeug(name: string, a: Record<string, any>): Promise<unknown> 
       return {
         fokus: z.fokus,
         ansicht: z.ansicht,
-        todos: z.todos,
+        bleibt_im_blick: z.blick,
         fenster: z.fenster.map((f: any) => ({
-          id: f.id, titel: f.titel, app: f.app, status: f.status, freigabe: f.freigabe,
+          id: f.id, titel: f.titel, app: f.app, bereich: f.bereich, status: f.status, freigabe: f.freigabe,
           freigabe_kommentar: f.freigabe_kommentar, hinweis: f.hinweis,
         })),
         neue_eingaben_von_marcel: neu.reverse().map((e: any) => ({ fenster_id: e.fenster_id, art: e.art, text: e.text, zeit: e.erstellt })),
@@ -268,10 +343,16 @@ async function werkzeug(name: string, a: Record<string, any>): Promise<unknown> 
       if (!a.id) throw new Error("id fehlt");
       const { data: alt } = await db.from("tony_board_fenster").select("id").eq("id", a.id).maybeSingle();
       const felder: Record<string, unknown> = { geaendert: new Date().toISOString(), geschlossen: false };
-      for (const k of ["titel", "auftrag", "kernaussage", "von_dir", "app", "art", "kopf", "inhalt", "status", "schritte", "hinweis", "verlauf", "widgets"]) {
+      for (const k of ["titel", "auftrag", "kernaussage", "von_dir", "bereich", "app", "art", "kopf", "inhalt", "status", "schritte", "hinweis", "verlauf", "widgets"]) {
         if (a[k] !== undefined) felder[k] = a[k];
       }
       if (felder.app && !APPS.includes(felder.app as string)) felder.app = "notiz";
+      let bereichHinweis: string | undefined;
+      if (felder.bereich !== undefined && !BEREICHE.includes(felder.bereich as string)) delete felder.bereich;
+      if (!alt && felder.bereich === undefined) {
+        felder.bereich = bereichAusApp(String(felder.app ?? "notiz"));
+        bereichHinweis = `bereich fehlte, eingeordnet als '${felder.bereich}'. Falls falsch: fenster_zeigen mit id und bereich (${BEREICHE.join(" | ")}).`;
+      }
       if (felder.status && !STATUS.includes(felder.status as string)) felder.status = "arbeitet";
       // braucht_dich nur mit konkreter Frage; technisches Warten ist "wartet", Freigaben laufen ueber freigabe_anfragen
       if (felder.status === "braucht_dich") {
@@ -293,8 +374,10 @@ async function werkzeug(name: string, a: Record<string, any>): Promise<unknown> 
         const { error } = await db.from("tony_board_fenster").insert({ id: a.id, titel: a.titel ?? a.id, ...felder });
         if (error) throw new Error(error.message);
       }
-      if (a.fokus || !alt) await setzeZustand({ fokus: a.id });
-      return { ok: true, id: a.id, angelegt: !alt };
+      // Nach vorne nur auf Wunsch oder wenn Marcel gebraucht wird; laufende Arbeit drÃ¤ngt sich nicht vor
+      if (a.fokus || (!alt && felder.status === "braucht_dich")) await setzeZustand({ fokus: a.id });
+      return { ok: true, id: a.id, angelegt: !alt, ...(bereichHinweis ? { hinweis: bereichHinweis } : {}),
+        ...(felder.status === "fertig" ? { pruefen: "Steht nach 'fertig' noch etwas aus (Antwort, Termin, Zusage)? Dann im_blick_behalten." } : {}) };
     }
     case "fokus_setzen": {
       const felder: Record<string, unknown> = {};
@@ -312,9 +395,24 @@ async function werkzeug(name: string, a: Record<string, any>): Promise<unknown> 
       await setzeZustand({ fokus: a.id });
       return { ok: true, hinweis: "Marcel sieht die Anfrage. Mit board_lesen pruefen, ob freigegeben wurde." };
     }
-    case "todos_setzen": {
-      await setzeZustand({ todos: (a.todos ?? []).map((t: any) => ({ text: String(t.text), erledigt: !!t.erledigt })) });
+    case "im_blick_behalten": {
+      const id = await blickMerken({ text: a.text, wer: a.wer, bereich: a.bereich, fenster_id: a.fenster_id, nachfassen_am: a.nachfassen_am, quelle: "tony" });
+      return { ok: true, id };
+    }
+    case "im_blick_erledigt": {
+      const { error } = await db.from("tony_board_blick").update({ erledigt_am: new Date().toISOString() }).eq("id", a.id).is("erledigt_am", null);
+      if (error) throw new Error(error.message);
       return { ok: true };
+    }
+    case "todos_setzen": {
+      // Alt-Werkzeug: nie ersetzen, nur anlegen bzw. gleichlautend abhaken
+      for (const t of a.todos ?? []) {
+        const text = String(t?.text ?? "").trim();
+        if (!text) continue;
+        if (t.erledigt) await db.from("tony_board_blick").update({ erledigt_am: new Date().toISOString() }).eq("text", text).is("erledigt_am", null);
+        else await blickMerken({ text, quelle: "tony" });
+      }
+      return { ok: true, hinweis: "todos_setzen ist veraltet und entfernt nichts mehr. Nutze im_blick_behalten / im_blick_erledigt." };
     }
     case "an_claude": {
       const text = String(a.text ?? "").trim();
@@ -335,8 +433,7 @@ async function werkzeug(name: string, a: Record<string, any>): Promise<unknown> 
       return { treffer: data ?? [] };
     }
     case "fenster_schliessen": {
-      const { error } = await db.from("tony_board_fenster").update({ geschlossen: true, geaendert: new Date().toISOString() }).eq("id", a.id);
-      if (error) throw new Error(error.message);
+      await archivieren(a.id);
       return { ok: true };
     }
   }
@@ -352,9 +449,9 @@ async function mcp(msg: any): Promise<any | null> {
       return ok({
         protocolVersion: params?.protocolVersion ?? "2025-06-18",
         capabilities: { tools: { listChanged: false } },
-        serverInfo: { name: "tony-board", title: "Tony Board", version: "1.3.0" },
+        serverInfo: { name: "tony-board", title: "Tony Board", version: "1.4.0" },
         instructions:
-          "Tony Board ist Marcels Bildschirm fuer deine Arbeit. Oberste Regel: Marcel muss jedes Fenster in 5 Sekunden verstehen, ohne zu lesen. Darum beginnt jedes Fenster mit auftrag (ein Satz), kernaussage als Stand (hoechstens 12 Woerter, Schluesselwoerter fett) und von_dir (die eine Frage an Marcel, sonst leer), dazu mindestens ein Widget; Fliesstext ist nur Detail. Lege fuer jede Aufgabe, an der du arbeitest, ein Fenster an (fenster_zeigen) und halte Inhalt, Schritte und Status aktuell. Bereite Ergebnisse visuell auf: Kennzahlen, Tabellen, Vergleiche, Link-Karten oder kleine Mockups als widgets, Mailwechsel als verlauf. Bei einem fertigen Feature ist die erste Link-Karte immer der Direktlink auf die Stelle in der App, ein GitHub-PR nur danach als technische Quelle. Hole das Fenster nach vorne, ueber das ihr gerade sprecht. status braucht_dich nur, wenn Marcel wirklich entscheiden oder etwas liefern muss, und dann immer mit der konkreten Frage in von_dir; wartest du nur technisch (Deploy, Build, Claude), ist der status wartet und von_dir leer. Vor dem Senden einer Mail: freigabe_anfragen, dann board_lesen bis freigegeben. Lies mit board_lesen regelmaessig, was Marcel eingegeben und Claude geantwortet hat. Code-, App-, Daten- und Deploy-Themen gibst du mit an_claude an Claude weiter.",
+          "Tony Board ist Marcels Bildschirm fuer deine Arbeit. Oberste Regel: Marcel muss jedes Fenster in 5 Sekunden verstehen, ohne zu lesen. Darum beginnt jedes Fenster mit auftrag (ein Satz), kernaussage als Stand (hoechstens 12 Woerter, Schluesselwoerter fett) und von_dir (die eine Frage an Marcel, sonst leer), dazu mindestens ein Widget; Fliesstext ist nur Detail. Lege fuer jede Aufgabe, an der du arbeitest, ein Fenster an (fenster_zeigen, immer mit bereich: technik, vertrieb oder organisation - jeder Bereich ist ein eigenes Rondell) und halte Inhalt, Schritte und Status aktuell. 'fertig' heisst: dein Teil ist getan. Bleibt danach etwas offen (Antwort auf eine gesendete Mail, Terminzusage, Freigabe von aussen) oder bleibt eine Aufgabe liegen, legst du es sofort mit im_blick_behalten an; kommt die Antwort, hakst du es mit im_blick_erledigt ab. Pruefe bei board_lesen die Liste bleibt_im_blick und fasse nach, was faellig ist. Bereite Ergebnisse visuell auf: Kennzahlen, Tabellen, Vergleiche, Link-Karten oder kleine Mockups als widgets, Mailwechsel als verlauf. Bei einem fertigen Feature ist die erste Link-Karte immer der Direktlink auf die Stelle in der App, ein GitHub-PR nur danach als technische Quelle. Hole das Fenster nach vorne, ueber das ihr gerade sprecht. status braucht_dich nur, wenn Marcel wirklich entscheiden oder etwas liefern muss, und dann immer mit der konkreten Frage in von_dir; wartest du nur technisch (Deploy, Build, Claude), ist der status wartet und von_dir leer. Vor dem Senden einer Mail: freigabe_anfragen, dann board_lesen bis freigegeben. Lies mit board_lesen regelmaessig, was Marcel eingegeben und Claude geantwortet hat. Code-, App-, Daten- und Deploy-Themen gibst du mit an_claude an Claude weiter.",
       });
     case "ping":
       return ok({});
@@ -440,8 +537,19 @@ Deno.serve(async (req) => {
   if (bereich === "api" && aktion === "archivieren" && req.method === "POST") {
     const b = await req.json().catch(() => ({}));
     if (!b.id) return json({ error: "id fehlt" }, 400);
-    await db.from("tony_board_fenster").update({ geschlossen: !b.zurueck, geaendert: new Date().toISOString() }).eq("id", b.id);
-    if (b.zurueck) await setzeZustand({ fokus: b.id });
+    if (b.zurueck) {
+      await db.from("tony_board_fenster").update({ geschlossen: false, geaendert: new Date().toISOString() }).eq("id", b.id);
+      await setzeZustand({ fokus: b.id });
+    } else await archivieren(b.id);
+    return json({ ok: true });
+  }
+
+  // Board: Marcel hakt einen Punkt in "Bleibt im Blick" ab
+  if (bereich === "api" && aktion === "blick-erledigt" && req.method === "POST") {
+    const b = await req.json().catch(() => ({}));
+    if (!b.id) return json({ error: "id fehlt" }, 400);
+    await db.from("tony_board_blick").update({ erledigt_am: new Date().toISOString() }).eq("id", b.id).is("erledigt_am", null);
+    await db.from("tony_board_eingang").insert({ fenster_id: null, art: "nachricht", text: `[Bleibt im Blick] abgehakt: ${String(b.text ?? b.id).slice(0, 300)}` });
     return json({ ok: true });
   }
 

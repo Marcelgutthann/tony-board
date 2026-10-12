@@ -55,10 +55,22 @@ a{color:var(--blau);text-decoration:none}a:hover{text-decoration:underline}
 .todos li.erl{color:var(--text3);text-decoration:line-through}
 .todos li.erl .box{background:var(--gruen);border-color:var(--gruen)}
 .todos .leer{font-size:.8rem;color:var(--text3)}
+.todos ul{max-height:calc(100vh - 17rem);overflow:auto}
+button.box{cursor:pointer}button.box:hover{background:rgba(127,224,176,.3);border-color:var(--gruen)}
+.b-text small{display:block;font-size:.72rem;color:var(--text3);margin-top:.1rem}
+.b-text.link{cursor:pointer}.b-text.link:hover{color:var(--blau)}
+
+/* Drei Rondelle: je Bereich eines */
+.bereiche{position:fixed;top:4.7rem;left:50%;transform:translateX(-50%);z-index:16;display:none;gap:.25rem;padding:.25rem;border-radius:999px;background:rgba(10,20,40,.88);border:1px solid var(--kante)}
+body.v-rondell .bereiche{display:flex}
+.bereiche button{padding:.4rem .95rem;border-radius:999px;font-size:.82rem;color:var(--text2);display:flex;gap:.45rem;align-items:center;white-space:nowrap}
+.bereiche button.an{background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,.06));color:var(--text)}
+.bereiche .n{font-size:.7rem;color:var(--text3)}
+.bereiche .dich{width:.5rem;height:.5rem;border-radius:50%;background:var(--gelb)}
 
 /* Bühne */
 .buehne{position:fixed;inset:4.4rem 0 8.6rem 0}
-.rondell{position:absolute;inset:0;perspective:120rem}
+.rondell{position:absolute;inset:3rem 0 0 0;perspective:120rem}
 .fenster{
   position:absolute;left:50%;top:50%;
   width:min(62vw, 100rem);height:min(calc(100% - 2.5rem), 58rem);
@@ -315,12 +327,13 @@ body.v-mehrfenster .todos{display:none}
 </header>
 
 <aside class="todos"><h3>Bleibt im Blick</h3><ul id="todos"></ul></aside>
+<nav class="bereiche" id="bereiche" aria-label="Bereiche"></nav>
 
 <main class="buehne">
   <div class="rondell" id="rondell"></div>
   <div class="mehr" id="mehr">
     <nav class="leiste" aria-label="Sitzungen"><div class="leiste-kopf" id="lkopf"></div><div class="leiste-liste" id="lliste"></div>
-      <details class="leiste-todos"><summary>Bleibt im Blick</summary><ul id="ltodos"></ul></details></nav>
+      <details class="leiste-todos"><summary id="lblick">Bleibt im Blick</summary><ul id="ltodos"></ul></details></nav>
     <div class="detail" id="detail"></div>
   </div>
   <div class="absprache" id="absprache"><div class="spalte" id="abspalte"></div></div>
@@ -362,9 +375,33 @@ try { KEY = new URLSearchParams(location.hash.slice(1)).get("k") || localStorage
 }
 if (KEY) { try { localStorage.setItem("tonyBoardKey", KEY); } catch(e) {} }
 
-let zustand = {fenster:[], fokus:null, ansicht:"rondell", todos:[], absprache:[], eingang:[]};
-let vorn = 0, letzterFokus = null, letzterStand = "", gesehenAb = 0;
+let zustand = {fenster:[], fokus:null, ansicht:"rondell", blick:[], absprache:[], eingang:[], archiv:[]};
+let vornId = null, letzterFokus = undefined, letzterStand = "", gesehenAb = 0;
+// Marcels eigene Hand hat Vorrang: wer gerade blaettert oder liest, wird nicht weggerissen
+let letzteHand = 0, fokusFolgen = false, lokaleAnsicht = null, letzteServerAnsicht = null;
 try { gesehenAb = +localStorage.getItem("tonyAbGesehen") || 0; } catch(e) {}
+
+const BEREICHE = [["technik","Technische Entwicklung"],["vertrieb","Vertrieb/Sales"],["organisation","Organisation"]];
+const BEREICH_NAME = Object.fromEntries(BEREICHE);
+let bereichWahl = null;
+try { bereichWahl = localStorage.getItem("tonyBereich"); } catch(e) {}
+const bereichVon = f => BEREICH_NAME[f.bereich] ? f.bereich : "organisation";
+
+// Reihenfolge: was dich braucht vorn, laufende Arbeit hinten; innerhalb gleich bleibt die Anlage-Reihenfolge (nichts springt)
+const PRIO = ["braucht_dich","fertig","wartet","arbeitet"];
+const prio = s => { const i = PRIO.indexOf(s); return i < 0 ? 2 : i; };
+const nachPrio = F => F.map((f,i)=>({f,i})).sort((a,b)=>prio(a.f.status)-prio(b.f.status) || a.i-b.i).map(x=>x.f);
+const rondellListe = () => nachPrio(zustand.fenster.filter(f=>bereichVon(f)===bereichWahl));
+function vornIndex(RF){ const i = RF.findIndex(f=>f.id===vornId); return i < 0 ? 0 : i; }
+function vornFenster(){ const RF = rondellListe(); return RF[vornIndex(RF)] || null; }
+function bereichStart(){
+  const F = zustand.fenster, dich = F.find(f=>f.status==="braucht_dich");
+  if (dich) return bereichVon(dich);
+  if (BEREICH_NAME[bereichWahl]) return bereichWahl;
+  return F.length ? bereichVon(nachPrio(F)[0]) : "technik";
+}
+// Nur neu setzen, was sich geaendert hat: kein Flackern, Scroll und Hover bleiben
+function setzeHTML(el, html){ if (el._h !== html){ el.innerHTML = html; el._h = html; } }
 
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const sichereUrl = u => /^https?:\/\//i.test(String(u||"")) ? esc(u) : "#";
@@ -451,9 +488,55 @@ function fensterHTML(f){
 function archivZeichnen(){
   const q = (document.getElementById("asuche").value||"").toLowerCase().trim();
   const liste = (zustand.archiv||[]).filter(a => !q || (a.titel+" "+(a.kernaussage||"")).toLowerCase().includes(q));
-  document.getElementById("aliste").innerHTML = liste.length
+  setzeHTML(document.getElementById("aliste"), liste.length
     ? liste.map(a=>`<button class="akarte" data-zurueck="${esc(a.id)}"><div class="logo">${LOGOS[a.app]||LOGOS.notiz}</div><div><b>${esc(a.titel)}</b>${a.kernaussage?`<span>${zeile(esc(a.kernaussage))}</span>`:""}<small>${new Date(a.geaendert).toLocaleString("de-DE",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})} · zurück aufs Board</small></div></button>`).join("")
-    : `<div style="color:var(--text3);padding:2rem 0">${q?"Nichts gefunden.":"Noch nichts archiviert."}</div>`;
+    : `<div style="color:var(--text3);padding:2rem 0">${q?"Nichts gefunden.":"Noch nichts archiviert."}</div>`);
+}
+
+function blickHTML(){
+  const B = zustand.blick || [];
+  if (!B.length) return `<li class="leer">Nichts offen.</li>`;
+  return B.map(b=>{
+    const tage = Math.floor((Date.now() - new Date(b.erstellt)) / 864e5);
+    const meta = [b.wer, BEREICH_NAME[b.bereich], tage < 1 ? "seit heute" : tage === 1 ? "seit gestern" : `seit ${tage} Tagen`,
+      b.nachfassen_am ? "nachfassen ab " + new Date(b.nachfassen_am).toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit"}) : ""].filter(Boolean).join(" · ");
+    const offen = b.fenster_id && finde(b.fenster_id);
+    return `<li><button class="box" data-blick="${esc(b.id)}" title="Erledigt abhaken" aria-label="Erledigt abhaken"></button><span class="b-text ${offen?"link":""}" ${offen?`data-zeige="${esc(b.fenster_id)}"`:""}>${esc(b.text)}<small>${esc(meta)}</small></span></li>`;
+  }).join("");
+}
+
+function bereicheZeichnen(){
+  setzeHTML(document.getElementById("bereiche"), BEREICHE.map(([k,name])=>{
+    const G = zustand.fenster.filter(f=>bereichVon(f)===k), dich = G.some(f=>f.status==="braucht_dich");
+    return `<button data-bereich="${k}" class="${k===bereichWahl?"an":""}">${dich?'<i class="dich" title="braucht dich"></i>':""}${name}<span class="n">${G.length}</span></button>`;
+  }).join(""));
+}
+
+function rondellZeichnen(){
+  const r = document.getElementById("rondell"), RF = rondellListe();
+  const ids = new Set(RF.map(f=>f.id));
+  r.querySelectorAll(":scope > .fenster").forEach(el=>{ if (!ids.has(el.dataset.id)) el.remove(); });
+  const leer = r.querySelector(":scope > .leerstand");
+  if (!RF.length){
+    const html = `<div><b>In ${esc(BEREICH_NAME[bereichWahl])} läuft gerade nichts.</b>${zustand.fenster.length ? "Die anderen Bereiche oben haben offene Fenster." : "Sobald Tony an etwas arbeitet, erscheint es hier."}</div>`;
+    if (leer) setzeHTML(leer, html);
+    else { const d = document.createElement("div"); d.className = "leerstand"; setzeHTML(d, html); r.appendChild(d); }
+    return;
+  }
+  if (leer) leer.remove();
+  RF.forEach((f,i)=>{
+    let el = [...r.children].find(c=>c.dataset.id===f.id);
+    if (!el){ el = document.createElement("section"); el.dataset.id = f.id; el.dataset.neu = "1"; r.appendChild(el); }
+    el.className = `fenster ${f.status==="braucht_dich"?"braucht":""} ${f.status==="arbeitet"?"arbeitet":""}`;
+    el.dataset.i = i;
+    const html = fensterHTML(f);
+    if (el._h !== html){
+      const k = el.querySelector(".f-koerper"), top = k ? k.scrollTop : 0, offen = !!el.querySelector("details.mehr-text[open]");
+      el.innerHTML = html; el._h = html;
+      if (offen) el.querySelector("details.mehr-text")?.setAttribute("open","");
+      if (top) el.querySelector(".f-koerper").scrollTop = top;
+    }
+  });
 }
 
 function zeit(iso){ try { return new Date(iso).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"}); } catch(e){ return ""; } }
@@ -463,10 +546,10 @@ function absprachZeichnen(){
   const mein = (zustand.eingang||[]).filter(e=>e.art==="nachricht").map(e=>({wer:"marcel", text:e.text, t:e.erstellt}));
   const alle = ab.concat(mein).sort((a,b)=>a.t<b.t?-1:1);
   const name = {tony:"Tony", claude:"Claude", marcel:"Du an Tony"};
-  document.getElementById("abspalte").innerHTML =
+  setzeHTML(document.getElementById("abspalte"),
     `<h2>Tony ⇄ Claude</h2><div class="unter">Was die beiden untereinander absprechen. Claude schaut jede Minute nach.</div>` +
     (alle.length ? alle.map(n=>`<div class="blase ${n.wer}"><div class="wer"><b>${name[n.wer]}</b><span>${zeit(n.t)}</span></div>${markdown(n.text)}</div>`).join("")
-                 : `<div class="leerstand" style="position:static;padding:4rem 0"><div><b>Noch keine Absprache.</b>Sobald Tony Claude etwas übergibt, steht es hier.</div></div>`);
+                 : `<div class="leerstand" style="position:static;padding:4rem 0"><div><b>Noch keine Absprache.</b>Sobald Tony Claude etwas übergibt, steht es hier.</div></div>`));
   const neu = ab.filter(m=>m.id > gesehenAb).length;
   const z = document.getElementById("abzahl");
   if (zustand.ansicht === "absprache"){ const max = Math.max(0,...ab.map(m=>m.id)); if (max > gesehenAb){ gesehenAb = max; try{localStorage.setItem("tonyAbGesehen",max);}catch(e){} } z.hidden = true; }
@@ -475,37 +558,25 @@ function absprachZeichnen(){
 
 function zeichnen(){
   const F = zustand.fenster, a = zustand.ansicht;
-  document.getElementById("todos").innerHTML = zustand.todos.length ? zustand.todos.map(t=>`<li class="${t.erledigt?"erl":""}"><span class="box"></span>${esc(t.text)}</li>`).join("") : `<li class="leer">Noch keine To-dos.</li>`;
+  if (!BEREICH_NAME[bereichWahl]) bereichWahl = bereichStart();
+  setzeHTML(document.getElementById("todos"), blickHTML());
   document.querySelectorAll("#umschalter button").forEach(b=>b.classList.toggle("an", b.dataset.a===a));
   document.getElementById("rondell").classList.toggle("aus", a!=="rondell");
   document.getElementById("mehr").classList.toggle("an", a==="mehrfenster");
   document.getElementById("absprache").classList.toggle("an", a==="absprache");
   document.body.classList.toggle("v-mehrfenster", a==="mehrfenster");
+  document.body.classList.toggle("v-rondell", a==="rondell");
   document.getElementById("archiv").classList.toggle("an", a==="archiv");
   archivZeichnen();
-  document.getElementById("nav").style.visibility = (a==="rondell" && F.length>1) ? "visible" : "hidden";
   document.getElementById("hinweis").style.visibility = a==="rondell" ? "visible" : "hidden";
   absprachZeichnen();
-
-  const r = document.getElementById("rondell");
-  if (!F.length){
-    r.innerHTML = `<div class="leerstand"><div><b>Tony zeigt gerade keine Aufgabe.</b>Sobald er an etwas arbeitet, erscheint es hier.</div></div>`;
-    leisteZeichnen();
-    document.getElementById("detail").innerHTML = `<div class="leerstand" style="position:static;padding:4rem 0"><div><b>Keine offene Sitzung.</b>Sobald Tony an etwas arbeitet, steht es links.</div></div>`;
-    gezeigt = null;
-    document.getElementById("hinweis").textContent = "";
-    document.getElementById("ziel").textContent = "An Tony";
-    return;
-  }
-  vorn = Math.max(0, Math.min(vorn, F.length-1));
-  // Scrollstand im vorderen Fenster beim Neuzeichnen behalten
-  const alt = {}; document.querySelectorAll("#rondell .fenster .f-koerper").forEach((el,i)=>alt[i]=el.scrollTop);
-  const offen = new Set([...document.querySelectorAll("#rondell .fenster details[open]")].map(d=>d.closest(".fenster").dataset.i));
-  r.innerHTML = F.map((f,i)=>fensterSection(f,i)).join("");
-  document.querySelectorAll("#rondell .fenster details").forEach(d=>{ if (offen.has(d.closest(".fenster").dataset.i)) d.open = true; });
-  document.querySelectorAll("#rondell .fenster .f-koerper").forEach((el,i)=>{ if (alt[i]) el.scrollTop = alt[i]; });
+  bereicheZeichnen();
+  rondellZeichnen();
   leisteZeichnen();
-  detailZeichnen(true);
+  if (!F.length){
+    setzeHTML(document.getElementById("detail"), `<div class="leerstand" style="position:static;padding:4rem 0"><div><b>Keine offene Sitzung.</b>Sobald Tony an etwas arbeitet, steht es links.</div></div>`);
+    gezeigt = null; gezeigtHTML = "";
+  } else detailZeichnen();
   frischeZeigen();
   drehen();
 }
@@ -516,10 +587,8 @@ const fensterSection = (f,i) => `<section class="fenster ${f.status==="braucht_d
    auswahl = geklickt, angetippt oder mit der Maus kurz angesteuert; sie bleibt stehen, bis die naechste Wahl kommt.
    Ohne Auswahl folgt die Ansicht Tony (Fokus, sonst was dich braucht, sonst was laeuft).
    Tony verdraengt eine Auswahl nie; sein neuer Fokus erscheint nur als Band ueber dem Inhalt. */
-const PRIO = ["braucht_dich","arbeitet","wartet","fertig"];
-let auswahl = null, gezeigt = null;
+let auswahl = null, gezeigt = null, gezeigtHTML = "";
 const finde = id => zustand.fenster.find(f=>f.id===id);
-const prio = s => { const i = PRIO.indexOf(s); return i < 0 ? 2 : i; };
 function tonysWahl(){
   const F = zustand.fenster;
   return finde(zustand.fokus) || F.find(f=>f.status==="braucht_dich") || F.find(f=>f.status==="arbeitet") || F[0];
@@ -531,11 +600,11 @@ function leisteZeichnen(){
   const zahl = s => F.filter(f=>f.status===s).length;
   const teile = [["braucht_dich","braucht dich","brauchen dich"],["arbeitet","arbeitet","arbeiten"],["wartet","wartet","warten"]]
     .map(([s,e,m])=>{ const n = zahl(s); return n ? `${n} ${n===1?e:m}` : ""; }).filter(Boolean);
-  document.getElementById("lkopf").innerHTML = `<b>Sitzungen · ${F.length}</b><span>${teile.join(" · ") || "nichts offen"}</span>`;
-  const sortiert = F.map((f,i)=>({f,i})).sort((a,b)=>prio(a.f.status)-prio(b.f.status) || a.i-b.i);
+  setzeHTML(document.getElementById("lkopf"), `<b>Sitzungen · ${F.length}</b><span>${teile.join(" · ") || "nichts offen"}</span>`);
+  const sortiert = nachPrio(F);
   const sel = gewaehlt()?.id;
   let gruppe = null, html = "";
-  for (const {f} of sortiert){
+  for (const f of sortiert){
     if (f.status !== gruppe){ gruppe = f.status; html += `<div class="gruppe ${esc(f.status)}">${STATUS[f.status]||esc(f.status)}</div>`; }
     const frage = f.status!=="braucht_dich" ? "" : f.von_dir ? f.von_dir : f.freigabe==="angefragt" ? "Freigabe: Freigeben oder Ändern?" : "Frage fehlt – Tony muss sie nennen";
     const unter = frage ? `<span class="s-stand vondir">${zeile(esc(frage))}</span>` : f.kernaussage ? `<span class="s-stand">${zeile(esc(f.kernaussage))}</span>` : "";
@@ -545,11 +614,12 @@ function leisteZeichnen(){
         <div class="s-zeile"><span class="status ${esc(f.status)}"><i></i>${STATUS[f.status]||esc(f.status)}</span>${f.geaendert?`<small class="frisch" data-t="${esc(f.geaendert)}"></small>`:""}</div>
         ${unter}</div></button>`;
   }
-  document.getElementById("lliste").innerHTML = html;
-  document.getElementById("ltodos").innerHTML = zustand.todos.length ? zustand.todos.map(t=>`<li class="${t.erledigt?"erl":""}"><span class="box"></span>${esc(t.text)}</li>`).join("") : `<li style="color:var(--text3)">Noch keine To-dos.</li>`;
+  setzeHTML(document.getElementById("lliste"), html);
+  setzeHTML(document.getElementById("ltodos"), blickHTML());
+  setzeHTML(document.getElementById("lblick"), `Bleibt im Blick${(zustand.blick||[]).length ? " · " + zustand.blick.length : ""}`);
 }
 
-function detailZeichnen(neuerStand){
+function detailZeichnen(){
   const d = document.getElementById("detail");
   if (!zustand.fenster.length) return;
   const f = gewaehlt(), tony = tonysWahl();
@@ -558,29 +628,28 @@ function detailZeichnen(neuerStand){
     const b = tony.status==="braucht_dich";
     band = `<div class="band ${b?"braucht_dich":""}"><span>${b?"Braucht dich":"Tony ist gerade bei"}: <b>${esc(tony.titel)}</b></span><button class="glasknopf" data-folgen>Dorthin</button></div>`;
   }
-  const i = zustand.fenster.indexOf(f);
-  const schluessel = f.id + "|" + band;
-  if (!neuerStand && schluessel === gezeigt) return;
-  const gleich = gezeigt && gezeigt.split("|")[0] === f.id;
+  const html = band + fensterSection(f, zustand.fenster.indexOf(f));
+  const gleich = gezeigt === f.id;
+  if (gleich && html === gezeigtHTML) return;
   const k = d.querySelector(".f-koerper"), top = gleich && k ? k.scrollTop : 0;
   const offen = gleich && !!d.querySelector("details.mehr-text[open]");
-  d.innerHTML = band + fensterSection(f,i);
+  d.innerHTML = html; d._h = null;
   if (!gleich) d.querySelector(".fenster")?.classList.add("neu");
   if (offen) d.querySelector("details.mehr-text")?.setAttribute("open","");
   if (top) d.querySelector(".f-koerper").scrollTop = top;
-  gezeigt = schluessel;
+  gezeigt = f.id; gezeigtHTML = html;
   frischeZeigen();
   zielSetzen();
 }
 
 function zielSetzen(){
-  const f = zustand.ansicht === "rondell" ? zustand.fenster[vorn] : zustand.ansicht === "mehrfenster" ? gewaehlt() : null;
+  const f = zustand.ansicht === "rondell" ? vornFenster() : zustand.ansicht === "mehrfenster" ? gewaehlt() : null;
   document.getElementById("ziel").textContent = f ? `Zu: ${f.titel}` : "An Tony";
 }
 
 function waehlen(id){
   auswahl = id;
-  const i = zustand.fenster.findIndex(f=>f.id===id); if (i >= 0) vorn = i;
+  if (rondellListe().some(f=>f.id===id)) vornId = id;
   leisteZeichnen(); detailZeichnen(); drehen();
 }
 
@@ -598,8 +667,10 @@ function frischeZeigen(){
 }
 
 function drehen(){
-  const F = zustand.fenster, n = F.length;
+  const F = rondellListe(), n = F.length, vorn = vornIndex(F);
+  document.getElementById("nav").style.visibility = (zustand.ansicht==="rondell" && n>1) ? "visible" : "hidden";
   document.querySelectorAll("#rondell .fenster").forEach(el=>{
+    if (el.dataset.neu) el.style.transition = "none"; // Neues Fenster erscheint an seinem Platz, ohne durchs Bild zu fliegen
     const i = +el.dataset.i;
     let d = i - vorn; if (d > n/2) d -= n; if (d < -n/2) d += n;
     const a = Math.abs(d);
@@ -610,6 +681,8 @@ function drehen(){
     el.style.pointerEvents = a > 1 ? "none" : "auto";
     el.classList.toggle("vorn", a===0);
   });
+  const neue = document.querySelectorAll("#rondell .fenster[data-neu]");
+  if (neue.length){ void document.body.offsetWidth; neue.forEach(el=>{ el.style.transition = ""; delete el.dataset.neu; }); }
   const f = F[vorn];
   document.getElementById("zaehler").textContent = `${String(vorn+1).padStart(2,"0")} / ${String(n).padStart(2,"0")}`;
   document.getElementById("hinweis").textContent = f?.hinweis || "";
@@ -623,15 +696,27 @@ async function laden(){
     const z = await res.json();
     document.getElementById("live").classList.remove("aus");
     document.querySelector("#live span").textContent = "verbunden";
-    const stand = JSON.stringify([z.fenster, z.fokus, z.ansicht, z.todos, z.absprache, z.eingang, z.archiv]);
+    const stand = JSON.stringify([z.fenster, z.fokus, z.ansicht, z.blick, z.absprache, z.eingang, z.archiv]);
     if (stand === letzterStand) return;
     letzterStand = stand;
+    const erstes = letzterFokus === undefined, vorher = zustand.fenster;
     zustand = z;
-    if (z.fokus !== letzterFokus){
-      const i = z.fenster.findIndex(f=>f.id===z.fokus);
-      if (i >= 0) vorn = i;
-      letzterFokus = z.fokus;
+    zustand.blick = z.blick || [];
+    // Ansicht: Tonys Wechsel gilt, sonst bleibt Marcels eigene (Archiv, Absprache) stehen
+    if (z.ansicht !== letzteServerAnsicht){ letzteServerAnsicht = z.ansicht; lokaleAnsicht = null; }
+    if (lokaleAnsicht) zustand.ansicht = lokaleAnsicht;
+    const ruhig = Date.now() - letzteHand > 15000;
+    const nachVorn = f => { bereichWahl = bereichVon(f); vornId = f.id; };
+    if (erstes){
+      bereichWahl = bereichStart(); vornId = rondellListe()[0]?.id ?? null;
+    } else {
+      // Was neu nach dir fragt, kommt nach vorn; Tonys ausdruecklicher Fokus auch. Beides nur, wenn du gerade nicht selbst blaetterst.
+      const neuDich = z.fenster.find(f=>f.status==="braucht_dich" && !vorher.some(v=>v.id===f.id && v.status==="braucht_dich"));
+      const fokus = z.fokus !== letzterFokus ? finde(z.fokus) : null;
+      if (fokus && (ruhig || fokusFolgen)) nachVorn(fokus);
+      else if (neuDich && ruhig) nachVorn(neuDich);
     }
+    letzterFokus = z.fokus; fokusFolgen = false;
     zeichnen();
   }catch(e){
     document.getElementById("live").classList.add("aus");
@@ -644,9 +729,28 @@ async function senden(pfad, daten){
   letzterStand = ""; laden();
 }
 
-function schritt(d){ const n = zustand.fenster.length; if (!n) return; vorn = (vorn + d + n) % n; drehen(); }
+function schritt(d){ const RF = rondellListe(), n = RF.length; if (!n) return; vornId = RF[(vornIndex(RF) + d + n) % n].id; drehen(); }
 
 function start(){
+  for (const ev of ["pointerdown","wheel","keydown","touchstart"]) document.addEventListener(ev, () => letzteHand = Date.now(), {capture:true, passive:true});
+  document.getElementById("bereiche").addEventListener("click", e => {
+    const b = e.target.closest("[data-bereich]"); if (!b) return;
+    bereichWahl = b.dataset.bereich; try { localStorage.setItem("tonyBereich", bereichWahl); } catch(e) {}
+    vornId = rondellListe()[0]?.id ?? null; zeichnen();
+  });
+  // Bleibt im Blick: abhaken, oder zum Fenster springen
+  document.addEventListener("click", e => {
+    const ab = e.target.closest("[data-blick]");
+    if (ab){
+      const id = ab.dataset.blick, b = (zustand.blick||[]).find(x=>String(x.id)===id);
+      zustand.blick = (zustand.blick||[]).filter(x=>String(x.id)!==id); zeichnen();
+      senden("blick-erledigt", {id, text: b?.text}); return;
+    }
+    const z = e.target.closest("[data-zeige]"), f = z && finde(z.dataset.zeige);
+    if (!f) return;
+    if (zustand.ansicht === "mehrfenster") { waehlen(f.id); return; }
+    zustand.ansicht = lokaleAnsicht = "rondell"; bereichWahl = bereichVon(f); vornId = f.id; zeichnen();
+  });
   document.getElementById("zurueck").onclick = () => schritt(-1);
   document.getElementById("vor").onclick = () => schritt(1);
   document.addEventListener("keydown", e => { if (e.target.tagName === "INPUT") return;
@@ -689,7 +793,7 @@ function start(){
   document.querySelector(".buehne").addEventListener("click", e => {
     const ar = e.target.closest("[data-archiv]"), zu = e.target.closest("[data-zurueck]");
     if (ar) { zustand.fenster = zustand.fenster.filter(f=>f.id!==ar.dataset.archiv); zeichnen(); senden("archivieren", {id: ar.dataset.archiv}); return; }
-    if (zu) { zustand.ansicht = "rondell"; letzterFokus = null; senden("archivieren", {id: zu.dataset.zurueck, zurueck:true}); return; }
+    if (zu) { zustand.ansicht = lokaleAnsicht = "rondell"; fokusFolgen = true; senden("archivieren", {id: zu.dataset.zurueck, zurueck:true}); return; }
     const ja = e.target.closest("[data-ja]"), ab = e.target.closest("[data-ab]");
     if (ja) { senden("eingabe", {fenster_id: ja.dataset.ja, art:"freigabe", text:"Freigegeben"}); return; }
     if (ab) {
@@ -699,17 +803,17 @@ function start(){
     }
     if (e.target.closest("[data-folgen]")) { auswahl = null; leisteZeichnen(); detailZeichnen(); return; }
     const f = e.target.closest("#rondell .fenster:not(.vorn)");
-    if (f) { vorn = +f.dataset.i; drehen(); }
+    if (f) { vornId = f.dataset.id; drehen(); }
   });
   document.getElementById("umschalter").addEventListener("click", e => {
     const b = e.target.closest("button"); if (!b) return;
-    zustand.ansicht = b.dataset.a; zeichnen(); zielSetzen();
+    zustand.ansicht = lokaleAnsicht = b.dataset.a; zeichnen(); zielSetzen();
     if (b.dataset.a === "rondell" || b.dataset.a === "mehrfenster") senden("ansicht", {ansicht: b.dataset.a});
   });
   document.getElementById("eingabe").addEventListener("submit", e => {
     e.preventDefault();
     const t = document.getElementById("text"); const text = t.value.trim(); if (!text) return;
-    const f = zustand.ansicht === "rondell" ? zustand.fenster[vorn] : zustand.ansicht === "mehrfenster" ? gewaehlt() : null;
+    const f = zustand.ansicht === "rondell" ? vornFenster() : zustand.ansicht === "mehrfenster" ? gewaehlt() : null;
     senden("eingabe", {fenster_id: f?.id ?? null, art:"nachricht", text});
     t.value = ""; t.placeholder = "Gesendet. Tony liest es beim nächsten Blick aufs Board.";
   });

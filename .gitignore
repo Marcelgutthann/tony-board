@@ -2,3 +2,4 @@
 waechter/*.log
 waechter/*.lock
 waechter/antwort.json
+.pruef-state.json
