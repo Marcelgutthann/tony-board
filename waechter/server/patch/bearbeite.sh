@@ -26,6 +26,9 @@ fid=""; [ "$fenster" != "ohne-fenster" ] && fid="$fenster"
 antwortdatei="$hier/antwort-$fenster.json"
 # Eindeutige Kennung dieses Laufs: nur ein Ergebnis mit genau dieser Kennung zaehlt als Ergebnis.
 lauf_id="$fenster-$(date +%s%N)-$$"
+# Dieser Marker muss im gespeicherten Boardtext stehen. Nur so laesst sich eine Antwort ohne
+# Schemaaenderung eindeutig DIESEM Lauf zuordnen - die API speichert lauf_id/art nicht.
+lauf_marke="[lauf:$lauf_id]"
 meldefehler=0
 
 # Meldung an Tony. Schlucken ist verboten: ein Fehlschlag wird gezaehlt und protokolliert.
@@ -75,13 +78,16 @@ ergebnis_lokal() {
   jq -e --arg l "$lauf_id" '.lauf_id == $l and .art == "ergebnis"' "$antwortdatei" >/dev/null 2>&1
 }
 
-# Beleg 2 (Board): Ist seit $1 eine Antwort angekommen, die NICHT vom Runner stammt?
-# Eigene Status- und Startmeldungen tragen [Runner] und werden hier ausdruecklich ausgeschlossen.
+# Beleg 2 (Board): Steht im Board eine gespeicherte Antwort, die GENAU zu diesem Lauf gehoert?
+# Entscheidend ist der Marker im gespeicherten Text - die API speichert lauf_id und art nicht,
+# also muss die Zuordnung im Text selbst stehen. Fenster muss exakt passen (kein null-Schlupfloch),
+# und Meldungen des Runners sind zusaetzlich ausgeschlossen.
 ergebnis_zugestellt() {
   curl -s --max-time "${TONY_HTTP_FRIST:-10}" "$api/state" 2>/dev/null \
-    | jq -e --arg s "$1" --arg f "$fid" \
+    | jq -e --arg s "$1" --arg f "$fid" --arg m "$lauf_marke" \
         '[.absprache[]? | select(.von=="claude" and .erstellt >= $s
-                                 and ($f == "" or .fenster_id == $f or .fenster_id == null)
+                                 and ((if $f == "" then .fenster_id == null else .fenster_id == $f end))
+                                 and ((.text // "") | contains($m))
                                  and ((.text // "") | startswith("[Runner]") | not))] | length > 0' \
         >/dev/null 2>&1
 }
@@ -148,6 +154,9 @@ So gehst du vor:
 5. Antworte Tony am Ende IMMER, kurz (hoechstens 6 Saetze): schreib die Datei $antwortdatei mit {\"text\": \"...\"${fid:+, \"fenster_id\": \"$fid\"}, \"lauf_id\": \"$lauf_id\", \"art\": \"ergebnis\"} und fuehre aus:
    curl -s -X POST \"$api/an-tony\" -H \"content-type: application/json\" --data-binary @$antwortdatei
 Sag Tony, was erledigt ist und was er Marcel sagen oder fragen soll.
+   WICHTIG: Der text muss als letzte Zeile die Marke $lauf_marke enthalten. Nur daran erkennt der
+   Runner, dass die gespeicherte Antwort zu genau diesem Lauf gehoert; ohne sie gilt der Auftrag
+   als nicht erledigt und bleibt offen.
 
 Hinweis: Stehen oben mehrere Nachrichten, sind sie waehrend eines laufenden Auftrags eingegangen und zusammengefasst worden. Reine Statusnachfragen beantwortest du kurz aus dem, was du schon weisst, und beginnst dafuer keine neue Umsetzung."
 
@@ -228,7 +237,7 @@ elif ergebnis_lokal && ergebnis_zugestellt "$seit"; then
 else
   fehlt=""
   ergebnis_lokal || fehlt="keine Antwortdatei mit der Lauf-ID $lauf_id"
-  ergebnis_zugestellt "$seit" || fehlt="${fehlt:+$fehlt und }keine Antwort von Claude im Board (Runner-Meldungen zaehlen nicht)"
+  ergebnis_zugestellt "$seit" || fehlt="${fehlt:+$fehlt und }keine im Board gespeicherte Antwort mit der Marke $lauf_marke zu Fenster '${fid:-ohne-fenster}' (fremde, spaete und Runner-Meldungen zaehlen nicht)"
   ziel=$(ablegen ohne-ergebnis)
   logz "Lauf endete mit Code 0, aber ohne belegtes Ergebnis ($fehlt) - Text unter ${ziel:-?}"
   an_tony "Unklar: Der Lauf fuer '$fenster' endete ohne Fehler, aber es gibt kein belegtes Ergebnis - $fehlt. Ich erklaere das deshalb NICHT fuer fertig. Der Nachrichtentext ist unter ${ziel:-dem Wartebereich} unveraendert erhalten und wird nicht automatisch wiederholt."

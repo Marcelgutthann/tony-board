@@ -1,6 +1,6 @@
 # Empfangs-, Warte- und Startrückmeldung — Patch zur Prüfung
 
-**Revision 3** (nach Tonys zweitem Review; Revision 1 in `5de9265`, Revision 2 in `937600e`).
+**Revision 4** (nach Tonys Abschlussreview; Rev. 1 `5de9265`, Rev. 2 `937600e`, Rev. 3 `0737dea`).
 **Stand: vorgeschlagen, nicht installiert.** Der produktive Runner unter `/opt/tony/waechter/`
 ist unverändert (Prüfsummen `c85ef04ac5089b9b` / `9586dbea201205f1`, Dienst ohne Neustart).
 Hier liegen nur Entwürfe, ein Diff, ein Prüfstand und der Plan zum Scharfschalten.
@@ -39,6 +39,23 @@ Hier liegen nur Entwürfe, ein Diff, ein Prüfstand und der Plan zum Scharfschal
 
 Zusätzlich sind Pfade, Zeitgrenze und das `claude`-Binary über Umgebungsvariablen überschreibbar
 (Vorgabe = bisheriges Verhalten). Nur dadurch ist der Prüfstand ohne echten Runner möglich.
+
+## Was Revision 4 gegenüber Revision 3 korrigiert
+
+Ein letzter, berechtigter Befund: Die Boardprüfung verlangte zwar eine Antwort ohne `[Runner]`,
+aber **irgendeine** — sogar eine mit `fenster_id = null`. Da die echte API `lauf_id` und `art`
+nicht speichert, konnte so die eigene Zustellung scheitern und trotzdem eine fremde oder späte
+Antwort die Postlöschung auslösen.
+
+Jetzt erzeugt jeder Lauf eine **Marke** `[lauf:<lauf_id>]`. Der Auftragstext verlangt, dass Claude
+sie als letzte Zeile in den Antworttext schreibt — damit steht die Zuordnung im *gespeicherten*
+Text, ganz ohne Schemaänderung. Die Prüfung verlangt jetzt **exakt** diese Marke, ein **exakt**
+passendes Fenster (`fenster_id == <fenster>`, bei Nachrichten ohne Fensterbezug `== null` — kein
+Schlupfloch mehr) und weiterhin kein `[Runner]`-Präfix. Fehlt die Marke, bleibt der Auftrag offen
+und der Inhalt erhalten.
+
+Die anderen bestätigten Teile sind unverändert: Startmeldung während des laufenden Prozesses,
+kein automatischer Resume-Retry.
 
 ## Was Revision 3 gegenüber Revision 2 korrigiert
 
@@ -92,7 +109,7 @@ schreiben ihn nach `meldefehler.log`.
 ## Prüfergebnis
 
 ```
-bash waechter/server/patch/test-aktivierung.sh     →  65/65 Prüfungen bestanden
+bash waechter/server/patch/test-aktivierung.sh     →  74/74 Prüfungen bestanden
 ```
 
 Jeder Fall zählt **Aufrufzahl und Außenwirkung** getrennt, damit ein stiller zweiter Versuch
@@ -118,6 +135,9 @@ auffliegt. Die wichtigsten Zusicherungen im Wortlaut:
 | 17 | **die eigene Startmeldung zählt nicht:** sie steht als `von=claude` im Board, trotzdem gilt der Lauf als ohne Ergebnis |
 | 18 | Antwortdatei mit fremder Lauf-ID zählt nicht als eigenes Ergebnis |
 | 19 | vollständig belegtes Ergebnis (Lauf-ID + Typ + Zustellung) wird als fertig gewertet |
+| 20 | **gültige lokale Antwortdatei + eigene Zustellung gescheitert + fremde spätere Boardantwort → Auftrag bleibt offen, Inhalt unverändert erhalten** |
+| 21 | fremde Antwort mit `fenster_id = null` zählt nicht — kein Schlupfloch |
+| 22 | Antwort mit der richtigen Marke zählt weiterhin als Ergebnis (keine Übervorsicht) |
 
 Die nachgebildete API kann dafür HTTP-Fehler erzwingen und Antworten hängen lassen. Der Prüfstand
 läuft vollständig in einem Wegwerf-Ordner; es wird kein Dienst angelegt und nichts Produktives
@@ -135,8 +155,12 @@ angefasst.
 - **Eine unbrauchbare gespeicherte Sitzung blockiert das Fenster dauerhaft.** Da es keinen
   automatischen zweiten Aufruf mehr gibt, scheitert dann jeder Lauf. Die Meldung sagt das und
   nennt den Handgriff (`sitzungen/<fenster>` entfernen); automatisch passiert bewusst nichts.
-- **Das Ergebnis hängt daran, dass Claude die Lauf-ID zurückschreibt.** Tut er das nicht, gilt der
-  Lauf als ohne Ergebnis — konservativ, der Text bleibt erhalten, aber ein Fehlalarm ist möglich.
+- **Das Ergebnis hängt daran, dass Claude die Marke zurückschreibt.** Schreibt er sie nicht in den
+  Antworttext, gilt der Lauf als ohne Ergebnis — konservativ, der Text bleibt erhalten, aber ein
+  Fehlalarm ist möglich.
+- **Die Marke ist im Board sichtbar.** `[lauf:…]` steht als letzte Zeile unter Claudes Antwort in
+  der Ansicht „Tony ⇄ Claude". Das ist der Preis dafür, die Zuordnung ohne Schemaänderung zu
+  führen; mit einem eigenen Feld in `tony_board_absprache` wäre sie unsichtbar.
 - **`fuser` ist optional.** Fehlt es, steht in der Wartemeldung keine Prozessnummer, sonst ändert
   sich nichts.
 - **0,4 s Startprobe.** Ein Lauf, der schneller als das fertig wird, wird am Exitcode erkannt und
