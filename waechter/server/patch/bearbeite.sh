@@ -1,9 +1,16 @@
 #!/bin/bash
 # Ein Arbeiter je Fenster: setzt die Claude-Sitzung dieses Fensters fort (--resume),
 # hoechstens $MAX Arbeiter gleichzeitig.
-# Neu: meldet Warten mit Grund, bestaetigt den Arbeitsstart erst nach Erwerb der Sperre und
-# Prozessstart, fasst alles Offene zu einem Fenster in EINEN Lauf zusammen und meldet den
-# Abschluss bzw. den Fehler sauber zurueck.
+#
+# Grundsatz, der hier ueberall gilt: Es wird nur gemeldet, was nachweisbar passiert ist.
+#  - "Arbeit gestartet" erst, wenn ein Prozess nachweislich laeuft (PID lebt). Ein fehlendes
+#    Binary oder ein gescheiterter Spawn ergibt NIE "arbeitet", sondern einen Fehler.
+#  - Kein pauschaler zweiter Versuch. Nur ein Resume, der nachweislich vor jeder Ausfuehrung
+#    gescheitert ist, wird ohne Resume wiederholt; alles andere ist "unklar" und wartet auf
+#    manuelle Pruefung.
+#  - Exit 0 allein ist kein Beleg fuer ein zugestelltes Ergebnis. Erst wenn eine Antwort an Tony
+#    nachweisbar im Board steht, gilt der Auftrag als erledigt und die Post wird entfernt.
+#  - Meldewege verschlucken keine Fehler: jede nicht zugestellte Meldung wird gezaehlt und geloggt.
 fenster=$1; datei=$2
 hier=${TONY_WAECHTER_DIR:-/opt/tony/waechter}
 MAX=${TONY_MAX_PLAETZE:-3}
@@ -12,27 +19,65 @@ logz() { echo "$(date '+%Y-%m-%d %H:%M:%S')  [$fenster] $1" >> "$log"; }
 schluessel=$(grep '^TONY_BOARD_KEY=' "${TONY_BOARD_ENV:-/root/.claude/secrets/tony-board.env}" | cut -d= -f2-)
 api=${TONY_BOARD_API:-"https://lzrfyxejlejxfpvqpket.supabase.co/functions/v1/tony-board/api/$schluessel"}
 mcp=${api/\/api\//\/mcp\/}
-mkdir -p "$hier/sitzungen" "$hier/locks" "$hier/laufend" "$hier/fehlgeschlagen"
+claude_bin=${TONY_CLAUDE_BIN:-/usr/local/bin/claude}
+mkdir -p "$hier/sitzungen" "$hier/locks" "$hier/laufend" "$hier/fehlgeschlagen" "$hier/ohne-ergebnis" "$hier/unklar"
 
 fid=""; [ "$fenster" != "ohne-fenster" ] && fid="$fenster"
 antwortdatei="$hier/antwort-$fenster.json"
+meldefehler=0
 
-# Meldung an Tony. Darf nie blockieren und nie den Lauf abbrechen.
+# Meldung an Tony. Schlucken ist verboten: ein Fehlschlag wird gezaehlt und protokolliert.
 an_tony() {
-  jq -n --arg t "$1" --arg f "$fid" '{text:$t} + (if $f != "" then {fenster_id:$f} else {} end)' \
-    | curl -s --max-time 10 -X POST "$api/an-tony" -H 'content-type: application/json' --data-binary @- >/dev/null 2>&1 || true
+  local http
+  http=$(jq -n --arg t "$1" --arg f "$fid" '{text:$t} + (if $f != "" then {fenster_id:$f} else {} end)' \
+    | curl -s -o /dev/null -w '%{http_code}' --max-time "${TONY_HTTP_FRIST:-10}" \
+        -X POST "$api/an-tony" -H 'content-type: application/json' --data-binary @- 2>/dev/null)
+  if [ "$http" != "200" ]; then
+    meldefehler=$((meldefehler+1))
+    logz "MELDUNG NICHT ZUGESTELLT (HTTP ${http:-000}): $(echo "$1" | head -c 120)"
+    return 1
+  fi
+  return 0
 }
 
 # Statusfelder der Karte setzen: $1 Taetigkeit, $2 Zustaendiger, $3 optional Fehlertext.
-# Nur wenn die Karte schon existiert - sonst entstuende aus einer Meldung eine Geisterkarte.
+# Nur wenn die Karte existiert - sonst entstuende aus einer Meldung eine Geisterkarte.
 karte_melden() {
   [ -n "$fid" ] || return 0
-  curl -sf --max-time 10 "$api/state" | jq -e --arg f "$fid" '.fenster[] | select(.id==$f)' >/dev/null 2>&1 || return 0
-  jq -n --arg id "$fid" --arg t "$1" --arg z "$2" --arg e "${3:-}" \
+  local zustand http antwort
+  zustand=$(curl -s --max-time "${TONY_HTTP_FRIST:-10}" "$api/state" 2>/dev/null) || zustand=""
+  if [ -z "$zustand" ]; then
+    meldefehler=$((meldefehler+1)); logz "KARTE NICHT GEMELDET: Board nicht erreichbar"; return 1
+  fi
+  echo "$zustand" | jq -e --arg f "$fid" '.fenster[]? | select(.id==$f)' >/dev/null 2>&1 || return 0
+  antwort=$(jq -n --arg id "$fid" --arg t "$1" --arg z "$2" --arg e "${3:-}" \
     '{jsonrpc:"2.0",id:1,method:"tools/call",params:{name:"fenster_zeigen",arguments:
        ({id:$id,taetigkeit:$t} + (if $z != "" then {zustaendig:$z} else {} end)
                               + (if $e != "" then {fehler:$e} else {} end))}}' \
-    | curl -s --max-time 10 -X POST "$mcp" -H 'content-type: application/json' --data-binary @- >/dev/null 2>&1 || true
+    | curl -s -w '\n%{http_code}' --max-time "${TONY_HTTP_FRIST:-10}" \
+        -X POST "$mcp" -H 'content-type: application/json' --data-binary @- 2>/dev/null)
+  http=$(echo "$antwort" | tail -1)
+  if [ "$http" != "200" ] || echo "$antwort" | head -n -1 | jq -e '.result.isError == true' >/dev/null 2>&1; then
+    meldefehler=$((meldefehler+1))
+    logz "KARTE NICHT GEMELDET (HTTP ${http:-000}): $(echo "$antwort" | head -c 160)"
+    return 1
+  fi
+  return 0
+}
+
+# Hat Claude seit $1 (ISO-Zeit) nachweislich eine Antwort an Tony abgesetzt?
+ergebnis_zugestellt() {
+  curl -s --max-time "${TONY_HTTP_FRIST:-10}" "$api/state" 2>/dev/null \
+    | jq -e --arg s "$1" --arg f "$fid" \
+        '[.absprache[]? | select(.von=="claude" and .erstellt > $s
+                                 and ($f == "" or .fenster_id == $f or .fenster_id == null))] | length > 0' \
+        >/dev/null 2>&1
+}
+
+# Post in einen eindeutigen Zustand ueberfuehren, statt sie zu verlieren oder fertig zu nennen.
+ablegen() {   # $1 = Unterordner
+  local ziel="$hier/$1/$fenster.$(date +%s).txt"
+  mv "$laufend" "$ziel" 2>/dev/null && echo "$ziel"
 }
 
 # Gleiches Fenster: warten, bis der vorige Arbeiter fertig ist - und das sichtbar machen.
@@ -60,7 +105,6 @@ while :; do
 done
 
 # Erst unter der Fenstersperre anfassen: alles Offene zu diesem Fenster wird EIN Lauf.
-# Dadurch stapeln sich Statusnachfragen nicht zu je einem eigenen fachlichen Auftrag.
 laufend="$hier/laufend/$fenster.txt"
 mapfile -t offen < <(ls -1 "$hier/post/$fenster".*.txt 2>/dev/null | sort)
 if [ -s "$laufend" ] || [ ${#offen[@]} -gt 0 ]; then
@@ -71,7 +115,6 @@ if [ -s "$laufend" ] || [ ${#offen[@]} -gt 0 ]; then
   mv "$laufend.neu" "$laufend"
   for d in "${offen[@]}"; do rm -f "$d"; done
 fi
-# Nichts mehr da: ein vorheriger Arbeiter hat die Post bereits mitgenommen. Kein Lauf, keine Kosten.
 if [ ! -s "$laufend" ]; then
   logz "nichts offen - ein frueherer Arbeiter hat die Post uebernommen, kein Lauf"
   exit 0
@@ -99,26 +142,105 @@ Hinweis: Stehen oben mehrere Nachrichten, sind sie waehrend eines laufenden Auft
 cd "${TONY_ARBEITSORDNER:-/opt/tony}"
 sitzung=""; [ -s "$hier/sitzungen/$fenster" ] && sitzung=$(cat "$hier/sitzungen/$fenster")
 
-# Ab hier laeuft wirklich ein Prozess: erst jetzt den Arbeitsstart bestaetigen.
-logz "Start (Platz frei${sitzung:+, setzt Sitzung $sitzung fort}), $anzahl Nachricht(en) zusammengefasst"
-an_tony "Arbeit gestartet: Claude bearbeitet '$fenster' seit $(date '+%H:%M:%S') UTC, $anzahl Nachricht(en) zusammengefasst, Sitzung ${sitzung:-neu}. Vorher war nur der Empfang bestaetigt, jetzt laeuft der Prozess."
-karte_melden "Claude-Sitzung fuer dieses Fenster um $(date '+%H:%M') gestartet, $anzahl Nachricht(en) uebernommen." "Claude"
+# Binary vorab pruefen: ein fehlendes claude darf nie als laufende Arbeit erscheinen.
+if ! [ -x "$claude_bin" ] && ! command -v "$claude_bin" >/dev/null 2>&1; then
+  ziel=$(ablegen unklar)
+  logz "ABBRUCH: claude nicht ausfuehrbar ($claude_bin), Text gesichert unter ${ziel:-?}"
+  an_tony "Nicht gestartet: Auf dem Server ist '$claude_bin' nicht ausfuehrbar, es laeuft also KEINE Arbeit an '$fenster'. Der Nachrichtentext ist unter ${ziel:-dem Wartebereich} gesichert und wird nicht automatisch wiederholt."
+  karte_melden "Kein Lauf gestartet: Claude ist auf dem Server nicht ausfuehrbar." "Claude" "claude-Binary $claude_bin fehlt oder ist nicht ausfuehrbar."
+  exit 1
+fi
 
-lauf() { echo "$auftrag" | env -u ANTHROPIC_API_KEY IS_SANDBOX=1 CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 timeout "${TONY_ZEITGRENZE:-5400}" "${TONY_CLAUDE_BIN:-/usr/local/bin/claude}" -p --permission-mode bypassPermissions --output-format json "$@" 2>>"$hier/fehler.log"; }
-if [ -n "$sitzung" ]; then ausgabe=$(lauf --resume "$sitzung"); code=$?; else code=1; fi
-if [ $code -ne 0 ] || [ -z "$ausgabe" ]; then ausgabe=$(lauf); code=$?; fi
+# Einen Lauf starten und den echten Prozessstart belegen.
+# Setzt: $code, $ausgabe, $fehlertext, $dauer, $gestartet (ja/nein), $pid
+starte_lauf() {
+  local aus fehl t0 t1
+  aus=$(mktemp); fehl=$(mktemp); t0=$(date +%s)
+  printf '%s' "$auftrag" | env -u ANTHROPIC_API_KEY IS_SANDBOX=1 CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1 \
+    timeout "${TONY_ZEITGRENZE:-5400}" "$claude_bin" -p --permission-mode bypassPermissions --output-format json "$@" \
+    >"$aus" 2>"$fehl" &
+  pid=$!
+  # Ueberpruefbares Ereignis: lebt der Prozess nach kurzer Zeit noch, laeuft er wirklich.
+  sleep "${TONY_STARTPROBE:-0.4}"
+  if kill -0 "$pid" 2>/dev/null; then
+    gestartet=ja
+  else
+    wait "$pid"; code=$?
+    # 126/127 = Binary nicht ausfuehrbar / nicht gefunden -> es lief nie etwas
+    if [ "$code" = 127 ] || [ "$code" = 126 ]; then gestartet=nein; else gestartet=ja; fi
+  fi
+  if [ "$gestartet" = ja ] && kill -0 "$pid" 2>/dev/null; then
+    wait "$pid"; code=$?
+  fi
+  t1=$(date +%s); dauer=$((t1-t0))
+  ausgabe=$(cat "$aus"); fehlertext=$(cat "$fehl")
+  cat "$fehl" >> "$hier/fehler.log"
+  rm -f "$aus" "$fehl"
+}
+
+# Nur ein Resume, der nachweislich vor jeder Ausfuehrung scheiterte, darf ohne Resume laufen:
+# keinerlei Ausgabe, schnelles Ende und eine Fehlermeldung, die die Sitzung benennt.
+resume_scheiterte_vor_ausfuehrung() {
+  [ "$code" -ne 0 ] || return 1
+  [ -z "$ausgabe" ] || return 1
+  [ "$dauer" -lt "${TONY_RESUME_SCHNELL:-15}" ] || return 1
+  echo "$fehlertext" | grep -qiE 'session|sitzung|resume|conversation|not found' || return 1
+  return 0
+}
+
+seit=$(date -u +%Y-%m-%dT%H:%M:%S)
+versuche=0
+if [ -n "$sitzung" ]; then
+  starte_lauf --resume "$sitzung"; versuche=1
+  if [ "$gestartet" != ja ]; then
+    ziel=$(ablegen unklar)
+    logz "ABBRUCH: Prozess startete nicht (Code $code), Text gesichert unter ${ziel:-?}"
+    an_tony "Nicht gestartet: Der Prozess fuer '$fenster' konnte nicht gestartet werden (Code $code). Es laeuft keine Arbeit. Text gesichert, kein automatischer Neuversuch."
+    karte_melden "Prozess konnte nicht gestartet werden." "Claude" "Spawn fehlgeschlagen, Code $code."
+    exit 1
+  fi
+  if [ "$code" -ne 0 ] && resume_scheiterte_vor_ausfuehrung; then
+    logz "Resume scheiterte nachweislich vor jeder Ausfuehrung (Code $code, ${dauer}s, keine Ausgabe) - ein Lauf ohne Resume"
+    an_tony "Hinweis: Die gespeicherte Sitzung fuer '$fenster' war nicht mehr verwendbar (Abbruch nach ${dauer}s ohne jede Ausgabe). Ich starte denselben Auftrag genau einmal als neue Sitzung; eine Doppelwirkung ist dabei ausgeschlossen, weil nichts ausgefuehrt wurde."
+    starte_lauf; versuche=2
+  fi
+else
+  starte_lauf; versuche=1
+  if [ "$gestartet" != ja ]; then
+    ziel=$(ablegen unklar)
+    logz "ABBRUCH: Prozess startete nicht (Code $code), Text gesichert unter ${ziel:-?}"
+    an_tony "Nicht gestartet: Der Prozess fuer '$fenster' konnte nicht gestartet werden (Code $code). Es laeuft keine Arbeit. Text gesichert, kein automatischer Neuversuch."
+    karte_melden "Prozess konnte nicht gestartet werden." "Claude" "Spawn fehlgeschlagen, Code $code."
+    exit 1
+  fi
+fi
+
+# Jetzt ist belegt, dass ein Prozess lief: erst hier darf von Arbeit die Rede sein.
+logz "Lauf belegt (PID $pid, ${dauer}s, Code $code, $versuche Aufruf(e)), $anzahl Nachricht(en) zusammengefasst"
+an_tony "Arbeit gestartet und belegt: Fuer '$fenster' lief ein Prozess (PID $pid), $anzahl Nachricht(en) zusammengefasst, Sitzung ${sitzung:-neu}. Vorher war nur der Empfang bestaetigt."
+karte_melden "Claude-Lauf fuer dieses Fenster belegt gestartet (PID $pid), $anzahl Nachricht(en) uebernommen." "Claude"
+
 neu=$(echo "$ausgabe" | jq -r '.session_id // empty' 2>/dev/null)
 [ -n "$neu" ] && echo "$neu" > "$hier/sitzungen/$fenster"
-logz "claude beendet (Code $code, $(echo "$ausgabe" | jq -r '.duration_ms // 0' 2>/dev/null | awk '{printf "%d s", $1/1000}')): $(echo "$ausgabe" | jq -r '.result // empty' 2>/dev/null | head -c 300)"
+logz "claude beendet (Code $code, ${dauer}s): $(echo "$ausgabe" | jq -r '.result // empty' 2>/dev/null | head -c 300)"
 
-if [ $code -eq 0 ]; then
-  # Erst nach einem sauberen Lauf wird die uebernommene Post endgueltig weggeraeumt.
+# Abschluss nur mit Beleg: Exit 0 allein genuegt nicht, es muss auch ein Ergebnis angekommen sein.
+if [ "$code" -eq 0 ] && ergebnis_zugestellt "$seit"; then
   rm -f "$laufend"
+  logz "Ergebnis zugestellt und belegt - Post abgeschlossen"
+elif [ "$code" -eq 0 ]; then
+  ziel=$(ablegen ohne-ergebnis)
+  logz "Lauf endete mit Code 0, aber ohne nachweisbare Antwort an Tony - Text gesichert unter ${ziel:-?}"
+  an_tony "Unklar: Der Lauf fuer '$fenster' endete ohne Fehler, aber es ist keine Antwort von Claude im Board angekommen. Ich erklaere das deshalb NICHT fuer fertig. Der Nachrichtentext ist unter ${ziel:-dem Wartebereich} unveraendert erhalten und wird nicht automatisch wiederholt."
+  karte_melden "Lauf beendet, aber ohne nachweisbare Ergebniszustellung - nicht als fertig gewertet." "Claude" "Kein Ergebnis von Claude im Board nach dem Lauf; Text gesichert unter ${ziel:-Wartebereich}."
 else
-  # Inhalt sichern statt verlieren - und ausdruecklich NICHT automatisch wiederholen.
-  gesichert="$hier/fehlgeschlagen/$fenster.$(date +%s).txt"
-  mv "$laufend" "$gesichert" 2>/dev/null
-  logz "Lauf fehlgeschlagen (Code $code), Text gesichert unter $gesichert"
-  an_tony "Fehlgeschlagen: Claude konnte '$fenster' nicht bearbeiten (Code $code). Der Nachrichtentext ist gesichert und wird NICHT automatisch wiederholt. Bitte Marcel Bescheid geben."
-  karte_melden "Claude-Lauf abgebrochen, kein automatischer Neuversuch." "Claude" "Arbeiter mit Code $code beendet; Nachrichtentext gesichert unter $gesichert."
+  ziel=$(ablegen fehlgeschlagen)
+  logz "Lauf fehlgeschlagen (Code $code nach ${dauer}s), Text gesichert unter ${ziel:-?}"
+  an_tony "Fehlgeschlagen: Claude konnte '$fenster' nicht bearbeiten (Code $code nach ${dauer}s). Der Nachrichtentext ist gesichert und wird NICHT automatisch wiederholt. Bitte Marcel Bescheid geben."
+  karte_melden "Claude-Lauf abgebrochen, kein automatischer Neuversuch." "Claude" "Arbeiter mit Code $code beendet; Nachrichtentext gesichert unter ${ziel:-Wartebereich}."
+fi
+
+if [ "$meldefehler" -gt 0 ]; then
+  logz "ACHTUNG: $meldefehler Meldung(en) konnten nicht zugestellt werden - Board-Stand und Wirklichkeit koennen auseinanderlaufen"
+  echo "$(date '+%Y-%m-%d %H:%M:%S') $fenster $meldefehler nicht zugestellte Meldung(en)" >> "$hier/meldefehler.log"
 fi
