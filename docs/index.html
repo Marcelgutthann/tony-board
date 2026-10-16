@@ -600,12 +600,13 @@ function fensterHTML(f){
   return `<div class="f-kopf"><div class="logo">${LOGOS[f.app]||LOGOS.notiz}</div>
       <div class="f-titel"><small>${esc(f.app)}</small><b>${esc(f.titel)}</b></div>
       <div class="status ${L.art}"><i></i>${esc(L.kurz)}</div></div>
+    <div class="f-koerper">
     ${statusleisteHTML(f, L)}
     ${(f.auftrag||f.kernaussage)?`<div class="lage">
       ${f.auftrag?`<div class="z"><span>Auftrag</span><p>${zeile(esc(f.auftrag))}</p></div>`:""}
       ${f.kernaussage?`<div class="z stand"><span>Stand</span><p>${zeile(esc(f.kernaussage))}${L.aktiv?'<span class="laeuft" aria-label="wird bearbeitet"><i></i><i></i><i></i></span>':""}</p></div>`:""}
     </div>`:""}
-    <div class="f-koerper"><div class="f-spalte">
+    <div class="f-spalte">
       ${ws?`<div class="widgets">${ws}</div>`:""}
       ${details || (ws?"":'<div class="f-inhalt" style="color:var(--text3)">Tony bereitet den Inhalt vor …</div>')}
     </div></div>
