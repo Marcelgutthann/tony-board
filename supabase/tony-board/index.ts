@@ -478,7 +478,10 @@ async function werkzeug(name: string, a: Record<string, any>): Promise<unknown> 
         bereichHinweis = `bereich fehlte, eingeordnet als '${felder.bereich}'. Falls falsch: fenster_zeigen mit id und bereich (${BEREICHE.join(" | ")}).`;
       }
       if (felder.status && !STATUS.includes(felder.status as string)) felder.status = "arbeitet";
-      if (felder.warten_auf !== undefined && !WARTEN.includes(felder.warten_auf as string)) delete felder.warten_auf;
+      // Leerer String loescht die Warteart (wie bei fehler): eine Karte, die nicht mehr wartet,
+      // muss das auch sagen koennen. Unsinn wird weiterhin stillschweigend ignoriert.
+      if (felder.warten_auf !== undefined && !String(felder.warten_auf).trim()) felder.warten_auf = null;
+      else if (felder.warten_auf !== undefined && !WARTEN.includes(felder.warten_auf as string)) delete felder.warten_auf;
       if (felder.bestaetigt_am !== undefined && isNaN(Date.parse(String(felder.bestaetigt_am)))) delete felder.bestaetigt_am;
       if (felder.fehler !== undefined && !String(felder.fehler).trim()) felder.fehler = null;
       // Eine genannte Taetigkeit ist das bestaetigte Signal; die Zeit einer Aktualisierung allein ist keines
@@ -491,7 +494,7 @@ async function werkzeug(name: string, a: Record<string, any>): Promise<unknown> 
         if (felder.von_dir === undefined && typeof felder.hinweis === "string" && felder.hinweis.trim()) felder.von_dir = felder.hinweis;
         const frage = String(felder.von_dir ?? alt?.von_dir ?? "").trim();
         if (alt?.freigabe !== "angefragt" && (frage.length < 10 || /^von dir\b/i.test(frage))) throw new Error("status braucht_dich braucht in von_dir die konkrete Frage an Marcel (ganzer Satz). Wartest du nur technisch (Deploy, Build, Antwort von Claude), setze status wartet und von_dir leer. Fuer Freigaben nutze freigabe_anfragen.");
-        if (felder.warten_auf === undefined && alt?.warten_auf !== "marcel") felder.warten_auf = "marcel";
+        if (!felder.warten_auf && alt?.warten_auf !== "marcel") felder.warten_auf = "marcel";
       }
       // Kennt der Aufrufer die neuen Felder ueberhaupt? Ein Client mit altem Schema (Tools in
       // ChatGPT noch nicht aktualisiert) kann sie nicht senden und darf daran nicht scheitern.
@@ -617,7 +620,7 @@ async function mcp(msg: any): Promise<any | null> {
       return ok({
         protocolVersion: params?.protocolVersion ?? "2025-06-18",
         capabilities: { tools: { listChanged: false } },
-        serverInfo: { name: "tony-board", title: "Tony Board", version: "1.6.1" },
+        serverInfo: { name: "tony-board", title: "Tony Board", version: "1.6.2" },
         instructions:
           "Tony Board ist Marcels Bildschirm fuer deine Arbeit. Oberste Regel: Marcel muss jedes Fenster in 5 Sekunden verstehen, ohne zu lesen. Darum beginnt jedes Fenster mit auftrag (ein Satz), kernaussage als Stand (hoechstens 12 Woerter, Schluesselwoerter fett) und von_dir (die eine Frage an Marcel, sonst leer), dazu mindestens ein Widget; Fliesstext ist nur Detail. Lege fuer jede Aufgabe, an der du arbeitest, ein Fenster an (fenster_zeigen, immer mit bereich: technik, vertrieb oder organisation - jeder Bereich ist ein eigenes Rondell) und halte Inhalt, Schritte und Status aktuell. 'fertig' heisst: dein Teil ist getan. Bleibt danach etwas offen (Antwort auf eine gesendete Mail, Terminzusage, Freigabe von aussen) oder bleibt eine Aufgabe liegen, legst du es sofort mit im_blick_behalten an. 'Bleibt im Blick' ist Marcels Wiedervorlage, kein Archiv: jeder Punkt nennt den offenen Grund, den naechsten Prueftermin (nachfassen_am), die zugehoerige Karte (fenster_id) und nach jeder Pruefung den Stand. Bei board_lesen steht unter wiedervorlage, was faellig ist: pruefe jeden faelligen Punkt an seiner Karte und melde das Ergebnis mit im_blick_geprueft (pruefstand und neuer nachfassen_am), oder hake ihn mit im_blick_erledigt ab, wenn die Sache durch ist. Ein Punkt ohne Prueftermin wird nie faellig - trage ihn nach. Bereite Ergebnisse visuell auf: Kennzahlen, Tabellen, Vergleiche, Link-Karten oder kleine Mockups als widgets, Mailwechsel als verlauf. Bei einem fertigen Feature ist die erste Link-Karte immer der Direktlink auf die Stelle in der App, ein GitHub-PR nur danach als technische Quelle. Hole das Fenster nach vorne, ueber das ihr gerade sprecht. Jede Karte traegt eine Statusleiste, die Marcel sofort sagt, wer was tut: taetigkeit (was gerade tatsaechlich passiert, als Satz), zustaendig (Tony, Claude, Marcel, GitHub Actions, eine Firma), bei Warten warten_auf (marcel | extern | agent | zugang) und wartegrund (die konkrete Abhaengigkeit), naechste_aktion (was als Naechstes passiert und wer es macht) und bei einem Abbruch fehler. Die Statuszeile allein beweist nichts: ohne taetigkeit schreibt das Board 'Status nicht aktuell bestaetigt', und wartende Karten zeigen keine laufende Arbeit an. Melde darum bei jedem Zwischenschritt die echte Taetigkeit nach, erfinde nie Prozentzahlen oder Restzeiten, und setze statt eines stillen Weiterwartens den passenden Status. status braucht_dich nur, wenn Marcel wirklich entscheiden oder etwas liefern muss, und dann immer mit der konkreten Frage in von_dir; wartest du nur technisch (Deploy, Build, Claude), ist der status wartet mit warten_auf und wartegrund und von_dir leer. Vor dem Senden einer Mail: freigabe_anfragen, dann board_lesen bis freigegeben. Lies mit board_lesen regelmaessig, was Marcel eingegeben und Claude geantwortet hat. Jede Eingabe von Marcel gehoert zu der Karte, die beim Absenden vor ihm stand; welche das ist, steht im Feld bezug. Antworte an dieser Karte, auch wenn der Fokus inzwischen auf einer anderen steht. Steht dort 'ohne Karte', ist die Nachricht allgemein gemeint - ordne sie dann keiner Karte auf Verdacht zu, sondern frage nach, wenn der Bezug wichtig ist. Code-, App-, Daten- und Deploy-Themen gibst du mit an_claude an Claude weiter.",
       });

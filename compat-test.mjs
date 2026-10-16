@@ -125,4 +125,16 @@ await t("neuer Client mit vollstaendigen Feldern geht weiter durch", async () =>
   await werkzeug("fenster_zeigen", { id: "ac4", titel: "X", status: "wartet", warten_auf: "extern", wartegrund: "Lauf 1148 muss durchlaufen." });
   if (fenster.get("ac4").warten_auf !== "extern") throw new Error("nicht gespeichert");
 });
+// Eine Karte, die nicht mehr wartet, muss die Warteart loeschen koennen
+await t("leerer warten_auf loescht die Warteart, Unsinn aendert sie nicht", async () => {
+  await werkzeug("fenster_zeigen", { id: "wa1", titel: "X", status: "wartet", warten_auf: "marcel", wartegrund: "Marcel muss entscheiden, ob es live geht." });
+  await werkzeug("fenster_zeigen", { id: "wa1", status: "fertig", warten_auf: "" });
+  if (fenster.get("wa1").warten_auf !== null) throw new Error("Warteart nicht geloescht: " + fenster.get("wa1").warten_auf);
+  await werkzeug("fenster_zeigen", { id: "wa1", warten_auf: "wetter" });
+  if (fenster.get("wa1").warten_auf !== null) throw new Error("Unsinn uebernommen: " + fenster.get("wa1").warten_auf);
+});
+await t("braucht_dich setzt die Warteart auch dann, wenn leer mitgeschickt wird", async () => {
+  await werkzeug("fenster_zeigen", { id: "wa2", titel: "X", status: "braucht_dich", von_dir: "Soll das Angebot so raus?", warten_auf: "" });
+  if (fenster.get("wa2").warten_auf !== "marcel") throw new Error("warten_auf fehlt: " + fenster.get("wa2").warten_auf);
+});
 console.log(`${ok}/${ok+nok}`); process.exit(nok ? 1 : 0);
