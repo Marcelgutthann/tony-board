@@ -4,6 +4,8 @@
 //   GET  /tony-board/api/<schluessel>/state    Zustand fuer das Board
 //   POST /tony-board/api/<schluessel>/eingabe  Nachricht/Freigabe vom Board
 //   POST /tony-board/api/<schluessel>/wiedervorlage  Prueflauf: faellige Punkte an Tony melden
+//   POST /tony-board/api/<schluessel>/discord-abholen  Discord-Bot: offene Nachrichten uebernehmen
+//   POST /tony-board/api/<schluessel>/discord-quittung Discord-Bot: Ergebnis mit Nachrichten-ID melden
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 
 const db = createClient(
@@ -43,6 +45,12 @@ const WV_ERINNERUNG_STD = 24;
 const bereichAusApp = (app: string) =>
   ["code", "github", "jira"].includes(app) ? "technik" : ["gmail", "outlook"].includes(app) ? "vertrieb" : "organisation";
 const BEREICH_TEXT = "technik = Technische Entwicklung (Code, App, Daten, Deploys), vertrieb = Vertrieb/Sales (Kunden, Interessenten, Partner, Angebote, Aussenauftritt), organisation = Organisation (Buero, Termine, Verwaltung, Einkauf, Persoenliches).";
+
+// Discord-Ausgang: nur diese Kanaele (Name -> Kanal-ID). Gesendet wird ausschliesslich vom Discord-Bot auf dem Server.
+const DISCORD_KANAELE: Record<string, string> = { "entwicklung-technik": "1432708505885868164" };
+const discordKanal = (k: string) => DISCORD_KANAELE[k] ?? (Object.values(DISCORD_KANAELE).includes(k) ? k : null);
+// Bleibt ein Versand so lange ohne Quittung, prueft der Bot den Kanal statt erneut zu senden
+const DISCORD_HAENGT_MIN = 2;
 
 const TOOLS = [
   {
@@ -264,6 +272,37 @@ const TOOLS = [
       additionalProperties: false,
     },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+  },
+  {
+    name: "discord_senden",
+    title: "In Discord posten",
+    description:
+      "Legt eine Nachricht fuer Marcels Team-Discord (DV digital vereinfacht GmbH) ab; der Bot Tony sendet sie innerhalb weniger Sekunden. Erlaubte Kanaele: " + Object.keys(DISCORD_KANAELE).join(", ") + ". schluessel ist der Idempotenzschluessel: denselben Schluessel kannst du gefahrlos erneut schicken, gesendet wird trotzdem hoechstens einmal - nimm fuer jede neue Nachricht einen neuen. Die Rueckgabe ist nur der EINGANG, keine Versandbestaetigung. Ob und mit welcher Discord-Nachrichten-ID gesendet wurde, liefert discord_status. Erwaehnungen (@...) werden nicht ausgeloest.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        kanal: { type: "string", enum: Object.keys(DISCORD_KANAELE), description: "Zielkanal." },
+        text: { type: "string", description: "Der Nachrichtentext, hoechstens 1900 Zeichen." },
+        schluessel: { type: "string", description: "Eindeutiger Schluessel fuer genau diese Nachricht (z. B. 'test-2026-10-16-1'). Gleicher Schluessel = keine zweite Sendung." },
+        fenster_id: { type: "string", description: "Optional: zugehoerige Karte." },
+      },
+      required: ["kanal", "text", "schluessel"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+  },
+  {
+    name: "discord_status",
+    title: "Discord-Versand pruefen",
+    description:
+      "Zeigt zu einem Schluessel aus discord_senden den Stand: offen (liegt im Ausgang), sendet (Bot sendet gerade), gesendet (mit Discord-Nachrichten-ID), fehler (Discord hat abgelehnt, nicht gesendet) oder ungewiss (Ausgang unklar, der Bot hat den Kanal geprueft und die Nachricht nicht gefunden - vor einem neuen Versuch mit neuem Schluessel Marcel fragen).",
+    inputSchema: {
+      type: "object",
+      properties: { schluessel: { type: "string" } },
+      required: ["schluessel"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
   },
   {
     name: "archiv_suchen",
@@ -596,6 +635,35 @@ async function werkzeug(name: string, a: Record<string, any>): Promise<unknown> 
       if (error) throw new Error(error.message);
       return { ok: true, hinweis: "Claude schaut innerhalb von etwa einer Minute nach. Antwort spaeter mit board_lesen holen." };
     }
+    case "discord_senden": {
+      const kanalId = discordKanal(String(a.kanal ?? ""));
+      if (!kanalId) throw new Error(`kanal nicht erlaubt, erlaubt: ${Object.keys(DISCORD_KANAELE).join(", ")}`);
+      const text = String(a.text ?? "").trim();
+      if (!text) throw new Error("text fehlt");
+      if (text.length > 1900) throw new Error("text ist laenger als 1900 Zeichen");
+      const schluessel = String(a.schluessel ?? "").trim().slice(0, 200);
+      if (!schluessel) throw new Error("schluessel fehlt");
+      // Gleicher Schluessel: nichts Neues anlegen, den bestehenden Stand zurueckgeben
+      const { data: neu, error } = await db.from("tony_board_discord")
+        .upsert({ schluessel, kanal: kanalId, text, fenster_id: a.fenster_id ?? null }, { onConflict: "schluessel", ignoreDuplicates: true })
+        .select("schluessel");
+      if (error) throw new Error(error.message);
+      const { data: z, error: e2 } = await db.from("tony_board_discord").select("*").eq("schluessel", schluessel).single();
+      if (e2) throw new Error(e2.message);
+      const gleich = z.kanal === kanalId && z.text === text;
+      return {
+        eingang: neu?.length ? "angenommen" : "bereits vorhanden",
+        schluessel, status: z.status, message_id: z.message_id ?? null,
+        hinweis: !neu?.length && !gleich
+          ? "Dieser Schluessel gehoert zu einer ANDEREN Nachricht - es wurde nichts Neues abgelegt. Nimm einen neuen Schluessel."
+          : "Das ist nur der Eingang. Versand und Nachrichten-ID mit discord_status pruefen (meist nach wenigen Sekunden).",
+      };
+    }
+    case "discord_status": {
+      const { data: z } = await db.from("tony_board_discord").select("*").eq("schluessel", String(a.schluessel ?? "")).maybeSingle();
+      if (!z) return { status: "unbekannt", hinweis: "Zu diesem Schluessel gibt es keinen Eingang - es wurde nichts gesendet." };
+      return { schluessel: z.schluessel, kanal: z.kanal, status: z.status, message_id: z.message_id, fehler: z.fehler, erstellt: z.erstellt, angenommen_am: z.angenommen_am, gesendet_am: z.gesendet_am };
+    }
     case "archiv_suchen": {
       const q = String(a.suchbegriff ?? "").replace(/[%,()]/g, " ").trim();
       if (!q) throw new Error("suchbegriff fehlt");
@@ -624,9 +692,9 @@ async function mcp(msg: any): Promise<any | null> {
       return ok({
         protocolVersion: params?.protocolVersion ?? "2025-06-18",
         capabilities: { tools: { listChanged: false } },
-        serverInfo: { name: "tony-board", title: "Tony Board", version: "1.7.0" },
+        serverInfo: { name: "tony-board", title: "Tony Board", version: "1.8.0" },
         instructions:
-          "Tony Board ist Marcels Bildschirm fuer deine Arbeit. Oberste Regel: Marcel muss jedes Fenster in 5 Sekunden verstehen, ohne zu lesen. Darum beginnt jedes Fenster mit auftrag (ein Satz), kernaussage als Stand (hoechstens 12 Woerter, Schluesselwoerter fett) und von_dir (die eine Frage an Marcel, sonst leer), dazu mindestens ein Widget; Fliesstext ist nur Detail. Lege fuer jede Aufgabe, an der du arbeitest, ein Fenster an (fenster_zeigen, immer mit bereich: technik, vertrieb oder organisation - jeder Bereich ist ein eigenes Rondell) und halte Inhalt, Schritte und Status aktuell. 'fertig' heisst: dein Teil ist getan. Bleibt danach etwas offen (Antwort auf eine gesendete Mail, Terminzusage, Freigabe von aussen) oder bleibt eine Aufgabe liegen, legst du es sofort mit im_blick_behalten an. 'Bleibt im Blick' ist Marcels Wiedervorlage, kein Archiv: jeder Punkt nennt den offenen Grund, den naechsten Prueftermin (nachfassen_am), die zugehoerige Karte (fenster_id) und nach jeder Pruefung den Stand. Bei board_lesen steht unter wiedervorlage, was faellig ist: pruefe jeden faelligen Punkt an seiner Karte und melde das Ergebnis mit im_blick_geprueft (pruefstand und neuer nachfassen_am), oder hake ihn mit im_blick_erledigt ab, wenn die Sache durch ist. Ein Punkt ohne Prueftermin wird nie faellig - trage ihn nach. Bei technischen Punkten (bereich technik) pruefst du nie aus dem Gedaechtnis: die Arbeit laeuft parallel weiter, darum laesst du mit an_claude den Stand von Code, Merge und Deploy abgleichen und haeltst die vier Zustaende getrennt fest (Code, Merge, Live, Nutzerbestaetigung). Erst wenn danach eine echte Luecke bleibt, fragst du Marcel - und zwar nach genau dieser Luecke, nicht mit der alten Frage. Bereite Ergebnisse visuell auf: Kennzahlen, Tabellen, Vergleiche, Link-Karten oder kleine Mockups als widgets, Mailwechsel als verlauf. Bei einem fertigen Feature ist die erste Link-Karte immer der Direktlink auf die Stelle in der App, ein GitHub-PR nur danach als technische Quelle. Hole das Fenster nach vorne, ueber das ihr gerade sprecht. Jede Karte traegt eine Statusleiste, die Marcel sofort sagt, wer was tut: taetigkeit (was gerade tatsaechlich passiert, als Satz), zustaendig (Tony, Claude, Marcel, GitHub Actions, eine Firma), bei Warten warten_auf (marcel | extern | agent | zugang) und wartegrund (die konkrete Abhaengigkeit), naechste_aktion (was als Naechstes passiert und wer es macht) und bei einem Abbruch fehler. Die Statuszeile allein beweist nichts: ohne taetigkeit schreibt das Board 'Status nicht aktuell bestaetigt', und wartende Karten zeigen keine laufende Arbeit an. Melde darum bei jedem Zwischenschritt die echte Taetigkeit nach, erfinde nie Prozentzahlen oder Restzeiten, und setze statt eines stillen Weiterwartens den passenden Status. status braucht_dich nur, wenn Marcel wirklich entscheiden oder etwas liefern muss, und dann immer mit der konkreten Frage in von_dir; wartest du nur technisch (Deploy, Build, Claude), ist der status wartet mit warten_auf und wartegrund und von_dir leer. Vor dem Senden einer Mail: freigabe_anfragen, dann board_lesen bis freigegeben. Lies mit board_lesen regelmaessig, was Marcel eingegeben und Claude geantwortet hat. Jede Eingabe von Marcel gehoert zu der Karte, die beim Absenden vor ihm stand; welche das ist, steht im Feld bezug. Antworte an dieser Karte, auch wenn der Fokus inzwischen auf einer anderen steht. Steht dort 'ohne Karte', ist die Nachricht allgemein gemeint - ordne sie dann keiner Karte auf Verdacht zu, sondern frage nach, wenn der Bezug wichtig ist. Code-, App-, Daten- und Deploy-Themen gibst du mit an_claude an Claude weiter.",
+          "Tony Board ist Marcels Bildschirm fuer deine Arbeit. Oberste Regel: Marcel muss jedes Fenster in 5 Sekunden verstehen, ohne zu lesen. Darum beginnt jedes Fenster mit auftrag (ein Satz), kernaussage als Stand (hoechstens 12 Woerter, Schluesselwoerter fett) und von_dir (die eine Frage an Marcel, sonst leer), dazu mindestens ein Widget; Fliesstext ist nur Detail. Lege fuer jede Aufgabe, an der du arbeitest, ein Fenster an (fenster_zeigen, immer mit bereich: technik, vertrieb oder organisation - jeder Bereich ist ein eigenes Rondell) und halte Inhalt, Schritte und Status aktuell. 'fertig' heisst: dein Teil ist getan. Bleibt danach etwas offen (Antwort auf eine gesendete Mail, Terminzusage, Freigabe von aussen) oder bleibt eine Aufgabe liegen, legst du es sofort mit im_blick_behalten an. 'Bleibt im Blick' ist Marcels Wiedervorlage, kein Archiv: jeder Punkt nennt den offenen Grund, den naechsten Prueftermin (nachfassen_am), die zugehoerige Karte (fenster_id) und nach jeder Pruefung den Stand. Bei board_lesen steht unter wiedervorlage, was faellig ist: pruefe jeden faelligen Punkt an seiner Karte und melde das Ergebnis mit im_blick_geprueft (pruefstand und neuer nachfassen_am), oder hake ihn mit im_blick_erledigt ab, wenn die Sache durch ist. Ein Punkt ohne Prueftermin wird nie faellig - trage ihn nach. Bei technischen Punkten (bereich technik) pruefst du nie aus dem Gedaechtnis: die Arbeit laeuft parallel weiter, darum laesst du mit an_claude den Stand von Code, Merge und Deploy abgleichen und haeltst die vier Zustaende getrennt fest (Code, Merge, Live, Nutzerbestaetigung). Erst wenn danach eine echte Luecke bleibt, fragst du Marcel - und zwar nach genau dieser Luecke, nicht mit der alten Frage. Bereite Ergebnisse visuell auf: Kennzahlen, Tabellen, Vergleiche, Link-Karten oder kleine Mockups als widgets, Mailwechsel als verlauf. Bei einem fertigen Feature ist die erste Link-Karte immer der Direktlink auf die Stelle in der App, ein GitHub-PR nur danach als technische Quelle. Hole das Fenster nach vorne, ueber das ihr gerade sprecht. Jede Karte traegt eine Statusleiste, die Marcel sofort sagt, wer was tut: taetigkeit (was gerade tatsaechlich passiert, als Satz), zustaendig (Tony, Claude, Marcel, GitHub Actions, eine Firma), bei Warten warten_auf (marcel | extern | agent | zugang) und wartegrund (die konkrete Abhaengigkeit), naechste_aktion (was als Naechstes passiert und wer es macht) und bei einem Abbruch fehler. Die Statuszeile allein beweist nichts: ohne taetigkeit schreibt das Board 'Status nicht aktuell bestaetigt', und wartende Karten zeigen keine laufende Arbeit an. Melde darum bei jedem Zwischenschritt die echte Taetigkeit nach, erfinde nie Prozentzahlen oder Restzeiten, und setze statt eines stillen Weiterwartens den passenden Status. status braucht_dich nur, wenn Marcel wirklich entscheiden oder etwas liefern muss, und dann immer mit der konkreten Frage in von_dir; wartest du nur technisch (Deploy, Build, Claude), ist der status wartet mit warten_auf und wartegrund und von_dir leer. Vor dem Senden einer Mail: freigabe_anfragen, dann board_lesen bis freigegeben. Lies mit board_lesen regelmaessig, was Marcel eingegeben und Claude geantwortet hat. Jede Eingabe von Marcel gehoert zu der Karte, die beim Absenden vor ihm stand; welche das ist, steht im Feld bezug. Antworte an dieser Karte, auch wenn der Fokus inzwischen auf einer anderen steht. Steht dort 'ohne Karte', ist die Nachricht allgemein gemeint - ordne sie dann keiner Karte auf Verdacht zu, sondern frage nach, wenn der Bezug wichtig ist. Code-, App-, Daten- und Deploy-Themen gibst du mit an_claude an Claude weiter. In Marcels Team-Discord postest du mit discord_senden (immer mit neuem schluessel je Nachricht); bestaetigt ist der Versand erst, wenn discord_status 'gesendet' mit message_id meldet - sag Marcel nie vorher 'gesendet'.",
       });
     case "ping":
       return ok({});
@@ -712,6 +780,41 @@ Deno.serve(async (req) => {
     const text = String(b.text ?? "").trim();
     if (!text) return json({ error: "leer" }, 400);
     await db.from("tony_board_absprache").insert({ von: "claude", text: text.slice(0, 20000), fenster_id: b.fenster_id ?? null });
+    return json({ ok: true });
+  }
+
+  // Discord-Bot: offene Nachrichten uebernehmen. Jede Zeile wechselt nur einmal von offen auf sendet
+  // (bedingtes Update), darum kann sie nie zweimal gesendet werden. Haengende Sendungen kommen zur Pruefung zurueck.
+  if (bereich === "api" && aktion === "discord-abholen" && req.method === "POST") {
+    const { data: offen } = await db.from("tony_board_discord").select("id").eq("status", "offen").order("erstellt").limit(5);
+    const senden = [];
+    for (const o of offen ?? []) {
+      const { data } = await db.from("tony_board_discord")
+        .update({ status: "sendet", angenommen_am: new Date().toISOString(), versuche: 1 })
+        .eq("id", o.id).eq("status", "offen").select("schluessel, kanal, text, erstellt");
+      if (data?.length) senden.push(data[0]);
+    }
+    const grenze = new Date(Date.now() - DISCORD_HAENGT_MIN * 60000).toISOString();
+    const { data: pruefen } = await db.from("tony_board_discord").select("schluessel, kanal, text, erstellt")
+      .eq("status", "sendet").lt("angenommen_am", grenze).limit(5);
+    return json({ senden, pruefen: pruefen ?? [] });
+  }
+  // Discord-Bot: Ergebnis melden. Nur eine laufende Sendung kann abgeschlossen werden.
+  if (bereich === "api" && aktion === "discord-quittung" && req.method === "POST") {
+    const b = await req.json().catch(() => ({}));
+    if (!b.schluessel || !["gesendet", "fehler", "ungewiss"].includes(b.status)) return json({ error: "schluessel/status fehlt" }, 400);
+    if (b.status === "gesendet" && !b.message_id) return json({ error: "message_id fehlt" }, 400);
+    const { data } = await db.from("tony_board_discord").update({
+      status: b.status, message_id: b.message_id ?? null, fehler: b.fehler ? String(b.fehler).slice(0, 500) : null,
+      gesendet_am: b.status === "gesendet" ? new Date().toISOString() : null,
+    }).eq("schluessel", b.schluessel).eq("status", "sendet").select("schluessel, fenster_id");
+    if (!data?.length) return json({ error: "keine laufende Sendung zu diesem Schluessel" }, 409);
+    const z = data[0];
+    const was = b.status === "gesendet" ? `gesendet, Discord-Nachrichten-ID ${b.message_id}`
+      : b.status === "fehler" ? `NICHT gesendet (Discord hat abgelehnt: ${b.fehler ?? "ohne Grund"})`
+      : `Ausgang ungewiss (${b.fehler ?? "ohne Grund"}) - nicht erneut gesendet`;
+    await db.from("tony_board_absprache").insert({ von: "claude", fenster_id: z.fenster_id ?? null,
+      text: `[Discord-Versand] Schluessel '${z.schluessel}': ${was}.` });
     return json({ ok: true });
   }
 
