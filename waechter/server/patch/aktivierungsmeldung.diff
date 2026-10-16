@@ -1,6 +1,6 @@
 --- a/waechter.sh
 +++ b/waechter.sh
-@@ -1,26 +1,46 @@
+@@ -1,26 +1,47 @@
  #!/bin/bash
 -# Tony-Board-Waechter (Server): laeuft jede Minute per systemd-Timer.
 +# Tony-Board-Waechter (Server): laeuft als Dauerdienst, schaut alle 5 s nach Post von Tony.
@@ -22,7 +22,8 @@
 +
 +# Kurze Meldung an Tony, ohne KI. Darf nie blockieren und nie den Lauf abbrechen.
 +an_tony() {
-+  jq -n --arg t "$1" --arg f "$2" \
++  # Gleiches Kennzeichen wie im Arbeiter: eine Meldung des Runners ist nie ein Arbeitsergebnis.
++  jq -n --arg t "[Runner] $1" --arg f "$2" \
 +    '{text:$t} + (if $f != "" and $f != "ohne-fenster" then {fenster_id:$f} else {} end)' \
 +    | curl -s --max-time 10 -X POST "$api/an-tony" -H 'content-type: application/json' --data-binary @- >/dev/null 2>&1 || true
 +}
@@ -54,7 +55,7 @@
  done
 --- a/bearbeite.sh
 +++ b/bearbeite.sh
-@@ -1,29 +1,138 @@
+@@ -1,29 +1,144 @@
  #!/bin/bash
  # Ein Arbeiter je Fenster: setzt die Claude-Sitzung dieses Fensters fort (--resume),
  # hoechstens $MAX Arbeiter gleichzeitig.
@@ -88,6 +89,9 @@
 +antwortdatei="$hier/antwort-$fenster.json"
 +# Eindeutige Kennung dieses Laufs: nur ein Ergebnis mit genau dieser Kennung zaehlt als Ergebnis.
 +lauf_id="$fenster-$(date +%s%N)-$$"
++# Dieser Marker muss im gespeicherten Boardtext stehen. Nur so laesst sich eine Antwort ohne
++# Schemaaenderung eindeutig DIESEM Lauf zuordnen - die API speichert lauf_id/art nicht.
++lauf_marke="[lauf:$lauf_id]"
 +meldefehler=0
 +
 +# Meldung an Tony. Schlucken ist verboten: ein Fehlschlag wird gezaehlt und protokolliert.
@@ -137,13 +141,16 @@
 +  jq -e --arg l "$lauf_id" '.lauf_id == $l and .art == "ergebnis"' "$antwortdatei" >/dev/null 2>&1
 +}
 +
-+# Beleg 2 (Board): Ist seit $1 eine Antwort angekommen, die NICHT vom Runner stammt?
-+# Eigene Status- und Startmeldungen tragen [Runner] und werden hier ausdruecklich ausgeschlossen.
++# Beleg 2 (Board): Steht im Board eine gespeicherte Antwort, die GENAU zu diesem Lauf gehoert?
++# Entscheidend ist der Marker im gespeicherten Text - die API speichert lauf_id und art nicht,
++# also muss die Zuordnung im Text selbst stehen. Fenster muss exakt passen (kein null-Schlupfloch),
++# und Meldungen des Runners sind zusaetzlich ausgeschlossen.
 +ergebnis_zugestellt() {
 +  curl -s --max-time "${TONY_HTTP_FRIST:-10}" "$api/state" 2>/dev/null \
-+    | jq -e --arg s "$1" --arg f "$fid" \
++    | jq -e --arg s "$1" --arg f "$fid" --arg m "$lauf_marke" \
 +        '[.absprache[]? | select(.von=="claude" and .erstellt >= $s
-+                                 and ($f == "" or .fenster_id == $f or .fenster_id == null)
++                                 and ((if $f == "" then .fenster_id == null else .fenster_id == $f end))
++                                 and ((.text // "") | contains($m))
 +                                 and ((.text // "") | startswith("[Runner]") | not))] | length > 0' \
 +        >/dev/null 2>&1
 +}
@@ -206,7 +213,7 @@
  
  auftrag="Du bist Claude auf Marcels Hetzner-Server. Tony ist Marcels proaktiver ChatGPT-Agent (Dots, per Sprache auf dem iPad). Ihr teilt euch das Tony Board. Tony hat dir ueber das Board geschrieben${fid:+ (Fenster $fid)}:
  
-@@ -36,20 +145,97 @@
+@@ -36,20 +151,100 @@
  2. Parallel zu dir arbeiten andere Claude-Sitzungen an anderen Fenstern. Arbeite in Git nie direkt in /opt/tony/repos/<repo>, sondern in einem eigenen Worktree: git -C /opt/tony/repos/<repo> worktree add /opt/tony/arbeit/${fenster}/<repo> <branch> (gibt es ihn schon, dort weitermachen). Bleib bei einem Branch je Fenster, statt neue -v2-Branches anzulegen.
  3. Ist die Aufgabe gross, teile sie und lass Teile parallel von Subagenten (Agent-Werkzeug) erledigen. Du laeufst nicht interaktiv: deine Sitzung endet, sobald du aufhoerst zu antworten. Starte darum nichts im Hintergrund (kein run_in_background, kein Monitor, kein ScheduleWakeup) und warte auf jeden Subagenten, bevor du Tony antwortest.
  4. Halte nur an, wenn wirklich Marcel entscheiden muss; dann erledige vorher alles, was ohne ihn geht, und schreib Tony genau die eine Frage.
@@ -215,6 +222,9 @@
     curl -s -X POST \"$api/an-tony\" -H \"content-type: application/json\" --data-binary @$antwortdatei
 -Sag Tony, was erledigt ist und was er Marcel sagen oder fragen soll."
 +Sag Tony, was erledigt ist und was er Marcel sagen oder fragen soll.
++   WICHTIG: Der text muss als letzte Zeile die Marke $lauf_marke enthalten. Nur daran erkennt der
++   Runner, dass die gespeicherte Antwort zu genau diesem Lauf gehoert; ohne sie gilt der Auftrag
++   als nicht erledigt und bleibt offen.
  
 -cd /opt/tony
 +Hinweis: Stehen oben mehrere Nachrichten, sind sie waehrend eines laufenden Auftrags eingegangen und zusammengefasst worden. Reine Statusnachfragen beantwortest du kurz aus dem, was du schon weisst, und beginnst dafuer keine neue Umsetzung."
@@ -304,7 +314,7 @@
 +else
 +  fehlt=""
 +  ergebnis_lokal || fehlt="keine Antwortdatei mit der Lauf-ID $lauf_id"
-+  ergebnis_zugestellt "$seit" || fehlt="${fehlt:+$fehlt und }keine Antwort von Claude im Board (Runner-Meldungen zaehlen nicht)"
++  ergebnis_zugestellt "$seit" || fehlt="${fehlt:+$fehlt und }keine im Board gespeicherte Antwort mit der Marke $lauf_marke zu Fenster '${fid:-ohne-fenster}' (fremde, spaete und Runner-Meldungen zaehlen nicht)"
 +  ziel=$(ablegen ohne-ergebnis)
 +  logz "Lauf endete mit Code 0, aber ohne belegtes Ergebnis ($fehlt) - Text unter ${ziel:-?}"
 +  an_tony "Unklar: Der Lauf fuer '$fenster' endete ohne Fehler, aber es gibt kein belegtes Ergebnis - $fehlt. Ich erklaere das deshalb NICHT fuer fertig. Der Nachrichtentext ist unter ${ziel:-dem Wartebereich} unveraendert erhalten und wird nicht automatisch wiederholt."

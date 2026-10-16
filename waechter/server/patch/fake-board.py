@@ -64,11 +64,16 @@ class H(BaseHTTPRequestHandler):
             if "haenge" in q: zustand["stoerung"]["haenge"] = float(q["haenge"][0])
             return self._antwort({"ok": True, "stoerung": zustand["stoerung"]})
         if self.path.startswith("/sim/antwort"):
-            # Claude stellt ein Ergebnis zu (das, was der echte Lauf am Ende selbst tut)
+            # Eine FREMDE oder spaete Antwort einschleusen - ohne Marke dieses Laufs.
+            # fenster=null bildet den Fall ohne Fensterbezug nach.
+            from urllib.parse import urlparse, parse_qs
             from datetime import datetime, timezone
+            q = parse_qs(urlparse(self.path).query)
+            f = q.get("fenster", ["testfenster"])[0]
             with sperre:
-                zustand["absprache"].append({"von": "claude", "text": "Ergebnis von Claude",
-                                             "fenster_id": "testfenster",
+                zustand["absprache"].append({"von": "claude",
+                                             "text": q.get("text", ["Ergebnis von irgendwem"])[0],
+                                             "fenster_id": None if f == "null" else f,
                                              "erstellt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")})
             return self._antwort({"ok": True})
         if self.path.endswith("/fuer-claude"):

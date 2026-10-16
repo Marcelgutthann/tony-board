@@ -37,8 +37,14 @@ if [ "${TEST_CLAUDE_WIRKUNG:-1}" = 1 ]; then
   lid=$(grep -o '"lauf_id": "[^"]*"' "$auftragdatei" | head -1 | cut -d'"' -f4)
   [ "${TEST_FALSCHE_LAUFID:-0}" = 1 ] && lid="ein-ganz-anderer-lauf"
   adatei=$(grep -o 'schreib die Datei [^ ]*' "$auftragdatei" | head -1 | awk '{print $4}')
-  [ -n "$adatei" ] && printf '{"text":"fertig","fenster_id":"testfenster","lauf_id":"%s","art":"ergebnis"}\n' "$lid" > "$adatei"
-  curl -s "$TEST_SIM/sim/antwort" >/dev/null
+  text="fertig
+[lauf:$lid]"
+  [ -n "$adatei" ] && jq -n --arg t "$text" --arg l "$lid" \
+      '{text:$t, fenster_id:"testfenster", lauf_id:$l, art:"ergebnis"}' > "$adatei"
+  # wie der echte Lauf: Claude stellt seine Antwort selbst zu - ausser der Test verhindert es
+  if [ "${TEST_ZUSTELLUNG_SCHEITERT:-0}" != 1 ] && [ -n "$adatei" ]; then
+    curl -s -X POST "$TEST_SIM/api/testkey/an-tony" -H 'content-type: application/json' --data-binary @"$adatei" >/dev/null
+  fi
   echo wirkung >> "$TEST_ARBEIT/wirkung.txt"
 fi
 [ "${TEST_CLAUDE_CODE:-0}" != "0" ] && exit "$TEST_CLAUDE_CODE"
@@ -260,6 +266,45 @@ pruefe "$([ ! -e "$TONY_WAECHTER_DIR/laufend/testfenster.txt" ] && echo ja || ec
 pruefe "$([ -z "$(ls "$TONY_WAECHTER_DIR/ohne-ergebnis" 2>/dev/null)" ] && echo ja || echo nein)" "19 nichts in ohne-ergebnis gelandet"
 pruefe "$(hat "$TONY_WAECHTER_DIR/waechter.log" 'belegt und zugestellt')" "19 Abschluss ausdruecklich belegt"
 pruefe "$(gleich "$(aufrufe)" 1)" "19 genau ein Aufruf"
+
+echo "== 20. Eigene Zustellung gescheitert + fremde Antwort: Auftrag bleibt offen =="
+frisch; post 200 "fremde Antwort darf nicht zaehlen"
+rm -f "$TONY_WAECHTER_DIR/sitzungen/testfenster" "$TONY_WAECHTER_DIR/antwort-testfenster.json"
+# Claude schreibt eine GUELTIGE Antwortdatei (richtige Lauf-ID), aber seine Zustellung scheitert;
+# gleichzeitig trifft eine fremde, spaetere Antwort zum selben Fenster ein.
+( sleep 2; curl -s "$TEST_SIM/sim/antwort?text=Antwort+eines+fremden+Laufs&fenster=testfenster" >/dev/null ) &
+fremd=$!
+TEST_ZUSTELLUNG_SCHEITERT=1 bash "$hier/bearbeite.sh" testfenster "$(irgendeine)" >/dev/null 2>&1
+wait $fremd 2>/dev/null
+pruefe "$([ -s "$TONY_WAECHTER_DIR/antwort-testfenster.json" ] && echo ja || echo nein)" "20 lokale Antwortdatei war gueltig vorhanden"
+pruefe "$(python3 - "$protokoll" <<'PY2'
+import json,sys
+z=[json.loads(l) for l in open(sys.argv[1],encoding='utf-8')]
+# Eine ECHTE Zustellung waere eine Nicht-Runner-Nachricht mit Marke; Runner-Meldungen
+# duerfen den Markennamen erwaehnen, ohne als Zustellung zu gelten.
+print("ja" if not any(x["art"]=="an-tony" and "[lauf:" in (x["text"] or "")
+                      and not (x["text"] or "").startswith("[Runner]") for x in z) else "nein")
+PY2
+)" "20 die eigene Zustellung ist tatsaechlich ausgeblieben"
+pruefe "$(hat "$protokoll" 'keine im Board gespeicherte Antwort mit der Marke')" "20 fremde Antwort wird nicht als eigenes Ergebnis genommen"
+pruefe "$([ -n "$(ls "$TONY_WAECHTER_DIR/ohne-ergebnis" 2>/dev/null)" ] && echo ja || echo nein)" "20 Auftrag bleibt offen, Inhalt erhalten"
+pruefe "$(hat "$(ls -t "$TONY_WAECHTER_DIR/ohne-ergebnis"/*.txt | head -1)" 'fremde Antwort darf nicht zaehlen')" "20 Inhalt unveraendert erhalten"
+
+echo "== 21. Antwort ohne Fensterbezug (fenster_id=null) zaehlt nicht =="
+frisch; post 210 "null-Fenster darf nicht zaehlen"
+rm -f "$TONY_WAECHTER_DIR/sitzungen/testfenster" "$TONY_WAECHTER_DIR/antwort-testfenster.json"
+( sleep 2; curl -s "$TEST_SIM/sim/antwort?text=Antwort+ohne+Fenster&fenster=null" >/dev/null ) & fremd=$!
+TEST_ZUSTELLUNG_SCHEITERT=1 bash "$hier/bearbeite.sh" testfenster "$(irgendeine)" >/dev/null 2>&1
+wait $fremd 2>/dev/null
+pruefe "$([ -n "$(ls "$TONY_WAECHTER_DIR/ohne-ergebnis" 2>/dev/null)" ] && echo ja || echo nein)" "21 kein null-Schlupfloch"
+
+echo "== 22. Antwort mit der richtigen Marke zaehlt weiterhin als Ergebnis =="
+frisch; post 220 "sauberer Durchlauf mit Marke"
+rm -f "$TONY_WAECHTER_DIR/sitzungen/testfenster" "$TONY_WAECHTER_DIR/antwort-testfenster.json"
+bash "$hier/bearbeite.sh" testfenster "$(irgendeine)" >/dev/null 2>&1
+pruefe "$([ ! -e "$TONY_WAECHTER_DIR/laufend/testfenster.txt" ] && echo ja || echo nein)" "22 Post abgeschlossen"
+pruefe "$([ -z "$(ls "$TONY_WAECHTER_DIR/ohne-ergebnis" 2>/dev/null)" ] && echo ja || echo nein)" "22 nicht faelschlich offen gelassen"
+pruefe "$(hat "$TONY_WAECHTER_DIR/waechter.log" 'belegt und zugestellt')" "22 Abschluss ausdruecklich belegt"
 
 echo
 echo "$ok/$((ok+nok)) Pruefungen bestanden"

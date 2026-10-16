@@ -3,6 +3,7 @@
 //   POST /tony-board/mcp/<schluessel>          MCP (Streamable HTTP, zustandslos)
 //   GET  /tony-board/api/<schluessel>/state    Zustand fuer das Board
 //   POST /tony-board/api/<schluessel>/eingabe  Nachricht/Freigabe vom Board
+//   POST /tony-board/api/<schluessel>/wiedervorlage  Prueflauf: faellige Punkte an Tony melden
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 
 const db = createClient(
@@ -36,6 +37,8 @@ const WARTEN_TEXT = "marcel = Marcel muss entscheiden oder etwas liefern, extern
 const BEREICHE = ["technik", "vertrieb", "organisation"];
 // Ohne bestaetigtes Signal gilt laufende Arbeit nach dieser Zeit als unbestaetigt (gleiche Grenze wie im Board)
 const FRISCH_MIN = 15;
+// Ein faelliger Wiedervorlage-Punkt wird fruehestens nach dieser Zeit erneut gemeldet
+const WV_ERINNERUNG_STD = 24;
 // Ohne Angabe: Einordnung nach App, Tony bekommt einen Hinweis zum Korrigieren
 const bereichAusApp = (app: string) =>
   ["code", "github", "jira"].includes(app) ? "technik" : ["gmail", "outlook"].includes(app) ? "vertrieb" : "organisation";
@@ -180,17 +183,35 @@ const TOOLS = [
     name: "im_blick_behalten",
     title: "Im Blick behalten",
     description:
-      "Legt einen Punkt in 'Bleibt im Blick' an: etwas, das nicht fertig ist und weiterverfolgt werden muss, auch wenn das Fenster dazu fertig ist. Pflicht, sobald eine Reaktion von aussen aussteht (Mail gesendet und Antwort/Termin erwartet, Angebot raus, Zusage offen) oder eine Aufgabe liegen bleibt. Beispiel: Mail an Herrn Arends mit Terminvorschlag gesendet -> text 'Antwort auf Terminvorschlag abwarten', wer 'Christian Arends'. Der Punkt bleibt, bis du ihn mit im_blick_erledigt abhakst oder Marcel ihn abhakt. Gleiche fenster_id und offener Punkt = wird aktualisiert statt doppelt angelegt.",
+      "Legt einen Punkt in 'Bleibt im Blick' an - die Wiedervorlage, kein Archiv: etwas, das nicht fertig ist und zu einem Termin wieder geprueft wird, auch wenn das Fenster dazu fertig ist. Pflicht, sobald eine Reaktion von aussen aussteht (Mail gesendet und Antwort/Termin erwartet, Angebot raus, Zusage offen) oder eine Aufgabe liegen bleibt. Jeder Punkt braucht vier Dinge: den offenen Grund (text), den naechsten Prueftermin (nachfassen_am), die zugehoerige Karte (fenster_id) und spaeter den Stand der letzten Pruefung (pruefstand, sonst ueber im_blick_geprueft). Beispiel: Mail an Herrn Arends mit Terminvorschlag gesendet -> text 'Antwort auf Terminvorschlag abwarten', wer 'Christian Arends', nachfassen_am in drei Tagen. Der Punkt bleibt, bis du ihn mit im_blick_erledigt abhakst oder Marcel ihn abhakt. Gleiche fenster_id und offener Punkt = wird aktualisiert statt doppelt angelegt.",
     inputSchema: {
       type: "object",
       properties: {
-        text: { type: "string", description: "Was offen ist, ein kurzer Satz." },
+        text: { type: "string", description: "Der offene Grund: was genau aussteht, ein kurzer Satz." },
         wer: { type: "string", description: "Von wem etwas aussteht oder um wen es geht." },
         bereich: { type: "string", enum: BEREICHE, description: BEREICH_TEXT },
         fenster_id: { type: "string", description: "Fenster, zu dem der Punkt gehoert." },
-        nachfassen_am: { type: "string", description: "Optional: ab wann nachfassen, JJJJ-MM-TT." },
+        nachfassen_am: { type: "string", description: "Der naechste Prueftermin, JJJJ-MM-TT. Ohne Termin wird der Punkt nie faellig und bleibt ein Archiveintrag; nenne darum immer ein Datum, auch ein grob geschaetztes." },
+        pruefstand: { type: "string", description: "Optional: was die letzte Pruefung ergeben hat, ein Satz (z. B. 'am 14.10. nachgesehen, noch keine Antwort')." },
       },
       required: ["text"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+  },
+  {
+    name: "im_blick_geprueft",
+    title: "Im Blick: geprueft",
+    description:
+      "Haelt eine Pruefung eines Wiedervorlage-Punktes fest, ohne ihn abzuhaken (id aus board_lesen): was die Pruefung ergeben hat und wann wieder geprueft wird. Nutze es fuer jeden faelligen Punkt, der offen bleibt - so sieht Marcel, dass nachgesehen wurde, und der Punkt wird erst am neuen Termin wieder faellig. Ist die Sache erledigt, nimm im_blick_erledigt.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "number" },
+        pruefstand: { type: "string", description: "Ergebnis der Pruefung in einem Satz (z. B. 'nachgesehen, Herr Arends hat noch nicht geantwortet')." },
+        nachfassen_am: { type: "string", description: "Der naechste Prueftermin, JJJJ-MM-TT. Ohne neuen Termin bleibt der Punkt sofort wieder faellig." },
+      },
+      required: ["id", "pruefstand"],
       additionalProperties: false,
     },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
@@ -271,6 +292,28 @@ const TOOLS = [
   },
 ];
 
+// Titel zu Karten-ids, auch zu archivierten: eine Nachricht oder ein Wiedervorlage-Punkt ohne
+// Kartentitel ist fuer Tony nicht zuzuordnen.
+async function kartenTitel(ids: string[]) {
+  const liste = [...new Set(ids.filter(Boolean))];
+  if (!liste.length) return {} as Record<string, string>;
+  const { data } = await db.from("tony_board_fenster").select("id, titel").in("id", liste);
+  return Object.fromEntries((data ?? []).map((f: any) => [f.id, f.titel ?? f.id])) as Record<string, string>;
+}
+
+// Faelligkeit eines Wiedervorlage-Punktes, an einer Stelle: Board, board_lesen und der Prueflauf
+// sollen dasselbe "faellig" meinen.
+const heuteBerlin = () => new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Berlin" });
+function wiedervorlage(blick: any[], heute = heuteBerlin()) {
+  const tage = (d: string) => Math.round((Date.parse(heute) - Date.parse(d)) / 864e5);
+  const faellig = blick.filter((b) => b.nachfassen_am && b.nachfassen_am <= heute)
+    .map((b) => ({ ...b, faellig: true, tage_ueberfaellig: tage(b.nachfassen_am) }))
+    .sort((a, b) => b.tage_ueberfaellig - a.tage_ueberfaellig);
+  const ohne_termin = blick.filter((b) => !b.nachfassen_am).map((b) => ({ ...b, faellig: false }));
+  const spaeter = blick.filter((b) => b.nachfassen_am && b.nachfassen_am > heute).map((b) => ({ ...b, faellig: false }));
+  return { faellig, ohne_termin, spaeter };
+}
+
 async function zustandLesen() {
   const [{ data: fenster }, { data: z }, { data: eingang }, { data: absprache }, { data: archiv }, { data: blick }] = await Promise.all([
     db.from("tony_board_fenster").select("*").eq("geschlossen", false).order("erstellt"),
@@ -278,13 +321,18 @@ async function zustandLesen() {
     db.from("tony_board_eingang").select("*").order("id", { ascending: false }).limit(30),
     db.from("tony_board_absprache").select("*").order("id", { ascending: false }).limit(30),
     db.from("tony_board_fenster").select("id, titel, kernaussage, app, bereich, geaendert").eq("geschlossen", true).order("geaendert", { ascending: false }).limit(100),
-    db.from("tony_board_blick").select("id, text, wer, bereich, fenster_id, nachfassen_am, quelle, erstellt").is("erledigt_am", null).order("erstellt"),
+    db.from("tony_board_blick").select("id, text, wer, bereich, fenster_id, nachfassen_am, pruefstand, geprueft_am, quelle, erstellt").is("erledigt_am", null).order("erstellt"),
   ]);
-  return { fenster: fenster ?? [], fokus: z?.fokus ?? null, ansicht: z?.ansicht ?? "rondell", blick: blick ?? [], eingang: eingang ?? [], absprache: absprache ?? [], archiv: archiv ?? [] };
+  // Karte zum Punkt und zur Nachricht: der Titel kommt mit, auch wenn die Karte schon archiviert ist
+  const titel = await kartenTitel([...(blick ?? []), ...(eingang ?? [])].map((r: any) => r.fenster_id));
+  const mitKarte = (r: any) => ({ ...r, karte_titel: r.fenster_id ? titel[r.fenster_id] ?? null : null });
+  return { fenster: fenster ?? [], fokus: z?.fokus ?? null, ansicht: z?.ansicht ?? "rondell",
+    blick: (blick ?? []).map(mitKarte), eingang: (eingang ?? []).map(mitKarte),
+    absprache: absprache ?? [], archiv: archiv ?? [] };
 }
 
 // Punkt in "Bleibt im Blick": offener Punkt zum selben Fenster wird aktualisiert statt verdoppelt
-async function blickMerken(p: { text: string; wer?: string | null; bereich?: string; fenster_id?: string | null; nachfassen_am?: string | null; quelle: string }) {
+async function blickMerken(p: { text: string; wer?: string | null; bereich?: string; fenster_id?: string | null; nachfassen_am?: string | null; pruefstand?: string | null; quelle: string }) {
   const text = String(p.text ?? "").trim().slice(0, 500);
   if (!text) throw new Error("text fehlt");
   let bereich = BEREICHE.includes(p.bereich as string) ? p.bereich : null;
@@ -296,10 +344,13 @@ async function blickMerken(p: { text: string; wer?: string | null; bereich?: str
   if (p.wer !== undefined) felder.wer = p.wer || null;
   if (p.fenster_id !== undefined) felder.fenster_id = p.fenster_id || null;
   if (p.nachfassen_am !== undefined) felder.nachfassen_am = /^\d{4}-\d{2}-\d{2}$/.test(String(p.nachfassen_am)) ? p.nachfassen_am : null;
+  if (p.pruefstand !== undefined) felder.pruefstand = p.pruefstand || null;
   const { data: alt } = p.fenster_id
-    ? await db.from("tony_board_blick").select("id").eq("fenster_id", p.fenster_id).is("erledigt_am", null).limit(1).maybeSingle()
-    : await db.from("tony_board_blick").select("id").eq("text", text).is("erledigt_am", null).limit(1).maybeSingle();
+    ? await db.from("tony_board_blick").select("id, text, nachfassen_am").eq("fenster_id", p.fenster_id).is("erledigt_am", null).limit(1).maybeSingle()
+    : await db.from("tony_board_blick").select("id, text, nachfassen_am").eq("text", text).is("erledigt_am", null).limit(1).maybeSingle();
   if (alt) {
+    // Geaenderter Grund oder neuer Termin ist eine neue Information: der Punkt wird wieder gemeldet
+    if (alt.text !== text || (felder.nachfassen_am !== undefined && alt.nachfassen_am !== felder.nachfassen_am)) felder.gemeldet_am = null;
     const { error } = await db.from("tony_board_blick").update(felder).eq("id", alt.id);
     if (error) throw new Error(error.message);
     return alt.id;
@@ -316,7 +367,9 @@ async function archivieren(id: string) {
   if (error) throw new Error(error.message);
   if (f && f.status !== "fertig") {
     const stand = String(f.kernaussage ?? "").replace(/\*\*/g, "").trim();
-    await blickMerken({ text: `${f.titel}: ${stand || "nicht fertig"} (archiviert, Status ${f.status})`, bereich: f.bereich, fenster_id: id, quelle: "archiviert" });
+    // Ein unfertig archiviertes Fenster ist Wiedervorlage, nicht Ablage: es ist sofort faellig,
+    // damit Tony einen echten Grund und einen echten Prueftermin nachtraegt.
+    await blickMerken({ text: `${f.titel}: ${stand || "nicht fertig"} (archiviert, Status ${f.status})`, bereich: f.bereich, fenster_id: id, nachfassen_am: heuteBerlin(), quelle: "archiviert" });
   }
 }
 
@@ -327,6 +380,42 @@ async function absprachenHolen(von: string) {
     await db.from("tony_board_absprache").update({ gelesen: new Date().toISOString() }).in("id", data.map((m: any) => m.id));
   }
   return (data ?? []).map((m: any) => ({ text: m.text, fenster_id: m.fenster_id, zeit: m.erstellt }));
+}
+
+// Wiedervorlage-Prueflauf, ohne KI: schaut nach faelligen Punkten und schreibt Tony nur dann,
+// wenn etwas faellig oder ohne Prueftermin ist, das er noch nicht gemeldet bekommen hat.
+// Unveraenderte Punkte bleiben still (gemeldet_am). Gedacht fuer einen Aufruf alle 10 Minuten.
+async function wiedervorlageMelden() {
+  const { data: blick } = await db.from("tony_board_blick")
+    .select("id, text, wer, fenster_id, nachfassen_am, pruefstand, geprueft_am, gemeldet_am")
+    .is("erledigt_am", null);
+  const wv = wiedervorlage(blick ?? []);
+  // Zwei verschiedene Faelle, darum zwei Regeln:
+  // - Faelliges erinnert hoechstens einmal je WV_ERINNERUNG_STD, solange es faellig bleibt.
+  // - Ein Punkt OHNE Prueftermin wird genau einmal zur Sichtung gemeldet ("Termin offen") und
+  //   loest danach nie wieder eine Meldung aus. Unsichtbar wird er dadurch nicht: board_lesen
+  //   nennt ihn bei jedem Lesen, und das Board zeigt ihn als "Prueftermin fehlt".
+  const erinnern = (b: any) => !b.gemeldet_am || Date.now() - Date.parse(b.gemeldet_am) > WV_ERINNERUNG_STD * 3600000;
+  const zuMelden = [...wv.faellig.filter(erinnern), ...wv.ohne_termin.filter((b: any) => !b.gemeldet_am)];
+  let gemeldet = 0;
+  if (zuMelden.length) {
+    const titel = await kartenTitel(zuMelden.map((b: any) => b.fenster_id));
+    const zeile = (b: any) => [
+      `#${b.id} ${b.text}`,
+      b.wer ? `von: ${b.wer}` : "",
+      b.fenster_id ? `Karte: ${titel[b.fenster_id] ?? b.fenster_id} (${b.fenster_id})` : "ohne Karte",
+      b.faellig ? `Prueftermin ${b.nachfassen_am}${b.tage_ueberfaellig > 0 ? `, ueberfaellig seit ${b.tage_ueberfaellig} Tag(en)` : " - heute faellig"}` : "kein Prueftermin gesetzt",
+      b.geprueft_am ? `letzte Pruefung ${String(b.geprueft_am).slice(0, 10)}: ${b.pruefstand ?? "ohne Ergebnis"}` : "noch nie geprueft",
+    ].filter(Boolean).join(" · ");
+    const text = `[Wiedervorlage] ${zuMelden.length} Punkt(e) aus 'Bleibt im Blick' sind dran:\n\n`
+      + zuMelden.map(zeile).join("\n")
+      + `\n\nPruefe jeden Punkt an seiner Karte und melde das Ergebnis mit im_blick_geprueft (pruefstand + neuer nachfassen_am), oder hake ihn mit im_blick_erledigt ab. Ein Punkt mit Prueftermin erinnert hoechstens einmal am Tag, solange er faellig bleibt. Ein Punkt ohne Prueftermin steht hier genau einmal zur Sichtung und loest danach keine Meldung mehr aus - er bleibt aber in jedem board_lesen und auf dem Board als 'Prueftermin fehlt' stehen, bis du einen Termin setzt.`;
+    const { error } = await db.from("tony_board_absprache").insert({ von: "claude", text: text.slice(0, 20000) });
+    if (error) throw new Error(error.message);
+    await db.from("tony_board_blick").update({ gemeldet_am: new Date().toISOString() }).in("id", zuMelden.map((b: any) => b.id));
+    gemeldet = zuMelden.length;
+  }
+  return { offen: (blick ?? []).length, faellig: wv.faellig.length, ohne_prueftermin: wv.ohne_termin.length, gemeldet };
 }
 
 async function setzeZustand(felder: Record<string, unknown>) {
@@ -345,10 +434,16 @@ async function werkzeug(name: string, a: Record<string, any>): Promise<unknown> 
       // Das Board zeigt laufende Arbeit nur mit frischem bestaetigtem Signal; dieselbe Grenze gilt hier
       const unbestaetigt = z.fenster.filter((f: any) =>
         f.status === "arbeitet" && (!f.bestaetigt_am || Date.now() - Date.parse(f.bestaetigt_am) > FRISCH_MIN * 60000));
+      const wv = wiedervorlage(z.blick);
+      const blickHinweise = [
+        wv.faellig.length ? `Wiedervorlage faellig: ${wv.faellig.map((b: any) => `#${b.id} ${b.text}`).join("; ")}. Pruefe jeden Punkt und melde das Ergebnis mit im_blick_geprueft (pruefstand + neuer nachfassen_am) oder hake ihn mit im_blick_erledigt ab.` : "",
+        wv.ohne_termin.length ? `Ohne Prueftermin und darum nie faellig: ${wv.ohne_termin.map((b: any) => `#${b.id}`).join(", ")}. Setze mit im_blick_behalten (gleiche fenster_id) oder im_blick_geprueft ein nachfassen_am.` : "",
+      ].filter(Boolean);
       return {
         fokus: z.fokus,
         ansicht: z.ansicht,
-        bleibt_im_blick: z.blick,
+        bleibt_im_blick: [...wv.faellig, ...wv.ohne_termin, ...wv.spaeter],
+        ...(blickHinweise.length ? { wiedervorlage: blickHinweise.join(" ") } : {}),
         fenster: z.fenster.map((f: any) => ({
           id: f.id, titel: f.titel, app: f.app, bereich: f.bereich, status: f.status, freigabe: f.freigabe,
           freigabe_kommentar: f.freigabe_kommentar, von_dir: f.von_dir,
@@ -356,7 +451,14 @@ async function werkzeug(name: string, a: Record<string, any>): Promise<unknown> 
           naechste_aktion: f.naechste_aktion, bestaetigt_am: f.bestaetigt_am, fehler: f.fehler, hinweis: f.hinweis,
         })),
         ...(unbestaetigt.length ? { hinweis: `Marcel sieht bei ${unbestaetigt.map((f: any) => f.id).join(", ")} 'Status nicht aktuell bestaetigt', weil seit ueber ${FRISCH_MIN} Minuten keine taetigkeit gemeldet wurde. Melde dort die echte Taetigkeit nach oder setze den passenden Status (wartet mit warten_auf und wartegrund, fertig, oder fehler).` } : {}),
-        neue_eingaben_von_marcel: neu.reverse().map((e: any) => ({ fenster_id: e.fenster_id, art: e.art, text: e.text, zeit: e.erstellt })),
+        // Jede Eingabe gehoert zu der Karte, die beim Absenden vor Marcel stand - auch wenn der
+        // Fokus seither gewechselt hat. Darum kommt der Kartentitel mit und nie nur die id.
+        neue_eingaben_von_marcel: neu.reverse().map((e: any) => ({
+          fenster_id: e.fenster_id, art: e.art, text: e.text, zeit: e.erstellt,
+          bezug: e.fenster_id
+            ? `Karte '${e.karte_titel ?? e.fenster_id}' (${e.fenster_id})${e.karte_titel ? "" : ", Karte nicht gefunden"}`
+            : "ohne Karte, allgemein an dich",
+        })),
         neue_nachrichten_von_claude: await absprachenHolen("claude"),
       };
     }
@@ -450,8 +552,20 @@ async function werkzeug(name: string, a: Record<string, any>): Promise<unknown> 
       return { ok: true, hinweis: "Marcel sieht die Anfrage. Mit board_lesen pruefen, ob freigegeben wurde." };
     }
     case "im_blick_behalten": {
-      const id = await blickMerken({ text: a.text, wer: a.wer, bereich: a.bereich, fenster_id: a.fenster_id, nachfassen_am: a.nachfassen_am, quelle: "tony" });
-      return { ok: true, id };
+      const id = await blickMerken({ text: a.text, wer: a.wer, bereich: a.bereich, fenster_id: a.fenster_id, nachfassen_am: a.nachfassen_am, pruefstand: a.pruefstand, quelle: "tony" });
+      const termin = /^\d{4}-\d{2}-\d{2}$/.test(String(a.nachfassen_am ?? ""));
+      return { ok: true, id, ...(termin ? {} : { hinweis: "Ohne nachfassen_am wird dieser Punkt nie faellig und das Board fuehrt ihn als 'Prueftermin fehlt'. Nenne den naechsten Prueftermin (JJJJ-MM-TT), notfalls geschaetzt." }) };
+    }
+    case "im_blick_geprueft": {
+      const stand = String(a.pruefstand ?? "").trim();
+      if (!stand) throw new Error("pruefstand fehlt: nenne in einem Satz, was die Pruefung ergeben hat.");
+      const felder: Record<string, unknown> = { pruefstand: stand.slice(0, 500), geprueft_am: new Date().toISOString(), gemeldet_am: null };
+      const termin = /^\d{4}-\d{2}-\d{2}$/.test(String(a.nachfassen_am ?? ""));
+      if (termin) felder.nachfassen_am = a.nachfassen_am;
+      const { data, error } = await db.from("tony_board_blick").update(felder).eq("id", a.id).is("erledigt_am", null).select("id").maybeSingle();
+      if (error) throw new Error(error.message);
+      if (!data) throw new Error(`Kein offener Punkt mit id ${a.id}. Hol die ids mit board_lesen.`);
+      return { ok: true, ...(termin ? {} : { hinweis: "Ohne nachfassen_am ist der Punkt sofort wieder faellig. Nenne den naechsten Prueftermin." }) };
     }
     case "im_blick_erledigt": {
       const { error } = await db.from("tony_board_blick").update({ erledigt_am: new Date().toISOString() }).eq("id", a.id).is("erledigt_am", null);
@@ -503,9 +617,9 @@ async function mcp(msg: any): Promise<any | null> {
       return ok({
         protocolVersion: params?.protocolVersion ?? "2025-06-18",
         capabilities: { tools: { listChanged: false } },
-        serverInfo: { name: "tony-board", title: "Tony Board", version: "1.5.0" },
+        serverInfo: { name: "tony-board", title: "Tony Board", version: "1.6.0" },
         instructions:
-          "Tony Board ist Marcels Bildschirm fuer deine Arbeit. Oberste Regel: Marcel muss jedes Fenster in 5 Sekunden verstehen, ohne zu lesen. Darum beginnt jedes Fenster mit auftrag (ein Satz), kernaussage als Stand (hoechstens 12 Woerter, Schluesselwoerter fett) und von_dir (die eine Frage an Marcel, sonst leer), dazu mindestens ein Widget; Fliesstext ist nur Detail. Lege fuer jede Aufgabe, an der du arbeitest, ein Fenster an (fenster_zeigen, immer mit bereich: technik, vertrieb oder organisation - jeder Bereich ist ein eigenes Rondell) und halte Inhalt, Schritte und Status aktuell. 'fertig' heisst: dein Teil ist getan. Bleibt danach etwas offen (Antwort auf eine gesendete Mail, Terminzusage, Freigabe von aussen) oder bleibt eine Aufgabe liegen, legst du es sofort mit im_blick_behalten an; kommt die Antwort, hakst du es mit im_blick_erledigt ab. Pruefe bei board_lesen die Liste bleibt_im_blick und fasse nach, was faellig ist. Bereite Ergebnisse visuell auf: Kennzahlen, Tabellen, Vergleiche, Link-Karten oder kleine Mockups als widgets, Mailwechsel als verlauf. Bei einem fertigen Feature ist die erste Link-Karte immer der Direktlink auf die Stelle in der App, ein GitHub-PR nur danach als technische Quelle. Hole das Fenster nach vorne, ueber das ihr gerade sprecht. Jede Karte traegt eine Statusleiste, die Marcel sofort sagt, wer was tut: taetigkeit (was gerade tatsaechlich passiert, als Satz), zustaendig (Tony, Claude, Marcel, GitHub Actions, eine Firma), bei Warten warten_auf (marcel | extern | agent | zugang) und wartegrund (die konkrete Abhaengigkeit), naechste_aktion (was als Naechstes passiert und wer es macht) und bei einem Abbruch fehler. Die Statuszeile allein beweist nichts: ohne taetigkeit schreibt das Board 'Status nicht aktuell bestaetigt', und wartende Karten zeigen keine laufende Arbeit an. Melde darum bei jedem Zwischenschritt die echte Taetigkeit nach, erfinde nie Prozentzahlen oder Restzeiten, und setze statt eines stillen Weiterwartens den passenden Status. status braucht_dich nur, wenn Marcel wirklich entscheiden oder etwas liefern muss, und dann immer mit der konkreten Frage in von_dir; wartest du nur technisch (Deploy, Build, Claude), ist der status wartet mit warten_auf und wartegrund und von_dir leer. Vor dem Senden einer Mail: freigabe_anfragen, dann board_lesen bis freigegeben. Lies mit board_lesen regelmaessig, was Marcel eingegeben und Claude geantwortet hat. Code-, App-, Daten- und Deploy-Themen gibst du mit an_claude an Claude weiter.",
+          "Tony Board ist Marcels Bildschirm fuer deine Arbeit. Oberste Regel: Marcel muss jedes Fenster in 5 Sekunden verstehen, ohne zu lesen. Darum beginnt jedes Fenster mit auftrag (ein Satz), kernaussage als Stand (hoechstens 12 Woerter, Schluesselwoerter fett) und von_dir (die eine Frage an Marcel, sonst leer), dazu mindestens ein Widget; Fliesstext ist nur Detail. Lege fuer jede Aufgabe, an der du arbeitest, ein Fenster an (fenster_zeigen, immer mit bereich: technik, vertrieb oder organisation - jeder Bereich ist ein eigenes Rondell) und halte Inhalt, Schritte und Status aktuell. 'fertig' heisst: dein Teil ist getan. Bleibt danach etwas offen (Antwort auf eine gesendete Mail, Terminzusage, Freigabe von aussen) oder bleibt eine Aufgabe liegen, legst du es sofort mit im_blick_behalten an. 'Bleibt im Blick' ist Marcels Wiedervorlage, kein Archiv: jeder Punkt nennt den offenen Grund, den naechsten Prueftermin (nachfassen_am), die zugehoerige Karte (fenster_id) und nach jeder Pruefung den Stand. Bei board_lesen steht unter wiedervorlage, was faellig ist: pruefe jeden faelligen Punkt an seiner Karte und melde das Ergebnis mit im_blick_geprueft (pruefstand und neuer nachfassen_am), oder hake ihn mit im_blick_erledigt ab, wenn die Sache durch ist. Ein Punkt ohne Prueftermin wird nie faellig - trage ihn nach. Bereite Ergebnisse visuell auf: Kennzahlen, Tabellen, Vergleiche, Link-Karten oder kleine Mockups als widgets, Mailwechsel als verlauf. Bei einem fertigen Feature ist die erste Link-Karte immer der Direktlink auf die Stelle in der App, ein GitHub-PR nur danach als technische Quelle. Hole das Fenster nach vorne, ueber das ihr gerade sprecht. Jede Karte traegt eine Statusleiste, die Marcel sofort sagt, wer was tut: taetigkeit (was gerade tatsaechlich passiert, als Satz), zustaendig (Tony, Claude, Marcel, GitHub Actions, eine Firma), bei Warten warten_auf (marcel | extern | agent | zugang) und wartegrund (die konkrete Abhaengigkeit), naechste_aktion (was als Naechstes passiert und wer es macht) und bei einem Abbruch fehler. Die Statuszeile allein beweist nichts: ohne taetigkeit schreibt das Board 'Status nicht aktuell bestaetigt', und wartende Karten zeigen keine laufende Arbeit an. Melde darum bei jedem Zwischenschritt die echte Taetigkeit nach, erfinde nie Prozentzahlen oder Restzeiten, und setze statt eines stillen Weiterwartens den passenden Status. status braucht_dich nur, wenn Marcel wirklich entscheiden oder etwas liefern muss, und dann immer mit der konkreten Frage in von_dir; wartest du nur technisch (Deploy, Build, Claude), ist der status wartet mit warten_auf und wartegrund und von_dir leer. Vor dem Senden einer Mail: freigabe_anfragen, dann board_lesen bis freigegeben. Lies mit board_lesen regelmaessig, was Marcel eingegeben und Claude geantwortet hat. Jede Eingabe von Marcel gehoert zu der Karte, die beim Absenden vor ihm stand; welche das ist, steht im Feld bezug. Antworte an dieser Karte, auch wenn der Fokus inzwischen auf einer anderen steht. Steht dort 'ohne Karte', ist die Nachricht allgemein gemeint - ordne sie dann keiner Karte auf Verdacht zu, sondern frage nach, wenn der Bezug wichtig ist. Code-, App-, Daten- und Deploy-Themen gibst du mit an_claude an Claude weiter.",
       });
     case "ping":
       return ok({});
@@ -592,6 +706,12 @@ Deno.serve(async (req) => {
     if (!text) return json({ error: "leer" }, 400);
     await db.from("tony_board_absprache").insert({ von: "claude", text: text.slice(0, 20000), fenster_id: b.fenster_id ?? null });
     return json({ ok: true });
+  }
+
+  // Wiedervorlage-Prueflauf (siehe wiedervorlageMelden): meldet Tony nur neu Faelliges
+  if (bereich === "api" && aktion === "wiedervorlage" && req.method === "POST") {
+    try { return json(await wiedervorlageMelden()); }
+    catch (e) { return json({ error: (e as Error).message }, 500); }
   }
 
   // Board: Fenster archivieren oder zurueckholen

@@ -1,0 +1,8 @@
+[Unit]
+Description=Tony Board: Wiedervorlage-Prueflauf (faellige Punkte aus "Bleibt im Blick" an Tony melden)
+After=network-online.target
+
+[Service]
+Type=oneshot
+Environment=HOME=/root
+ExecStart=/opt/tony/waechter/wiedervorlage.sh

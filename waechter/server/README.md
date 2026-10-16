@@ -17,3 +17,53 @@ diesem Ordner.
 
 Diese Kopien laufen nicht: der Dienst startet aus `/opt/tony/waechter/`. Eine Aenderung hier
 veraendert das Serververhalten nicht.
+
+---
+
+## Wiedervorlage-Prueflauf (**installiert und aktiv seit 16.10.2026, 07:25 UTC**)
+
+| Datei hier | liegt auf dem Server unter |
+|---|---|
+| `wiedervorlage.sh` | `/opt/tony/waechter/wiedervorlage.sh` |
+| `tony-wiedervorlage.service` | `/etc/systemd/system/tony-wiedervorlage.service` |
+| `tony-wiedervorlage.timer` | `/etc/systemd/system/tony-wiedervorlage.timer` |
+
+**Mechanik.** Ein `oneshot`-Dienst, den ein Timer alle 10 Minuten startet. Er macht genau einen
+HTTP-Aufruf: `POST /api/<schluessel>/wiedervorlage`. Die Entscheidung, ob gemeldet wird, trifft das
+Board selbst, nach zwei Regeln (`gemeldet_am`): ein **faelliger** Punkt
+(`nachfassen_am <= heute`) erinnert hoechstens einmal in 24 Stunden, solange er faellig bleibt; ein
+Punkt **ohne Prueftermin** wird genau einmal zur Sichtung gemeldet und loest danach keine Meldung
+mehr aus — sichtbar bleibt er trotzdem, weil `board_lesen` ihn bei jedem Lesen nennt und das Board
+ihn als "Prueftermin fehlt" zeigt. Ein geaenderter Grund, ein neuer Termin oder eine Pruefung
+setzen `gemeldet_am` zurueck, sodass der Punkt wieder meldbar ist. Gibt es nichts zu melden,
+schreibt der Lauf nichts, nicht einmal ins Log. Kein
+eigener Zustand, keine KI, kein Schreibzugriff ausserhalb der Boardtabellen.
+
+**Was er nicht tut.** Keine Mails, keine Discord-Nachrichten, keine Mail-/Discordueberwachung,
+keine Deploys, keine neuen Zugangsdaten, keine erweiterten Rechte. Er nutzt denselben
+Board-Schluessel aus `/root/.claude/secrets/tony-board.env`, den der Waechter schon liest. Der
+laufende Waechter (`tony-waechter.service`) wird nicht angefasst; beide Dienste sind unabhaengig.
+
+**Kosten.** 144 Edge-Function-Aufrufe am Tag (etwa 4.400 im Monat) im schon vorhandenen
+Supabase-Projekt, dazu je Lauf eine kleine Abfrage. Keine zusaetzliche Rechnung, kein KI-Token.
+
+**So wurde installiert** (Tony hat am 16.10.2026 innerhalb von Marcels Auftrag freigegeben, nachdem
+die vier Bedingungen geprueft waren: keine neuen Zugangsdaten, keine erweiterten Rechte, keine
+zahlungspflichtigen Dienste, kein doppelter Scheduler).
+
+```
+cp waechter/server/wiedervorlage.sh /opt/tony/waechter/wiedervorlage.sh
+chmod +x /opt/tony/waechter/wiedervorlage.sh
+cp waechter/server/tony-wiedervorlage.{service,timer} /etc/systemd/system/
+systemctl daemon-reload && systemctl enable --now tony-wiedervorlage.timer
+```
+
+Erster echter Timerlauf: 16.10.2026, 07:25:35 UTC, Exit 0, ohne Meldung — die fuenf offenen Punkte
+waren um 07:15:48 UTC schon gesichtet worden. Probelauf von Hand:
+`/opt/tony/waechter/wiedervorlage.sh`. Rueckbau: `systemctl disable --now
+tony-wiedervorlage.timer`, Unit-Dateien loeschen. Es bleibt nichts zurueck ausser den schon
+gesetzten `gemeldet_am`-Zeitstempeln.
+
+**Auch ohne den Timer geht nichts verloren:** Faelliges steht bei jedem `board_lesen` im Feld
+`wiedervorlage` und auf dem Board selbst oben in "Bleibt im Blick". Der Timer macht daraus nur eine
+Meldung, auf die Tony nicht warten muss.
