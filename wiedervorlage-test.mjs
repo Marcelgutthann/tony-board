@@ -215,6 +215,26 @@ await t("ein Punkt mit Termin in der Zukunft wird auch nach Tagen nicht erinnert
   const r = await wiedervorlageMelden();
   if (r.gemeldet !== 0 || wvZeilen().length) throw new Error("falsch erinnert: " + JSON.stringify(r));
 });
+// Technische Punkte: der Abgleich mit Code, Merge und Deploy gehoert in die Meldung
+await t("technischer Punkt wird in der Meldung als solcher gekennzeichnet", async () => {
+  leeren();
+  karte("k5d", "Style-Seite", { bereich: "technik" });
+  await werkzeug("im_blick_behalten", { text: "Handelnde auf der Style-Seite pruefen", fenster_id: "k5d", bereich: "technik", nachfassen_am: gestern });
+  const r = await wiedervorlageMelden();
+  if (r.gemeldet !== 1) throw new Error("nicht gemeldet: " + JSON.stringify(r));
+  const text = String(wvZeilen()[0].text);
+  if (!text.includes("technischer Punkt: erst Code/Merge/Live abgleichen")) throw new Error("Kennzeichnung fehlt");
+  if (!text.includes("an_claude")) throw new Error("Weg zum Abgleich fehlt");
+});
+await t("nicht-technischer Punkt bekommt die Kennzeichnung nicht", async () => {
+  leeren();
+  karte("k5e", "Mail an Kunden", { bereich: "vertrieb" });
+  await werkzeug("im_blick_behalten", { text: "Antwort abwarten", fenster_id: "k5e", bereich: "vertrieb", nachfassen_am: gestern });
+  await wiedervorlageMelden();
+  const text = String(wvZeilen()[0].text);
+  if (text.includes("technischer Punkt")) throw new Error("faelschlich als technisch gekennzeichnet");
+  if (text.includes("an_claude")) throw new Error("Abgleich-Hinweis ohne technischen Punkt");
+});
 await t("erledigter Punkt taucht nirgends mehr auf", async () => {
   leeren();
   karte("k6", "Altes Thema");

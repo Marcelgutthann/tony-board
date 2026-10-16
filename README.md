@@ -30,6 +30,15 @@ ueberfaellig oder heute faellig benannt; ein Punkt ohne Termin wird als "Pruefte
 gezeigt, weil er sonst nie faellig wird. Tony haelt eine Pruefung mit `im_blick_geprueft` fest
 (Stand + neuer Termin) und hakt mit `im_blick_erledigt` ab.
 
+**Technische Punkte werden nicht aus dem Gedaechtnis geprueft.** An der Arbeit geht parallel
+weiter, darum ist die Meldung eines faelligen Punktes im Bereich `technik` nur der Anstoss: vor
+jeder Rueckfrage an Marcel wird der Stand mit `an_claude` gegen Code, Merge und Deploy abgeglichen
+(read-only, ueber die vorhandenen Zugaenge - kein Build, kein Deploy). Festgehalten wird das in
+`pruefstand`, und zwar in vier getrennten Zustaenden, die nie vermischt werden: **Code** (Commit
+da?), **Merge** (in staging/main?), **Live** (ausgerollt?), **Nutzerbestaetigung** (hat Marcel es
+im Betrieb bestaetigt?). Aus einem gruenen Merge folgt keine Fertigstellung; abgehakt wird nur,
+was belegt ist. Der Timertick meldet, der Abgleich entscheidet - das sind zwei verschiedene Dinge.
+
 Der Prueflauf `POST /api/<schluessel>/wiedervorlage` laeuft alle 10 Minuten und meldet Tony nach
 zwei Regeln (`gemeldet_am`):
 
