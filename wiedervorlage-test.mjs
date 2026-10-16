@@ -175,17 +175,28 @@ await t("Punkt ohne Prueftermin wird gemeldet, mit diesem Grund, und bleibt den 
   const r2 = await wiedervorlageMelden();
   if (r2.gemeldet !== 0 || wvZeilen().length !== 1) throw new Error("zweite Meldung: " + JSON.stringify(r2));
 });
-// Ein Punkt ohne Prueftermin darf nach der ersten Meldung nicht fuer immer verstummen
-await t("Punkt ohne Prueftermin meldet sich nach einem Tag wieder", async () => {
-  punkt(id5).gemeldet_am = new Date(Date.now() - 25 * 3600000).toISOString();
+// Ein Punkt ohne Prueftermin wird genau einmal gesichtet - und bleibt danach trotzdem sichtbar
+await t("Punkt ohne Prueftermin loest auch nach Tagen keine zweite Meldung aus", async () => {
+  punkt(id5).gemeldet_am = new Date(Date.now() - 100 * 3600000).toISOString();
   const r = await wiedervorlageMelden();
-  if (r.gemeldet !== 1 || wvZeilen().length !== 2) throw new Error("nicht erinnert: " + JSON.stringify(r));
-  if (!String(wvZeilen()[1].text).includes("taeglich wieder hier")) throw new Error("Grund der Erinnerung fehlt");
+  if (r.gemeldet !== 0 || wvZeilen().length !== 1) throw new Error("erneut gemeldet: " + JSON.stringify(r));
+  if (r.ohne_prueftermin !== 1) throw new Error("nicht mehr gezaehlt: " + JSON.stringify(r));
 });
-await t("zwei Stunden nach einer Meldung bleibt derselbe Punkt still", async () => {
-  punkt(id5).gemeldet_am = new Date(Date.now() - 2 * 3600000).toISOString();
+await t("derselbe Punkt bleibt trotzdem in board_lesen sichtbar, mit Hinweis", async () => {
+  const r = await werkzeug("board_lesen", {});
+  const b = r.bleibt_im_blick.find((x) => x.id === id5);
+  if (!b) throw new Error("nicht mehr in bleibt_im_blick");
+  if (b.nachfassen_am) throw new Error("Termin erfunden");
+  if (!String(r.wiedervorlage ?? "").includes("Ohne Prueftermin")) throw new Error("kein Hinweis: " + r.wiedervorlage);
+});
+await t("zwei Stunden nach einer Meldung bleibt ein faelliger Punkt still", async () => {
+  leeren();
+  karte("k5a", "Frist");
+  const id = (await werkzeug("im_blick_behalten", { text: "Frist beachten", fenster_id: "k5a", nachfassen_am: gestern })).id;
+  await wiedervorlageMelden();
+  punkt(id).gemeldet_am = new Date(Date.now() - 2 * 3600000).toISOString();
   const r = await wiedervorlageMelden();
-  if (r.gemeldet !== 0 || wvZeilen().length !== 2) throw new Error("zu frueh erinnert: " + JSON.stringify(r));
+  if (r.gemeldet !== 0 || wvZeilen().length !== 1) throw new Error("zu frueh erinnert: " + JSON.stringify(r));
 });
 await t("ueberfaelliger Punkt meldet sich nach einem Tag ebenfalls wieder", async () => {
   leeren();

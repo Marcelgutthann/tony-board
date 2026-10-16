@@ -20,9 +20,9 @@ veraendert das Serververhalten nicht.
 
 ---
 
-## Wiedervorlage-Prueflauf (vorgeschlagen, **nicht installiert**)
+## Wiedervorlage-Prueflauf (**installiert und aktiv seit 16.10.2026, 07:25 UTC**)
 
-| Datei hier | wuerde auf dem Server liegen unter |
+| Datei hier | liegt auf dem Server unter |
 |---|---|
 | `wiedervorlage.sh` | `/opt/tony/waechter/wiedervorlage.sh` |
 | `tony-wiedervorlage.service` | `/etc/systemd/system/tony-wiedervorlage.service` |
@@ -30,12 +30,13 @@ veraendert das Serververhalten nicht.
 
 **Mechanik.** Ein `oneshot`-Dienst, den ein Timer alle 10 Minuten startet. Er macht genau einen
 HTTP-Aufruf: `POST /api/<schluessel>/wiedervorlage`. Die Entscheidung, ob gemeldet wird, trifft das
-Board selbst — gemeldet wird nur, was dran ist (`nachfassen_am <= heute` oder gar kein Prueftermin)
-**und** seit der letzten Meldung ueber einen Tag her ist (`gemeldet_am`). Ein geaenderter Grund, ein
-neuer Termin oder eine neue Pruefung setzen `gemeldet_am` zurueck, sodass der Punkt sofort wieder
-dran ist. Innerhalb eines Tages bleibt derselbe Punkt still: der Lauf schreibt dann nichts, nicht
-einmal ins Log. Ein Punkt ohne Prueftermin steht taeglich wieder in der Meldung, bis ein Termin
-gesetzt ist - er verstummt nicht. Kein
+Board selbst, nach zwei Regeln (`gemeldet_am`): ein **faelliger** Punkt
+(`nachfassen_am <= heute`) erinnert hoechstens einmal in 24 Stunden, solange er faellig bleibt; ein
+Punkt **ohne Prueftermin** wird genau einmal zur Sichtung gemeldet und loest danach keine Meldung
+mehr aus — sichtbar bleibt er trotzdem, weil `board_lesen` ihn bei jedem Lesen nennt und das Board
+ihn als "Prueftermin fehlt" zeigt. Ein geaenderter Grund, ein neuer Termin oder eine Pruefung
+setzen `gemeldet_am` zurueck, sodass der Punkt wieder meldbar ist. Gibt es nichts zu melden,
+schreibt der Lauf nichts, nicht einmal ins Log. Kein
 eigener Zustand, keine KI, kein Schreibzugriff ausserhalb der Boardtabellen.
 
 **Was er nicht tut.** Keine Mails, keine Discord-Nachrichten, keine Mail-/Discordueberwachung,
@@ -46,7 +47,9 @@ laufende Waechter (`tony-waechter.service`) wird nicht angefasst; beide Dienste 
 **Kosten.** 144 Edge-Function-Aufrufe am Tag (etwa 4.400 im Monat) im schon vorhandenen
 Supabase-Projekt, dazu je Lauf eine kleine Abfrage. Keine zusaetzliche Rechnung, kein KI-Token.
 
-**Aktivierung (erst nach Freigabe).**
+**So wurde installiert** (Tony hat am 16.10.2026 innerhalb von Marcels Auftrag freigegeben, nachdem
+die vier Bedingungen geprueft waren: keine neuen Zugangsdaten, keine erweiterten Rechte, keine
+zahlungspflichtigen Dienste, kein doppelter Scheduler).
 
 ```
 cp waechter/server/wiedervorlage.sh /opt/tony/waechter/wiedervorlage.sh
@@ -55,11 +58,12 @@ cp waechter/server/tony-wiedervorlage.{service,timer} /etc/systemd/system/
 systemctl daemon-reload && systemctl enable --now tony-wiedervorlage.timer
 ```
 
-Probelauf ohne Timer: `/opt/tony/waechter/wiedervorlage.sh` von Hand aufrufen — der erste Lauf
-meldet alles Faellige, jeder weitere ist still. Rueckbau: `systemctl disable --now
+Erster echter Timerlauf: 16.10.2026, 07:25:35 UTC, Exit 0, ohne Meldung — die fuenf offenen Punkte
+waren um 07:15:48 UTC schon gesichtet worden. Probelauf von Hand:
+`/opt/tony/waechter/wiedervorlage.sh`. Rueckbau: `systemctl disable --now
 tony-wiedervorlage.timer`, Unit-Dateien loeschen. Es bleibt nichts zurueck ausser den schon
 gesetzten `gemeldet_am`-Zeitstempeln.
 
-**Ohne Aktivierung geht trotzdem nichts verloren:** Faelliges steht bei jedem `board_lesen` im Feld
+**Auch ohne den Timer geht nichts verloren:** Faelliges steht bei jedem `board_lesen` im Feld
 `wiedervorlage` und auf dem Board selbst oben in "Bleibt im Blick". Der Timer macht daraus nur eine
 Meldung, auf die Tony nicht warten muss.

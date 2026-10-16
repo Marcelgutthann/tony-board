@@ -37,8 +37,7 @@ const WARTEN_TEXT = "marcel = Marcel muss entscheiden oder etwas liefern, extern
 const BEREICHE = ["technik", "vertrieb", "organisation"];
 // Ohne bestaetigtes Signal gilt laufende Arbeit nach dieser Zeit als unbestaetigt (gleiche Grenze wie im Board)
 const FRISCH_MIN = 15;
-// Ein Wiedervorlage-Punkt, der dran ist, wird nach dieser Zeit erneut gemeldet - sonst verstummt
-// besonders ein Punkt ohne Prueftermin nach der ersten Meldung fuer immer.
+// Ein faelliger Wiedervorlage-Punkt wird fruehestens nach dieser Zeit erneut gemeldet
 const WV_ERINNERUNG_STD = 24;
 // Ohne Angabe: Einordnung nach App, Tony bekommt einen Hinweis zum Korrigieren
 const bereichAusApp = (app: string) =>
@@ -391,11 +390,13 @@ async function wiedervorlageMelden() {
     .select("id, text, wer, fenster_id, nachfassen_am, pruefstand, geprueft_am, gemeldet_am")
     .is("erledigt_am", null);
   const wv = wiedervorlage(blick ?? []);
-  const dran = [...wv.faellig, ...wv.ohne_termin];
-  // Noch nie gemeldet oder die letzte Meldung ist laenger als WV_ERINNERUNG_STD her. Damit bleibt
-  // ein Punkt ohne Prueftermin sichtbar, ohne dass alle zehn Minuten dasselbe gemeldet wird.
-  const zuMelden = dran.filter((b: any) =>
-    !b.gemeldet_am || Date.now() - Date.parse(b.gemeldet_am) > WV_ERINNERUNG_STD * 3600000);
+  // Zwei verschiedene Faelle, darum zwei Regeln:
+  // - Faelliges erinnert hoechstens einmal je WV_ERINNERUNG_STD, solange es faellig bleibt.
+  // - Ein Punkt OHNE Prueftermin wird genau einmal zur Sichtung gemeldet ("Termin offen") und
+  //   loest danach nie wieder eine Meldung aus. Unsichtbar wird er dadurch nicht: board_lesen
+  //   nennt ihn bei jedem Lesen, und das Board zeigt ihn als "Prueftermin fehlt".
+  const erinnern = (b: any) => !b.gemeldet_am || Date.now() - Date.parse(b.gemeldet_am) > WV_ERINNERUNG_STD * 3600000;
+  const zuMelden = [...wv.faellig.filter(erinnern), ...wv.ohne_termin.filter((b: any) => !b.gemeldet_am)];
   let gemeldet = 0;
   if (zuMelden.length) {
     const titel = await kartenTitel(zuMelden.map((b: any) => b.fenster_id));
@@ -408,7 +409,7 @@ async function wiedervorlageMelden() {
     ].filter(Boolean).join(" · ");
     const text = `[Wiedervorlage] ${zuMelden.length} Punkt(e) aus 'Bleibt im Blick' sind dran:\n\n`
       + zuMelden.map(zeile).join("\n")
-      + `\n\nPruefe jeden Punkt an seiner Karte und melde das Ergebnis mit im_blick_geprueft (pruefstand + neuer nachfassen_am), oder hake ihn mit im_blick_erledigt ab. Ein Punkt ohne Prueftermin wird nie von allein faellig und steht darum taeglich wieder hier, bis ein Termin gesetzt ist.`;
+      + `\n\nPruefe jeden Punkt an seiner Karte und melde das Ergebnis mit im_blick_geprueft (pruefstand + neuer nachfassen_am), oder hake ihn mit im_blick_erledigt ab. Ein Punkt mit Prueftermin erinnert hoechstens einmal am Tag, solange er faellig bleibt. Ein Punkt ohne Prueftermin steht hier genau einmal zur Sichtung und loest danach keine Meldung mehr aus - er bleibt aber in jedem board_lesen und auf dem Board als 'Prueftermin fehlt' stehen, bis du einen Termin setzt.`;
     const { error } = await db.from("tony_board_absprache").insert({ von: "claude", text: text.slice(0, 20000) });
     if (error) throw new Error(error.message);
     await db.from("tony_board_blick").update({ gemeldet_am: new Date().toISOString() }).in("id", zuMelden.map((b: any) => b.id));

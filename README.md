@@ -30,12 +30,19 @@ ueberfaellig oder heute faellig benannt; ein Punkt ohne Termin wird als "Pruefte
 gezeigt, weil er sonst nie faellig wird. Tony haelt eine Pruefung mit `im_blick_geprueft` fest
 (Stand + neuer Termin) und hakt mit `im_blick_erledigt` ab.
 
-Der Prueflauf `POST /api/<schluessel>/wiedervorlage` meldet Tony nur, was dran ist - faellig oder
-ohne Prueftermin - und seit der letzten Meldung mehr als einen Tag her ist (`gemeldet_am`,
-`WV_ERINNERUNG_STD`). Innerhalb des Tages bleibt derselbe Punkt still, am naechsten Tag steht er
-wieder da: ein Punkt ohne Prueftermin wird nie von allein faellig und darf darum nicht nach der
-ersten Meldung verstummen. Der Prueflauf braucht keine KI und keinen Zustand. Der Aufruf alle 10 Minuten liegt als Vorschlag in `waechter/server/` und ist **nicht
-installiert**.
+Der Prueflauf `POST /api/<schluessel>/wiedervorlage` laeuft alle 10 Minuten und meldet Tony nach
+zwei Regeln (`gemeldet_am`):
+
+* **Mit Prueftermin:** ist der Punkt faellig, erinnert er hoechstens einmal je
+  `WV_ERINNERUNG_STD` (24 h), solange er faellig bleibt.
+* **Ohne Prueftermin:** genau eine Meldung zur Sichtung ("kein Prueftermin gesetzt"), danach nie
+  wieder. Unsichtbar wird der Punkt dadurch nicht - `board_lesen` nennt ihn bei jedem Lesen im Feld
+  `wiedervorlage`, und das Board zeigt ihn als "Prueftermin fehlt".
+
+Ein geaenderter Grund, ein neuer Termin oder eine Pruefung setzen `gemeldet_am` zurueck; der Punkt
+ist damit wieder meldbar. Der Prueflauf braucht keine KI und keinen Zustand; der Timer dazu liegt
+in `waechter/server/` und laeuft seit dem 16.10.2026 auf dem Server
+(`tony-wiedervorlage.timer`, alle 10 Minuten).
 
 ## Pruefen
 
