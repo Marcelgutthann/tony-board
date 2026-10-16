@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --fg:hsl(210 30% 20%); --muted:hsl(210 15% 45%); --border:hsl(210 20% 87%);
+  --primary:hsl(195 35% 38%); --primary-soft:hsl(195 35% 38% / .10);
+  --sec:hsl(210 20% 94%); --mutedbg:hsl(210 15% 96%);
+  --blau:hsl(199 89% 48%); --gruen:hsl(161 94% 30%); --amber:hsl(38 92% 50%); --violett:hsl(258 90% 66%);
+  --radius:.75rem;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#060c18;font-family:Inter,system-ui,"Noto Sans",sans-serif;-webkit-font-smoothing:antialiased}
+.rahmen{padding:26px 26px 30px;width:1680px}
+.boardzeile{display:flex;align-items:center;justify-content:space-between;color:#cfe0f5;font-size:13px;margin-bottom:12px}
+.boardzeile b{color:#fff;font-weight:600}
+.entwurf{display:inline-flex;align-items:center;gap:8px;background:#ffe9c9;color:#7a3f00;border:1.5px solid hsl(38 92% 50%);border-radius:.5rem;padding:4px 10px;font-size:12px;font-weight:600;letter-spacing:.02em}
+.dialog{position:relative;background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 24px 60px -24px rgba(0,0,0,.6);color:var(--fg);overflow:hidden}
+.dialog::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(135deg,rgba(15,60,90,.035) 0 14px,rgba(0,0,0,0) 14px 36px)}
+.kopf{padding:18px 22px 0}
+.kopf h1{margin:0;font-size:19px;font-weight:600;letter-spacing:-.01em}
+.kopf p{margin:4px 0 0;font-size:13px;color:var(--muted)}
+.schritte{display:flex;align-items:flex-end;gap:26px;border-bottom:1px solid var(--border);margin:14px 0 0;padding:0 22px}
+.schritt{display:flex;align-items:center;gap:8px;padding-bottom:10px;margin-bottom:-1px;border-bottom:2px solid transparent;font-size:13.5px;color:var(--muted)}
+.schritt.aktiv{border-bottom-color:var(--primary);color:var(--fg);font-weight:600}
+.kreis{width:22px;height:22px;border-radius:999px;border:1.5px solid var(--border);display:grid;place-items:center;font-size:11px;font-weight:600;color:var(--muted)}
+.kreis.fertig{background:var(--primary-soft);border-color:transparent;color:var(--primary)}
+.kreis.jetzt{background:linear-gradient(135deg,hsl(200 70% 22%),hsl(195 35% 50%));border-color:transparent;color:#fff;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 4px 10px -4px hsl(195 35% 38% / .6)}
+.zaehler{font-size:11px;background:var(--sec);border-radius:.375rem;padding:1px 6px;color:var(--fg)}
+.inhalt{padding:16px 22px 0}
+.leiste{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:10px}
+.leiste h2{margin:0;font-size:15px;font-weight:600}
+.leiste .unter{font-size:12px;color:var(--muted);margin-top:3px}
+.gran{display:flex;align-items:center;gap:10px}
+.gran .label{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.umschalter{display:flex;border:1px solid var(--border);border-radius:.5rem;overflow:hidden}
+.umschalter button{font:inherit;font-size:12.5px;padding:6px 12px;background:#fff;border:0;color:var(--fg);cursor:default}
+.umschalter button.an{background:linear-gradient(135deg,hsl(200 70% 22%),hsl(195 35% 50%));color:#fff;font-weight:600}
+.achse{border:1px solid var(--border);border-radius:.625rem;padding:12px 14px 10px;background:#fff}
+.lineal{position:relative;height:16px;margin:0 0 6px;border-bottom:1px solid var(--border)}
+.lineal span{position:absolute;top:0;transform:translateX(-50%);font-size:10.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.spurkopf{font-size:11px;color:var(--muted);width:196px;flex:0 0 196px;padding-right:10px;text-align:right;line-height:1.25}
+.spur{display:flex;align-items:center;margin:0 0 6px}
+.bahn{position:relative;flex:1;height:26px;background:var(--mutedbg);border-radius:.375rem}
+.bahn.pegel{height:40px;background:hsl(210 15% 97%);overflow:hidden}
+.bar{position:absolute;bottom:50%;transform:translateY(50%);width:2px;background:hsl(195 35% 55% / .85);border-radius:1px}
+.iv{position:absolute;top:3px;bottom:3px;border-radius:.3rem;border:1.5px solid var(--kante);background:color-mix(in srgb,var(--kante) 12%,#fff);
+   display:flex;align-items:center;justify-content:center;padding:0 6px;font-size:11.5px;font-weight:500;color:hsl(0 0% 8%);white-space:nowrap;overflow:hidden}
+.iv.gewaehlt{box-shadow:0 0 0 2px hsl(0 0% 100%),0 0 0 4px var(--kante);background:color-mix(in srgb,var(--kante) 24%,#fff);font-weight:600}
+.band{position:absolute;left:0;right:0;top:50%;height:2px;background:repeating-linear-gradient(90deg,var(--kante) 0 5px,transparent 5px 10px);opacity:.75}
+.luecke{position:absolute;top:3px;bottom:3px;justify-content:center;border-radius:.3rem;border:1.5px dashed hsl(215 16% 60%);
+  background:repeating-linear-gradient(135deg,hsl(215 16% 92%) 0 6px,#fff 6px 12px);
+  display:flex;align-items:center;gap:6px;padding:0 7px;font-size:11.5px;color:hsl(215 16% 32%);white-space:nowrap}
+.mini{font:inherit;font-size:11px;padding:1px 6px;border:1.5px solid var(--primary);background:#fff;border-radius:.375rem;color:hsl(0 0% 8%);font-weight:500}
+.hinweisband{display:flex;align-items:center;gap:8px;margin:8px 0 0;font-size:11.5px;color:var(--muted)}
+.punkt-leer{color:hsl(215 16% 35%)}
+.unten{display:grid;grid-template-columns:minmax(0,1fr) 560px;gap:18px;padding:14px 22px 0}
+.block h3{margin:0 0 8px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.karte{border:1px solid var(--border);border-radius:.5rem;padding:10px 12px;margin-bottom:8px;background:#fff}
+.karte.aktiv{box-shadow:inset 0 0 0 1px hsl(195 35% 38% / .45)}
+.kopfzeile{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.chip{display:inline-flex;align-items:center;gap:5px;border:1.5px solid var(--kante,var(--primary));border-radius:.375rem;background:#fff;
+  padding:2px 8px;font-size:12px;font-weight:500;color:hsl(0 0% 4%);line-height:1rem}
+.nr{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.titel{font-size:14px;font-weight:600;margin:0 0 3px}
+.txt{font-size:13px;color:var(--fg);margin:0 0 5px;line-height:1.45}
+.oton{font-size:12.5px;color:var(--muted);border-left:3px solid var(--border);padding-left:8px;line-height:1.4}
+.zeiten{display:flex;gap:8px;align-items:center;font-size:11.5px;color:var(--primary);font-variant-numeric:tabular-nums;margin-top:6px}
+.werkzeug{display:flex;gap:8px;margin-top:8px}
+.btn{font:inherit;font-size:12.5px;height:30px;padding:0 12px;border-radius:.375rem;border:1.5px solid var(--primary);background:#fff;color:hsl(0 0% 8%);font-weight:500}
+.btn.petrol{border-color:transparent;background:linear-gradient(135deg,hsl(200 70% 22%),hsl(195 35% 50%));color:#fff;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 6px 14px -6px hsl(195 35% 38% / .55)}
+.btn.grau{border-color:var(--border);color:var(--muted)}
+.transkript{border:1px solid var(--border);border-radius:.5rem;background:hsl(210 15% 98%);padding:10px 12px;height:352px;overflow:hidden;position:relative}
+.beitrag{display:grid;grid-template-columns:44px 1fr;gap:8px;padding:5px 6px;border-radius:.375rem}
+.beitrag.an{background:hsl(195 35% 38% / .06)}
+.beitrag .t{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.beitrag .n{font-size:12.5px;font-weight:600}
+.beitrag .s{font-size:13px;line-height:1.45}
+mark{background:hsl(195 35% 38% / .15);border-radius:2px;padding:0 2px;color:inherit}
+.auswahl{border:1.5px dashed hsl(215 16% 60%);border-radius:.375rem;background:#fff;padding:6px 8px;margin:4px 0}
+.auswahlzeile{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:6px}
+.auswahlzeile em{font-style:normal;font-size:11.5px;color:hsl(215 16% 32%)}
+.spieler{display:flex;align-items:center;gap:10px;background:var(--primary-soft);border-radius:.5rem;padding:6px 10px;margin-bottom:8px}
+.play{width:30px;height:30px;border-radius:999px;background:var(--primary);color:#fff;display:grid;place-items:center;font-size:12px}
+.fort{flex:1;height:4px;border-radius:2px;background:hsl(195 35% 38% / .2);position:relative}
+.fort i{position:absolute;left:0;top:0;bottom:0;width:38%;background:var(--primary);border-radius:2px}
+.fuss{display:flex;align-items:center;gap:10px;border-top:1px solid var(--border);margin-top:16px;padding:12px 22px;background:#fff}
+.fuss .rechts{margin-left:auto;display:flex;gap:10px}
+.btn.loeschen{border-color:var(--border);color:hsl(0 84% 45%)}
+.fussnote{color:#90a6c2;font-size:11.5px;margin-top:10px;line-height:1.5}
+</style></head>
+<body><div class="rahmen">
+  <div class="boardzeile">
+    <div><b>NoraNotes</b> &nbsp;·&nbsp; Prüfablauf, neue Station 2 „Inhalte prüfen“ &nbsp;·&nbsp; NN-257</div>
+    <div class="entwurf">ENTWURF · Beispieldaten · keine Funktion</div>
+  </div>
+
+  <div class="dialog">
+    <div class="kopf">
+      <h1>Besprechungspunkte prüfen</h1>
+      <p>Musterprojekt 1234 – Neubau Kita · Jour fixe Nr. 7 · 16.10.2026 · 1:12 h (Schaudaten)</p>
+    </div>
+
+    <div class="schritte">
+      <div class="schritt"><span class="kreis fertig">✓</span> Personen</div>
+      <div class="schritt aktiv"><span class="kreis jetzt">2</span> Inhalte prüfen <span class="zaehler">18 von 23</span></div>
+      <div class="schritt"><span class="kreis">3</span> Aktualisierte Punkte</div>
+      <div class="schritt"><span class="kreis">4</span> Neue Punkte</div>
+      <div class="schritt"><span class="kreis">5</span> Einsortieren</div>
+    </div>
+
+    <div class="inhalt">
+      <div class="leiste">
+        <div>
+          <h2>Zeitachse des Gesprächs</h2>
+          <div class="unter">Ein Klick auf ein Thema markiert alle seine Stellen im Gespräch — hier „Rohbau · Decke über EG“ an drei Stellen.</div>
+        </div>
+        <div class="gran">
+          <span class="label">Granularität</span>
+          <div class="umschalter">
+            <button>kompakt · 10</button>
+            <button class="an">detailliert · 23</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="achse">
+        <div class="lineal" id="lineal"></div>
+
+        <div class="spur">
+          <div class="spurkopf">Aufnahme<br><span style="font-size:10px">Pegel</span></div>
+          <div class="bahn pegel" id="pegel"></div>
+        </div>
+
+        <div class="spur">
+          <div class="spurkopf"><span class="chip" style="--kante:var(--blau)">Rohbau · Decke über EG</span></div>
+          <div class="bahn" id="s1"></div>
+        </div>
+        <div class="spur">
+          <div class="spurkopf"><span class="chip" style="--kante:var(--gruen)">Elektro · Steigschacht</span></div>
+          <div class="bahn" id="s2"></div>
+        </div>
+        <div class="spur">
+          <div class="spurkopf"><span class="chip" style="--kante:var(--amber)">Termine · Fensterlieferung</span></div>
+          <div class="bahn" id="s3"></div>
+        </div>
+        <div class="spur">
+          <div class="spurkopf"><span class="chip" style="--kante:var(--violett)">Vergabe · Trockenbau</span></div>
+          <div class="bahn" id="s4"></div>
+        </div>
+        <div class="spur">
+          <div class="spurkopf punkt-leer">ohne Vorschlag<br><span style="font-size:10px">nicht erfasst</span></div>
+          <div class="bahn" id="s5"></div>
+        </div>
+
+        <div class="hinweisband">
+          <span><b style="font-weight:600;color:hsl(215 16% 32%)">Schraffiert = nicht erfasst:</b> dort hat die KI keinen Punkt vorgeschlagen. Das Pegelband erscheint nur, wenn zu diesem Meeting eine Aufnahme gespeichert ist — bei Teams-/SRT-Importen bleibt es leer, die Themenspuren stehen trotzdem (Zeitmarken aus dem Transkript).</span>
+        </div>
+      </div>
+
+      <div class="unten">
+        <div class="block">
+          <h3>Vorschläge der KI · 23 (detailliert)</h3>
+
+          <div class="karte aktiv">
+            <div class="kopfzeile">
+              <span class="chip" style="--kante:var(--blau)">Rohbau · Decke über EG</span>
+              <span class="nr">Vorschlag 4 · 3 Stellen · 03:10 / 24:05 / 61:20</span>
+            </div>
+            <p class="titel">Decke über EG: Bewehrungsabnahme vor dem Betonieren</p>
+            <p class="txt">Abnahme soll vor dem Betonieren erfolgen; Termin wird mit der Tragwerksplanung abgestimmt. Aufmaß der Durchbrüche liegt vor.</p>
+            <div class="oton">„… dann machen wir die Bewehrungsabnahme, bevor betoniert wird — sonst haben wir dasselbe Problem wie beim Keller.“</div>
+            <div class="werkzeug">
+              <button class="btn">Punkt teilen</button>
+              <button class="btn">Mit Vorschlag 5 zusammenführen</button>
+              <button class="btn grau">verwerfen</button>
+            </div>
+          </div>
+
+          <div class="karte">
+            <div class="kopfzeile">
+              <span class="chip" style="--kante:var(--blau)">Rohbau · Decke über EG</span>
+              <span class="nr">Vorschlag 5 · 1 Stelle · 24:05</span>
+            </div>
+            <p class="titel">Durchbrüche Decke EG: Liste von der Haustechnik fehlt</p>
+            <div class="oton">„… die Durchbruchsliste kriegen wir bis Freitag, dann kann der Rohbauer einbauen.“</div>
+          </div>
+
+          <div class="karte">
+            <div class="kopfzeile">
+              <span class="chip" style="--kante:var(--amber)">Termine · Fensterlieferung</span>
+              <span class="nr">Vorschlag 11 · 1 Stelle · 15:00</span>
+            </div>
+            <p class="titel">Fensterlieferung verschiebt sich um zwei Wochen</p>
+            <div class="oton">„… Liefertermin ist jetzt KW 48, das zieht den Innenausbau mit.“</div>
+          </div>
+        </div>
+
+        <div class="block">
+          <h3>Beleg · Transkript ab 61:20</h3>
+          <div class="spieler">
+            <span class="play">▶</span>
+            <span style="font-size:11.5px;font-variant-numeric:tabular-nums">61:18 / 1:12:30</span>
+            <span class="fort"><i></i></span>
+            <span style="font-size:11.5px;color:var(--primary)">startet 2 s vor dem Thema</span>
+          </div>
+          <div class="transkript">
+            <div class="beitrag"><div class="t">60:52</div><div><div class="n">Architektur</div><div class="s">Gut, dann noch einmal zurück zur Decke über dem Erdgeschoss.</div></div></div>
+            <div class="beitrag an"><div class="t">61:20</div><div><div class="n">Bauleitung</div><div class="s"><mark>Dann machen wir die Bewehrungsabnahme, bevor betoniert wird</mark> — sonst haben wir dasselbe Problem wie beim Keller.</div></div></div>
+            <div class="beitrag an"><div class="t">61:44</div><div><div class="n">Tragwerksplanung</div><div class="s">Ich bin ab Mittwoch auf der Baustelle, der Termin passt mir.</div></div></div>
+            
+            <div class="auswahl">
+              <div class="beitrag"><div class="t">66:30</div><div><div class="n">Bauherr</div><div class="s">Zum Thema Außenanlagen: der Nachbar hat sich wegen der Zufahrt gemeldet.</div></div></div>
+              <div class="beitrag"><div class="t">67:05</div><div><div class="n">Architektur</div><div class="s">Wir brauchen dazu eine Aussage von der Gemeinde.</div></div></div>
+              <div class="auswahlzeile">
+                <em>Diese Stelle hat die KI nicht erfasst · 4:12 markiert</em>
+                <button class="btn petrol">Vorschlag daraus erzeugen</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="fuss">
+        <button class="btn loeschen">Alle verwerfen</button>
+        <div class="rechts">
+          <button class="btn grau">Zurück</button>
+          <button class="btn">Schließen</button>
+          <button class="btn petrol">Weiter zu „Aktualisierte Punkte“ (18)</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="fussnote">Entwurf vom 16.10.2026 zu NN-257 · alle Namen, Themen und Zeiten sind Schaudaten · zeigt nur die Gestaltung, nichts davon ist gebaut.</div>
+</div>
+
+<script>
+const GESAMT = 4350; // 1:12:30 in Sekunden
+const pct = s => (s / GESAMT * 100) + "%";
+const lineal = document.getElementById("lineal");
+lineal.style.marginLeft = "206px";
+[0,600,1200,1800,2400,3000,3600,4200].forEach(s=>{
+  const e=document.createElement("span");
+  e.style.left=pct(s);
+  const m=Math.floor(s/60);
+  e.textContent = m===0 ? "0:00" : (m<60? m+":00" : "1:"+String(m-60).padStart(2,"0"));
+  lineal.appendChild(e);
+});
+function iv(bahn, von, bis, kante, text, gewaehlt){
+  const e=document.createElement("div");
+  e.className="iv"+(gewaehlt?" gewaehlt":"");
+  e.style.left=pct(von); e.style.width=pct(bis-von); e.style.setProperty("--kante",kante);
+  e.textContent=text||""; bahn.appendChild(e);
+}
+function band(bahn, von, bis, kante){
+  const e=document.createElement("div"); e.className="band";
+  e.style.left=pct(von); e.style.right=(100-(bis/GESAMT*100))+"%"; e.style.setProperty("--kante",kante);
+  bahn.appendChild(e);
+}
+const s1=document.getElementById("s1");
+band(s1,190,3970,"var(--blau)");
+iv(s1,190,520,"var(--blau)","5:30",true);
+iv(s1,1445,1770,"var(--blau)","5:25",true);
+iv(s1,3680,3970,"var(--blau)","4:50",true);
+const s2=document.getElementById("s2");
+iv(s2,540,860,"var(--gruen)","5:20");
+iv(s2,2760,3030,"var(--gruen)","4:30");
+iv(s3=document.getElementById("s3"),900,1300,"var(--amber)","6:40");
+iv(document.getElementById("s4"),1860,2410,"var(--violett)","9:10");
+const s5=document.getElementById("s5");
+function luecke(von,bis,text,knopf){
+  const e=document.createElement("div"); e.className="luecke";
+  e.style.left=pct(von); e.style.width=pct(bis-von);
+  e.innerHTML='<span>'+text+'</span>';
+  s5.appendChild(e);
+}
+luecke(3240,3492,"4:12",true);
+luecke(4080,4350,"4:30",false);
+// Pegel: deterministische Schaudaten, in der Luecke leiser
+const pegel=document.getElementById("pegel");
+let seed=7;
+const rnd=()=>{seed=(seed*1103515245+12345)%2147483648;return seed/2147483648;};
+for(let i=0;i<330;i++){
+  const t=i/330*GESAMT;
+  const still = (t>3240&&t<3492)?0.45:1;
+  const h=(6+rnd()*rnd()*30)*still;
+  const b=document.createElement("i"); b.className="bar";
+  b.style.left=(i/330*100)+"%"; b.style.height=h+"px";
+  pegel.appendChild(b);
+}
+</script>
+</body></html>
