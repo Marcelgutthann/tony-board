@@ -30,10 +30,12 @@ veraendert das Serververhalten nicht.
 
 **Mechanik.** Ein `oneshot`-Dienst, den ein Timer alle 10 Minuten startet. Er macht genau einen
 HTTP-Aufruf: `POST /api/<schluessel>/wiedervorlage`. Die Entscheidung, ob gemeldet wird, trifft das
-Board selbst — gemeldet wird nur, was faellig (`nachfassen_am <= heute`) oder ohne Prueftermin ist
-**und** Tony noch nicht gemeldet bekommen hat (`gemeldet_am`). Ein geaenderter Grund, ein neuer
-Termin oder eine neue Pruefung setzen `gemeldet_am` zurueck, sodass der Punkt erneut dran ist.
-Unveraenderte Punkte bleiben still: der Lauf schreibt dann nichts, nicht einmal ins Log. Kein
+Board selbst — gemeldet wird nur, was dran ist (`nachfassen_am <= heute` oder gar kein Prueftermin)
+**und** seit der letzten Meldung ueber einen Tag her ist (`gemeldet_am`). Ein geaenderter Grund, ein
+neuer Termin oder eine neue Pruefung setzen `gemeldet_am` zurueck, sodass der Punkt sofort wieder
+dran ist. Innerhalb eines Tages bleibt derselbe Punkt still: der Lauf schreibt dann nichts, nicht
+einmal ins Log. Ein Punkt ohne Prueftermin steht taeglich wieder in der Meldung, bis ein Termin
+gesetzt ist - er verstummt nicht. Kein
 eigener Zustand, keine KI, kein Schreibzugriff ausserhalb der Boardtabellen.
 
 **Was er nicht tut.** Keine Mails, keine Discord-Nachrichten, keine Mail-/Discordueberwachung,

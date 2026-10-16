@@ -164,15 +164,45 @@ await t("Punkt mit Termin in der Zukunft wird nie gemeldet", async () => {
   const r = await wiedervorlageMelden();
   if (r.faellig !== 0 || r.gemeldet !== 0 || wvZeilen().length) throw new Error("trotzdem gemeldet: " + JSON.stringify(r));
 });
-await t("Punkt ohne Prueftermin wird genau einmal gemeldet, mit diesem Grund", async () => {
+let id5;
+await t("Punkt ohne Prueftermin wird gemeldet, mit diesem Grund, und bleibt den Tag ueber still", async () => {
   leeren();
   karte("k5", "Rueckruf Bauamt");
-  await werkzeug("im_blick_behalten", { text: "Rueckruf offen", fenster_id: "k5" });
+  id5 = (await werkzeug("im_blick_behalten", { text: "Rueckruf offen", fenster_id: "k5" })).id;
   const r1 = await wiedervorlageMelden();
   if (r1.ohne_prueftermin !== 1 || r1.gemeldet !== 1) throw new Error("nicht gemeldet: " + JSON.stringify(r1));
   if (!String(wvZeilen()[0].text).includes("kein Prueftermin gesetzt")) throw new Error("Grund fehlt im Text");
   const r2 = await wiedervorlageMelden();
   if (r2.gemeldet !== 0 || wvZeilen().length !== 1) throw new Error("zweite Meldung: " + JSON.stringify(r2));
+});
+// Ein Punkt ohne Prueftermin darf nach der ersten Meldung nicht fuer immer verstummen
+await t("Punkt ohne Prueftermin meldet sich nach einem Tag wieder", async () => {
+  punkt(id5).gemeldet_am = new Date(Date.now() - 25 * 3600000).toISOString();
+  const r = await wiedervorlageMelden();
+  if (r.gemeldet !== 1 || wvZeilen().length !== 2) throw new Error("nicht erinnert: " + JSON.stringify(r));
+  if (!String(wvZeilen()[1].text).includes("taeglich wieder hier")) throw new Error("Grund der Erinnerung fehlt");
+});
+await t("zwei Stunden nach einer Meldung bleibt derselbe Punkt still", async () => {
+  punkt(id5).gemeldet_am = new Date(Date.now() - 2 * 3600000).toISOString();
+  const r = await wiedervorlageMelden();
+  if (r.gemeldet !== 0 || wvZeilen().length !== 2) throw new Error("zu frueh erinnert: " + JSON.stringify(r));
+});
+await t("ueberfaelliger Punkt meldet sich nach einem Tag ebenfalls wieder", async () => {
+  leeren();
+  karte("k5b", "Angebot Huber");
+  const id = (await werkzeug("im_blick_behalten", { text: "Zusage abwarten", fenster_id: "k5b", nachfassen_am: gestern })).id;
+  await wiedervorlageMelden();
+  punkt(id).gemeldet_am = new Date(Date.now() - 25 * 3600000).toISOString();
+  const r = await wiedervorlageMelden();
+  if (r.gemeldet !== 1 || wvZeilen().length !== 2) throw new Error("nicht erinnert: " + JSON.stringify(r));
+});
+await t("ein Punkt mit Termin in der Zukunft wird auch nach Tagen nicht erinnert", async () => {
+  leeren();
+  karte("k5c", "Spaeter");
+  const id = (await werkzeug("im_blick_behalten", { text: "Erst naechste Woche", fenster_id: "k5c", nachfassen_am: morgen })).id;
+  punkt(id).gemeldet_am = new Date(Date.now() - 100 * 3600000).toISOString();
+  const r = await wiedervorlageMelden();
+  if (r.gemeldet !== 0 || wvZeilen().length) throw new Error("falsch erinnert: " + JSON.stringify(r));
 });
 await t("erledigter Punkt taucht nirgends mehr auf", async () => {
   leeren();

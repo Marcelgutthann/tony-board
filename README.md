@@ -30,9 +30,11 @@ ueberfaellig oder heute faellig benannt; ein Punkt ohne Termin wird als "Pruefte
 gezeigt, weil er sonst nie faellig wird. Tony haelt eine Pruefung mit `im_blick_geprueft` fest
 (Stand + neuer Termin) und hakt mit `im_blick_erledigt` ab.
 
-Der Prueflauf `POST /api/<schluessel>/wiedervorlage` meldet Tony nur, was faellig und noch nicht
-gemeldet ist (`gemeldet_am`); unveraenderte Punkte bleiben still. Er braucht keine KI und keinen
-Zustand. Der Aufruf alle 10 Minuten liegt als Vorschlag in `waechter/server/` und ist **nicht
+Der Prueflauf `POST /api/<schluessel>/wiedervorlage` meldet Tony nur, was dran ist - faellig oder
+ohne Prueftermin - und seit der letzten Meldung mehr als einen Tag her ist (`gemeldet_am`,
+`WV_ERINNERUNG_STD`). Innerhalb des Tages bleibt derselbe Punkt still, am naechsten Tag steht er
+wieder da: ein Punkt ohne Prueftermin wird nie von allein faellig und darf darum nicht nach der
+ersten Meldung verstummen. Der Prueflauf braucht keine KI und keinen Zustand. Der Aufruf alle 10 Minuten liegt als Vorschlag in `waechter/server/` und ist **nicht
 installiert**.
 
 ## Pruefen
