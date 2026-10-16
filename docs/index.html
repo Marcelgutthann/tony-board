@@ -58,6 +58,10 @@ a{color:var(--blau);text-decoration:none}a:hover{text-decoration:underline}
 .todos ul{max-height:calc(100vh - 17rem);overflow:auto}
 button.box{cursor:pointer}button.box:hover{background:rgba(127,224,176,.3);border-color:var(--gruen)}
 .b-text small{display:block;font-size:.72rem;color:var(--text3);margin-top:.1rem}
+.b-text small.termin{color:var(--text2)}
+.b-text small.termin.faellig{color:var(--gelb)}
+.b-text small.termin.offen{color:var(--text3);font-style:italic}
+.todos h3 b.f{color:var(--gelb);font-weight:600}
 .b-text.link{cursor:pointer}.b-text.link:hover{color:var(--blau)}
 
 /* Drei Rondelle: je Bereich eines */
@@ -322,6 +326,7 @@ body.v-mehrfenster .todos{display:none}
 .eingabe input{flex:1;min-width:0;background:none;border:0;outline:0;color:var(--text);font:inherit;font-size:1rem}
 .eingabe input::placeholder{color:var(--text3)}
 .eingabe .ziel{font-size:.8rem;color:var(--text3);white-space:nowrap;max-width:14rem;overflow:hidden;text-overflow:ellipsis}
+.eingabe .ziel.fest{color:var(--text2);background:rgba(143,184,255,.14);border:1px solid var(--kante-hell);border-radius:999px;padding:.1rem .5rem}
 .eingabe button{width:2.5rem;height:2.5rem;border-radius:50%;display:grid;place-items:center;background:linear-gradient(180deg,rgba(255,255,255,.2),rgba(255,255,255,.06));border:1px solid var(--kante-hell)}
 .eingabe button svg{width:1rem;height:1rem}
 
@@ -358,7 +363,7 @@ body.v-mehrfenster .todos{display:none}
   <div class="live" id="live"><i></i><span>verbunden</span></div>
 </header>
 
-<aside class="todos"><h3>Bleibt im Blick</h3><ul id="todos"></ul></aside>
+<aside class="todos"><h3 id="hblick">Bleibt im Blick</h3><ul id="todos"></ul></aside>
 <nav class="bereiche" id="bereiche" aria-label="Bereiche"></nav>
 
 <main class="buehne">
@@ -615,15 +620,34 @@ function archivZeichnen(){
     : `<div style="color:var(--text3);padding:2rem 0">${q?"Nichts gefunden.":"Noch nichts archiviert."}</div>`);
 }
 
+/* Bleibt im Blick ist Wiedervorlage: jeder Punkt zeigt den offenen Grund, die Karte dazu, den
+   naechsten Prueftermin und was die letzte Pruefung ergeben hat. Faelliges steht oben. */
+const HEUTE = () => new Date().toLocaleDateString("sv-SE");
+function blickTermin(b){
+  if (!b.nachfassen_am) return {text:"Prüftermin fehlt", klasse:"offen"};
+  const tage = Math.round((Date.parse(HEUTE()) - Date.parse(b.nachfassen_am)) / 864e5);
+  const datum = new Date(b.nachfassen_am).toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit"});
+  if (tage > 0) return {text:`überfällig seit ${tage} ${tage===1?"Tag":"Tagen"} (${datum})`, klasse:"faellig"};
+  if (tage === 0) return {text:"heute fällig", klasse:"faellig"};
+  return {text:`Prüfung am ${datum}`, klasse:""};
+}
+const blickSortiert = () => (zustand.blick || []).slice().sort((a,b)=>{
+  const r = x => x.nachfassen_am ? (x.nachfassen_am <= HEUTE() ? 0 : 2) : 1;  // fällig, ohne Termin, später
+  return r(a) - r(b) || String(a.nachfassen_am||"").localeCompare(String(b.nachfassen_am||""));
+});
+const blickFaellig = () => (zustand.blick || []).filter(b=>b.nachfassen_am && b.nachfassen_am <= HEUTE()).length;
 function blickHTML(){
-  const B = zustand.blick || [];
+  const B = blickSortiert();
   if (!B.length) return `<li class="leer">Nichts offen.</li>`;
   return B.map(b=>{
-    const tage = Math.floor((Date.now() - new Date(b.erstellt)) / 864e5);
-    const meta = [b.wer, BEREICH_NAME[b.bereich], tage < 1 ? "seit heute" : tage === 1 ? "seit gestern" : `seit ${tage} Tagen`,
-      b.nachfassen_am ? "nachfassen ab " + new Date(b.nachfassen_am).toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit"}) : ""].filter(Boolean).join(" · ");
+    const t = blickTermin(b);
+    const karte = b.karte_titel || (b.fenster_id ? b.fenster_id : "");
     const offen = b.fenster_id && finde(b.fenster_id);
-    return `<li><button class="box" data-blick="${esc(b.id)}" title="Erledigt abhaken" aria-label="Erledigt abhaken"></button><span class="b-text ${offen?"link":""}" ${offen?`data-zeige="${esc(b.fenster_id)}"`:""}>${esc(b.text)}<small>${esc(meta)}</small></span></li>`;
+    const geprueft = b.geprueft_am
+      ? `geprüft ${new Date(b.geprueft_am).toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit"})}${b.pruefstand?": "+b.pruefstand:""}`
+      : "noch nicht geprüft";
+    const meta = [b.wer, karte ? "Karte: " + karte : "ohne Karte", geprueft].filter(Boolean).join(" · ");
+    return `<li class="${t.klasse}"><button class="box" data-blick="${esc(b.id)}" title="Erledigt abhaken" aria-label="Erledigt abhaken"></button><span class="b-text ${offen?"link":""}" ${offen?`data-zeige="${esc(b.fenster_id)}"`:""}>${esc(b.text)}<small class="termin ${t.klasse}">${esc(t.text)}</small><small>${esc(meta)}</small></span></li>`;
   }).join("");
 }
 
@@ -682,6 +706,8 @@ function zeichnen(){
   const F = zustand.fenster, a = zustand.ansicht;
   if (!BEREICH_NAME[bereichWahl]) bereichWahl = bereichStart();
   setzeHTML(document.getElementById("todos"), blickHTML());
+  const faellig = blickFaellig();
+  setzeHTML(document.getElementById("hblick"), `Bleibt im Blick${faellig ? ` · <b class="f">${faellig} fällig</b>` : ""}`);
   document.querySelectorAll("#umschalter button").forEach(b=>b.classList.toggle("an", b.dataset.a===a));
   document.getElementById("rondell").classList.toggle("aus", a!=="rondell");
   document.getElementById("mehr").classList.toggle("an", a==="mehrfenster");
@@ -747,7 +773,8 @@ function leisteZeichnen(){
   }
   setzeHTML(document.getElementById("lliste"), html);
   setzeHTML(document.getElementById("ltodos"), blickHTML());
-  setzeHTML(document.getElementById("lblick"), `Bleibt im Blick${(zustand.blick||[]).length ? " · " + zustand.blick.length : ""}`);
+  const bf = blickFaellig();
+  setzeHTML(document.getElementById("lblick"), `Bleibt im Blick${(zustand.blick||[]).length ? " · " + zustand.blick.length : ""}${bf ? ` · ${bf} fällig` : ""}`);
 }
 
 function detailZeichnen(){
@@ -772,9 +799,28 @@ function detailZeichnen(){
   zielSetzen();
 }
 
+/* Die Nachricht im Eingabefeld gehoert zu der Karte, die beim Schreiben vor Marcel stand.
+   Sobald er tippt, wird diese Karte festgehalten (zielFest) und nicht mehr gewechselt, auch wenn
+   Tony den Fokus weiterdreht oder Marcel weiterblaettert. Beim Absenden geht genau diese id mit. */
+let zielFest = null;
+function zielJetzt(){
+  return zustand.ansicht === "rondell" ? vornFenster() : zustand.ansicht === "mehrfenster" ? gewaehlt() : null;
+}
+function zielKarte(){
+  if (zielFest === null) return zielJetzt();
+  if (zielFest === "") return null;
+  return finde(zielFest) || (zustand.archiv||[]).find(a=>a.id===zielFest) || {id: zielFest, titel: zielFest};
+}
 function zielSetzen(){
-  const f = zustand.ansicht === "rondell" ? vornFenster() : zustand.ansicht === "mehrfenster" ? gewaehlt() : null;
-  document.getElementById("ziel").textContent = f ? `Zu: ${f.titel}` : "An Tony";
+  const f = zielKarte(), feld = document.getElementById("text");
+  const angeheftet = zielFest !== null && feld && feld.value.trim();
+  const el = document.getElementById("ziel");
+  el.textContent = f ? `Zu: ${f.titel}` : "Ohne Karte · an Tony";
+  el.classList.toggle("fest", !!angeheftet);
+  el.title = f
+    ? (angeheftet ? `Diese Nachricht geht zu „${f.titel}“ - der Karte, die beim Schreiben vorne stand.`
+                  : `Deine Nachricht bezieht sich auf „${f.titel}“.`)
+    : "Keine Karte vorne: die Nachricht geht allgemein an Tony, ohne Bezug zu einer Karte.";
 }
 
 function waehlen(id){
@@ -925,12 +971,20 @@ function start(){
     zustand.ansicht = lokaleAnsicht = b.dataset.a; zeichnen(); zielSetzen();
     if (b.dataset.a === "rondell" || b.dataset.a === "mehrfenster") senden("ansicht", {ansicht: b.dataset.a});
   });
+  document.getElementById("text").addEventListener("input", e => {
+    // Erstes Zeichen heftet die Karte fest, leeres Feld gibt sie wieder frei
+    if (e.target.value.trim()) { if (zielFest === null) zielFest = zielJetzt()?.id ?? ""; }
+    else zielFest = null;
+    zielSetzen();
+  });
   document.getElementById("eingabe").addEventListener("submit", e => {
     e.preventDefault();
     const t = document.getElementById("text"); const text = t.value.trim(); if (!text) return;
-    const f = zustand.ansicht === "rondell" ? vornFenster() : zustand.ansicht === "mehrfenster" ? gewaehlt() : null;
+    const f = zielKarte();
     senden("eingabe", {fenster_id: f?.id ?? null, art:"nachricht", text});
-    t.value = ""; t.placeholder = "Gesendet. Tony liest es beim nächsten Blick aufs Board.";
+    t.value = ""; zielFest = null; zielSetzen();
+    t.placeholder = f ? `Gesendet zu „${f.titel}“. Tony liest es beim nächsten Blick aufs Board.`
+                      : "Ohne Karte gesendet. Tony liest es beim nächsten Blick aufs Board.";
   });
   document.getElementById("asuche").addEventListener("input", archivZeichnen);
   laden(); setInterval(laden, 1500); setInterval(zeichnen, 20000);

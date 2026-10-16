@@ -11,10 +11,36 @@ koennen sie nicht auseinanderlaufen. Laufende Arbeit zeigt das Board nur mit ein
 das juenger als 15 Minuten ist; sonst steht dort "Status nicht aktuell bestaetigt". Ein bestaetigtes
 Signal entsteht nur, wenn Tony eine `taetigkeit` meldet - die blosse Aenderungszeit zaehlt nicht.
 
+## Bezug der Eingabe
+
+Eine Nachricht im unteren Eingabefeld gehoert immer zu der Karte, die beim Schreiben vor Marcel
+stand. Sobald er tippt, wird diese Karte festgehalten (`zielFest` in `docs/index.html`) und nicht
+mehr gewechselt - auch dann nicht, wenn Tony den Fokus weiterdreht oder Marcel weiterblaettert.
+Beim Absenden geht genau diese `fenster_id` mit und bleibt in `tony_board_eingang` stehen. Steht
+keine Karte vorne (Archiv, Absprache), sagt die Zielanzeige das ausdruecklich und es geht
+`fenster_id: null` mit; es wird nie eine Karte auf Verdacht zugeordnet. Beim Lesen liefert
+`board_lesen` zu jeder Eingabe das Feld `bezug` mit Kartentitel und id.
+
+## Bleibt im Blick = Wiedervorlage
+
+Jeder Punkt fuehrt vier Dinge: den offenen Grund (`text`), den naechsten Prueftermin
+(`nachfassen_am`), die zugehoerige Karte (`fenster_id`, Titel kommt als `karte_titel` mit) und den
+Stand der letzten Pruefung (`pruefstand`, `geprueft_am`). Faelliges steht oben und ist als
+ueberfaellig oder heute faellig benannt; ein Punkt ohne Termin wird als "Prueftermin fehlt"
+gezeigt, weil er sonst nie faellig wird. Tony haelt eine Pruefung mit `im_blick_geprueft` fest
+(Stand + neuer Termin) und hakt mit `im_blick_erledigt` ab.
+
+Der Prueflauf `POST /api/<schluessel>/wiedervorlage` meldet Tony nur, was faellig und noch nicht
+gemeldet ist (`gemeldet_am`); unveraenderte Punkte bleiben still. Er braucht keine KI und keinen
+Zustand. Der Aufruf alle 10 Minuten liegt als Vorschlag in `waechter/server/` und ist **nicht
+installiert**.
+
 ## Pruefen
 
 ```
 node compat-test.mjs supabase/tony-board/index.ts                  # Schnittstelle, ohne Supabase
+node wiedervorlage-test.mjs supabase/tony-board/index.ts           # Wiedervorlage, Prueflauf, Kartenbezug
+CHROME=<pfad-zu-chrome> node eingabe-test.mjs                      # Bezug der Eingabe + Wiedervorlage-Liste
 CHROME=<pfad-zu-chrome> node sidebar-test.mjs                      # Sitzungsleiste, Auswahl, Geraete
 CHROME=<pfad-zu-chrome> node status-test.mjs [bilderordner]        # Statusleiste je Zustand + Verlauf
 node pruefstand.mjs <state.json> [port]                            # Board von Hand anschauen
