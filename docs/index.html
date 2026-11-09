@@ -371,6 +371,20 @@ body.v-karte .todos{display:none}
 .kt-zeile.rot b{color:#ffd0d0}
 .kt-zeile.grau{opacity:.5}
 .kt-zeile.grau b{text-decoration:line-through}
+.kt-zeile span{flex:1;min-width:0}
+.kt-zeile em{flex:none;font-style:normal;color:var(--text3);font-size:12px;margin-top:3px}
+.kt-eintrag.auf{background:rgba(255,255,255,.04)}
+.kt-detail{border-top:1px solid rgba(255,255,255,.06)}
+.kt-detail .kv-koerper{padding:10px 16px}
+.kt-detail .kv-chat{padding:10px 16px 0}
+.kt-detail .kv-fuss{padding:8px 16px 12px}
+.kt-antwort{padding:0 16px 10px 38px}
+.kt-antwort input,.kt-sammel textarea{width:100%;font:inherit;font-size:15px;color:var(--text);background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:9px 12px;outline:none}
+.kt-antwort input:focus,.kt-sammel textarea:focus{border-color:#f0c96e}
+.kt-sammel{display:flex;flex-direction:column;gap:6px;padding:12px 16px 0;border-top:1px solid rgba(255,255,255,.08)}
+.kt-sammel>span{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3)}
+.kt-sammel .kv-fuss{padding:8px 0 12px;border:0}
+.kt-mgr.an{background:#f2f2f2;color:#0a0a0b;border-color:#f2f2f2}
 .k-voll .fenster{position:relative;inset:auto;transform:none;width:100%;height:100%;max-height:none;opacity:1}
 .k-zu{position:absolute;top:-14px;right:-14px;z-index:2;width:30px;height:30px;border-radius:50%;background:#f2f2f2;color:#0a0a0b;font-size:18px;font-weight:700;line-height:30px}
 .k-mini{position:absolute;right:1rem;bottom:1rem;z-index:3;border-radius:10px;background:rgba(7,12,26,.85);border:1px solid var(--kante)}
@@ -890,7 +904,7 @@ const kOff = {};                          // wirksamer Versatz je Schluessel bei
 const kPos = (key, px, py, dx, dy) => { const o = kLage[key] || {dx, dy}; kOff[key] = {dx: o.dx, dy: o.dy}; return [px + o.dx, py + o.dy]; };
 const kMgr = new Set();                   // offene Abteilungs-Manager (Schluessel ws|abt)
 const kAbtInfo = {};                      // je Abteilung: Name, Aufgaben, Lage (fuer Hover und Manager)
-const kEntwurf = {}, kMeldung = {}, kTodoH = {};   // kTodoH: gemessene Hoehe der To-do-Listen, damit der Rahmen passt       // Eingaben in Kartenfeldern ueberleben das Neuzeichnen
+const kEntwurf = {}, kMeldung = {}, kTodoH = {}, kRahmenBox = {};   // kTodoH: gemessene Hoehe der To-do-Listen, damit der Rahmen passt       // Eingaben in Kartenfeldern ueberleben das Neuzeichnen
 const KW = 2600, KH = 1700;               // Weltgroesse
 const K_FARBE = {braucht_dich:"#ff5d5d", arbeitet:"#4ade80", wartet:"#f0c96e", fertig:"#6b7280"};
 // Ampel der Karte: rot = braucht Marcel (oder Fehler), gruen pulsierend = arbeitet gerade, gelb = wartet, grau = fertig
@@ -991,7 +1005,7 @@ function kartenZeichnen(){
       };
       // To-do-Liste zuerst platzieren, damit sie ihren Platz im Rahmen sicher hat
       let lx = 0, ly = 0; const lh = kTodoH[akey] || 80 + m * 60;
-      if (kRahmenModus) [lx, ly] = kartePos("l:" + akey, ax, ay, ax >= cx ? 210 : -210 - 330, -lh/2 + 20, 330, lh);
+      if (kRahmenModus) [lx, ly] = kartePos("l:" + akey, ax, ay, ax >= cx ? 210 : -210 - kTodoB(akey), -lh/2 + 20, kTodoB(akey), lh);
       ab.aufg.forEach((f,i) => {
         const tw = am + (m===1 ? 0 : -fan/2 + i/(m-1)*fan);
         const r = R3 + (i%2)*46;
@@ -1006,7 +1020,7 @@ function kartenZeichnen(){
         merke(tx - 30, ty - 30, tx + 30, ty + 30); pts.push([tx, ty, tx >= ax]);
         mini.push(`<circle cx="${tx*180/KW}" cy="${ty*180/KW}" r="${dich?2.4:1.6}" fill="${fb}"/>`);
         const rechts = tx >= ax;
-        if (kOffen.has(f.id)){
+        if (kOffen.has(f.id) && !kRahmenModus){
           const [kx, ky] = kartePos("c:" + f.id, tx, ty, rechts ? 34 : -34 - 520, -60, 520, 600);
           kanten.push(leine(tx, ty, kx, ky, 520, fb));
           karten.push(`<div class="k-voll" style="left:${kx}px;top:${ky}px" data-kid="${esc(f.id)}"><button class="k-zu" data-kzu="${esc(f.id)}" aria-label="Schließen">×</button>${kVollHTML(f, ab.a, farbe)}</div>`);
@@ -1026,15 +1040,15 @@ function kartenZeichnen(){
       kAbtInfo[akey] = { name: ab.a, aufg: ab.aufg, x: ax, y: ay, kr, farbe };
       if (kRahmenModus){
         // Projekt geoeffnet: jede Abteilung steht in ihrem Rahmen, mit ihrer To-do-Liste daneben
-        karten.push(`<div class="k-todo" data-tkey="${esc(akey)}" style="left:${lx}px;top:${ly}px">${kTodoHTML(akey)}</div>`);
-        const xs = [ax - kr - 30, ax + kr + 30, ax - 140, ax + 140, lx - 10, lx + 340, ...pts.map(p => p[2] ? p[0] + 260 : p[0] - 260), ...pts.map(p => p[0])];
+        karten.push(`<div class="k-todo" data-tkey="${esc(akey)}" style="left:${lx}px;top:${ly}px;width:${kTodoB(akey)}px">${kTodoHTML(akey)}</div>`);
+        const xs = [ax - kr - 30, ax + kr + 30, ax - 140, ax + 140, lx - 10, lx + kTodoB(akey) + 10, ...pts.map(p => p[2] ? p[0] + 260 : p[0] - 260), ...pts.map(p => p[0])];
         const ys = [ay - kr - 40, ay + kr + 50, ly - 10, ly + lh + 10, ...pts.map(p => p[1] - 30), ...pts.map(p => p[1] + 30)];
         const r0 = {x0: Math.min(...xs) - 20, y0: Math.min(...ys) - 50, x1: Math.max(...xs) + 20, y1: Math.max(...ys) + 24};
-        merke(r0.x0, r0.y0, r0.x1, r0.y1);
+        merke(r0.x0, r0.y0, r0.x1, r0.y1); kRahmenBox[akey] = r0;
         rahmenListe.push(`<g><rect x="${r0.x0}" y="${r0.y0}" width="${r0.x1 - r0.x0}" height="${r0.y1 - r0.y0}" rx="34" fill="${farbe}" fill-opacity=".05" stroke="${farbe}" stroke-opacity=".55" stroke-width="2"/>
           <text x="${r0.x0 + 28}" y="${r0.y0 + 34}" font-size="18" font-weight="700" fill="${farbe}">${esc(ab.a)}</text></g>`);
       }
-      if (kMgr.has(akey)){
+      if (kMgr.has(akey) && !kRahmenModus){
         const [mx, my] = kartePos("m:" + akey, ax, ay, ax >= cx ? kr + 40 : -kr - 40 - 480, -90, 480, 560);
         kanten.push(leine(ax, ay, mx, my, 480, farbe));
         karten.push(`<div class="k-voll k-mgr" style="left:${mx}px;top:${my}px;width:480px"><button class="k-zu" data-mzu="${esc(akey)}" aria-label="Schließen">×</button>${kMgrHTML(akey)}</div>`);
@@ -1139,17 +1153,31 @@ function kMgrHTML(akey){
 }
 
 // To-do-Liste einer Abteilung: alles auf einen Blick, Klick auf eine Zeile oeffnet die Aufgabe am Knoten
+const kTodoB = akey => (kAbtInfo[akey]?.aufg || []).some(f => kOffen.has(f.id)) || kMgr.has(akey) ? 460 : 330;
+// To-do-Liste einer Abteilung: Klick auf einen Eintrag klappt ihn im Rahmen auf (Stand, Frage, Chat)
 function kTodoHTML(akey){
   const info = kAbtInfo[akey]; if (!info) return "";
-  const rang = {rot: 0, gruen: 1, gelb: 2, grau: 3};
+  const rang = {rot: 0, gruen: 1, gelb: 2, grau: 3}, alle = kMgr.has(akey);
   const zeilen = [...info.aufg].sort((a,b) => rang[kArt(a)] - rang[kArt(b)]).map(f => {
-    const art = kArt(f);
-    return `<button class="kt-zeile ${art}" data-k="${esc(f.id)}"><i class="${art}" style="background:${kF(f)}"></i>
-      <span><b>${esc(kKurz(f.titel, 44))}</b><small>${esc(kKurz(art === "rot" ? (f.von_dir || lage(f).kurz) : lage(f).kurz, 60))}</small></span></button>`;
+    const art = kArt(f), auf = kOffen.has(f.id);
+    return `<div class="kt-eintrag${auf ? " auf" : ""}" data-kid="${esc(f.id)}"><button class="kt-zeile ${art}" data-k="${esc(f.id)}"><i class="${art}" style="background:${kF(f)}"></i>
+      <span><b>${esc(kKurz(f.titel, auf ? 80 : 44))}</b><small>${esc(kKurz(art === "rot" ? (f.von_dir || lage(f).kurz) : lage(f).kurz, auf ? 140 : 60))}</small></span><em>${auf ? "▴" : "▾"}</em></button>
+      ${auf ? `<div class="kt-detail">${kDetailHTML(f)}</div>` : (alle && art === "rot" ? `<div class="kt-antwort"><input data-kfeld="a:${esc(f.id)}" placeholder="Antwort an diese Aufgabe …" autocomplete="off"></div>` : "")}</div>`;
   }).join("");
   const offen = info.aufg.filter(f => kArt(f) !== "grau").length;
   return `<div class="kt-kopf" data-zieh="l:${esc(akey)}" title="Ziehen zum Verschieben"><b>To-dos</b><span>${offen} offen · ${info.aufg.length - offen} fertig</span>
-    <button class="kt-mgr" data-akey="${esc(akey)}">Alle beantworten</button></div>${zeilen}`;
+    <button class="kt-mgr${alle ? " an" : ""}" data-akey="${esc(akey)}">${alle ? "Fertig" : "Alle beantworten"}</button></div>${zeilen}
+    ${alle ? `<div class="kt-sammel"><span>An alle in ${esc(kKurz(info.name, 30))}</span>
+      <textarea data-kfeld="s:${esc(akey)}" rows="3" placeholder="Alles auf einmal. Jede offene Aufgabe bekommt es und übernimmt nur ihren Teil."></textarea>
+      <div class="kv-fuss"><span>${esc(kMeldung["m:" + akey] || "Antworten und Sammelnachricht gehen mit einem Klick raus.")}</span><button class="glasknopf" data-msend="${esc(akey)}">Alles senden</button></div></div>` : ""}`;
+}
+
+// Aufgeklappter Eintrag: Einstieg oder Stand, die Frage, das Chatfeld
+function kDetailHTML(f){
+  const stand = f.kernaussage ? `<div class="kv-zeile"><span>Stand</span><p>${zeile(esc(f.kernaussage))}</p></div>` : "";
+  const tun = f.taetigkeit ? `<div class="kv-zeile"><span>Zuletzt</span><p>${esc(f.taetigkeit)}</p></div>` : "";
+  return `<div class="kv-koerper">${einstiegHTML(f) || (stand + tun)}
+      ${f.von_dir && !(f.einstieg && f.status === "braucht_dich") ? `<div class="kv-frage">${esc(f.von_dir)}</div>` : ""}</div>${kChatHTML(f)}`;
 }
 
 async function kSenden(liste){
@@ -1169,6 +1197,24 @@ function kLageZeigen(akey){
     + (info.aufg.length > 8 ? `<div class="kl-mehr">und ${info.aufg.length - 8} weitere</div>` : "")
     + `<div class="kl-mehr">Klicken: alles auf einmal beantworten</div>`;
   el.style.left = (info.x + info.kr + 24) + "px"; el.style.top = (info.y - 40) + "px"; el.hidden = false;
+}
+
+// Im Projekt: in den Rahmen der Abteilung hineinzoomen, der aufgeklappte Eintrag bleibt sicher im Bild
+function kInRahmenZoomen(id){
+  const el = document.querySelector(`#kmapbox .kt-eintrag[data-kid="${CSS.escape(id)}"]`); if (!el) return;
+  const r = kRahmenBox[el.closest(".k-todo").dataset.tkey];
+  const b = document.getElementById("kmapbox").getBoundingClientRect(), e = el.getBoundingClientRect();
+  const ew = e.width / kView.s, eh = e.height / kView.s;
+  const ex = (e.left - b.left - kView.x) / kView.s + ew / 2, ey = (e.top - b.top - kView.y) / kView.s + eh / 2;
+  const breit = r ? r.x1 - r.x0 : 900, hoch = r ? r.y1 - r.y0 : 700;
+  const s = Math.max(.75, Math.min(1.15, (b.width - 60) / breit, (b.height - 100) / hoch));
+  const halbB = (b.width - 80) / 2 / s, halbH = (b.height - 120) / 2 / s;
+  let mx = r ? (r.x0 + r.x1) / 2 : ex, my = r ? (r.y0 + r.y1) / 2 : ey;
+  mx = Math.min(Math.max(mx, ex - halbB + ew / 2), ex + halbB - ew / 2);
+  my = Math.min(Math.max(my, ey - halbH + eh / 2), ey + halbH - eh / 2);
+  kView.s = s; kView.x = b.width / 2 - mx * s; kView.y = b.height / 2 + 30 - my * s;
+  const w = document.querySelector("#kmapbox .k-welt"); w.style.transition = "transform .35s ease"; kAnwenden();
+  setTimeout(() => { w.style.transition = ""; }, 400);
 }
 
 function kartenBedienung(){
@@ -1253,6 +1299,7 @@ function kartenBedienung(){
     if (k){
       const id = k.dataset.k, auf = !kOffen.has(id);
       auf ? kOffen.add(id) : kOffen.delete(id); kartenWahl = id; kartenZeichnen(); zielSetzen();
+      if (kartenWs !== "Alle"){ if (auf) kInRahmenZoomen(id); return; }
       // Die geoeffnete Karte in die Mitte holen und lesbar zoomen
       const el = auf && document.querySelector(`#kmapbox .k-voll[data-kid="${CSS.escape(id)}"]`);
       if (el){
