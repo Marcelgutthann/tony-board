@@ -281,22 +281,37 @@ details.mehr-text > div{margin-top:.8rem}
 .marke-ab{font-size:.85rem;color:#ff9b9b;margin-left:auto}
 
 /* Mehrfenster: alle Sitzungen links, Inhalt der gewaehlten rechts */
-.karte{position:absolute;inset:0;display:none;grid-template-columns:minmax(0,1fr) minmax(26rem,42%);gap:1.2rem;padding:0 1.6rem 1.2rem}
-.karte.an{display:grid}
+.karte{position:absolute;inset:0 1.6rem 1.2rem;display:none;border-radius:1.4rem;overflow:hidden;border:1px solid var(--kante);
+  background:radial-gradient(60% 70% at 50% 50%,rgba(70,110,220,.14),transparent 70%),rgba(6,10,22,.6)}
+.karte.an{display:block}
 body.v-karte .todos{display:none}
-.k-links{display:flex;flex-direction:column;min-height:0;border-radius:1.2rem;background:rgba(10,20,40,.55);border:1px solid var(--kante);overflow:hidden}
-.k-filter{display:flex;gap:.4rem;flex-wrap:wrap;padding:.8rem 1rem .4rem}
-.k-filter button{padding:.35rem .9rem;border-radius:99rem;border:1px solid var(--kante);font-size:.8rem;color:var(--text2)}
+.k-filter{position:absolute;top:.9rem;left:1rem;z-index:3;display:flex;gap:.4rem;flex-wrap:wrap}
+.k-filter button{display:flex;align-items:center;padding:.4rem .95rem;border-radius:99rem;border:1px solid var(--kante);font-size:.82rem;color:var(--text2);background:rgba(7,12,26,.7)}
 .k-filter button.an{background:#f2f2f2;color:#0a0a0b;border-color:#f2f2f2}
-.k-filter button i{font-style:normal;margin-left:.35rem;color:var(--gelb)}
+.k-filter button i{font-style:normal;margin-left:.4rem;color:var(--gelb)}
 .k-filter button.an i{color:#7a5a12}
-.k-map{flex:1;min-height:0}
-.k-map svg{width:100%;height:100%;display:block}
-.k-map [data-k]{cursor:pointer}
-.k-map [data-k]:hover circle{stroke:#fff;stroke-width:2}
-.k-detail{min-height:0;display:flex;flex-direction:column}
-.k-detail .fenster{position:relative;inset:auto;transform:none;width:100%;height:100%;max-height:none;opacity:1}
-.k-leer{margin:auto;color:var(--text3);text-align:center;max-width:22rem;padding:2rem}
+.k-filter .k-fit{margin-left:.6rem}
+.k-punkt{display:inline-block;width:.55rem;height:.55rem;border-radius:50%;margin-right:.45rem}
+.k-flaeche{position:absolute;inset:0;cursor:grab;touch-action:none}
+.k-flaeche.zieht{cursor:grabbing}
+.k-welt{position:absolute;left:0;top:0;width:2600px;height:1700px;transform-origin:0 0}
+.k-svg{position:absolute;left:0;top:0;font-family:Inter,system-ui,sans-serif}
+.k-karten{position:absolute;inset:0;pointer-events:none}
+.k-karten>*{pointer-events:auto}
+.k-aufg,.k-ws{cursor:pointer}
+.k-aufg:hover circle:nth-child(2){stroke:#fff;stroke-width:2.5}
+.k-frage{position:absolute;width:340px;padding:15px 18px 14px;border-radius:20px;background:rgba(12,20,40,.9);border:1px solid rgba(240,201,110,.55);
+  box-shadow:0 14px 34px rgba(0,0,0,.45);cursor:pointer;font-size:18px;transition:transform .15s}
+.k-frage:hover{transform:translateY(-2px);border-color:#f0c96e}
+.kf-wer{display:flex;align-items:center;gap:9px;font-size:15px;color:var(--text2)}
+.kf-av{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;color:#0a0a0b;background:var(--c)}
+.kf-titel{margin-top:9px;font-size:15px;color:var(--text3)}
+.kf-q{margin-top:4px;font-weight:600;line-height:1.35;font-size:19px}
+.kf-mehr{margin-top:10px;font-size:15px;color:var(--gelb)}
+.k-voll{position:absolute;width:460px;height:620px;cursor:auto}
+.k-voll .fenster{position:relative;inset:auto;transform:none;width:100%;height:100%;max-height:none;opacity:1}
+.k-zu{position:absolute;top:-14px;right:-14px;z-index:2;width:30px;height:30px;border-radius:50%;background:#f2f2f2;color:#0a0a0b;font-size:18px;font-weight:700;line-height:30px}
+.k-mini{position:absolute;right:1rem;bottom:1rem;z-index:3;border-radius:10px;background:rgba(7,12,26,.85);border:1px solid var(--kante)}
 .mehr{position:absolute;inset:0;display:none;grid-template-columns:minmax(17rem,23rem) 1fr;gap:1.2rem;padding:0 1.6rem 1.2rem}
 .mehr.an{display:grid}
 body.v-mehrfenster .todos{display:none}
@@ -415,7 +430,7 @@ body.v-mehrfenster .todos{display:none}
       <details class="leiste-todos"><summary id="lblick">Bleibt im Blick</summary><ul id="ltodos"></ul></details></nav>
     <div class="detail" id="detail"></div>
   </div>
-  <div class="karte" id="karte"><div class="k-links"><div class="k-filter" id="kfilter"></div><div class="k-map" id="kmap"></div></div><div class="k-detail" id="kdetail"></div></div>
+  <div class="karte" id="karte"><div class="k-filter" id="kfilter"></div><div class="k-flaeche" id="kmapbox"></div></div>
   <div class="absprache" id="absprache"><div class="spalte" id="abspalte"></div></div>
   <div class="archiv" id="archiv"><div class="spalte"><h2>Archiv</h2><input id="asuche" placeholder="Im Archiv suchen …" autocomplete="off"><div class="liste" id="aliste"></div></div></div>
 </main>
@@ -795,79 +810,192 @@ function zeichnen(){
   drehen();
 }
 
-/* Karte: Tony als Hauptmanager in der Mitte, darum die Workspaces, darum die Abteilungen (Mitarbeiter),
-   an jeder Abteilung ihre Aufgaben als Punkte. Ein Klick zeigt die Aufgabe rechts als Karte. */
+/* Karte (Vorbild Voicetree): eine Flaeche zum Verschieben und Zoomen. Tony als Hauptmanager in der Mitte,
+   darum die Workspaces, die Abteilungen (Mitarbeiter) und ihre Aufgaben. Aufgaben, die Marcel brauchen,
+   zeigen ihre Frage als kleine Karte direkt am Knoten; ein Klick oeffnet die ganze Karte am Knoten. */
 let kartenWahl = null, kartenWs = "Alle";
-const K_FARBE = {braucht_dich:"#d9b26a", arbeitet:"#8fa8d8", wartet:"#9aa3b5", fertig:"#8fb8a0"};
+const kOffen = new Set();                 // ganz geoeffnete Karten (ids)
+const kView = { x: 0, y: 0, s: 1, init: false };
+let kRahmen = null;             // Rahmen um den tatsaechlichen Inhalt, zum Einpassen
+const KW = 2600, KH = 1700;               // Weltgroesse
+const K_FARBE = {braucht_dich:"#f0c96e", arbeitet:"#8fb2ff", wartet:"#a3abc0", fertig:"#7fd6a8"};
+const K_WS_FARBE = ["#5fd4c4", "#a78bfa", "#f2a65a", "#7fb2ff", "#f07fa8"];
 const kWs = f => f.workspace || (String(f.id).startsWith("cc-") ? "Sitzungen" : "Büro (Tony)");
 const kAbt = f => f.mitarbeiter || (String(f.id).startsWith("cc-") ? "Noch ohne Abteilung" : (BEREICH_NAME[f.bereich] || "Allgemein"));
-const kKurz = (t,n) => { t = String(t||""); return t.length > n ? t.slice(0,n-1)+"…" : t; };
+const kKurz = (t,n) => { t = String(t||"").replace(/\*\*/g,""); return t.length > n ? t.slice(0,n-1)+"…" : t; };
+const kIni = t => String(t).split(/\s+/).filter(w => w && w !== "und" && w !== "·").map(w => w[0]).join("").slice(0,2).toUpperCase();
+
+function kAnwenden(){
+  const w = document.querySelector("#kmapbox .k-welt"); if (!w) return;
+  w.style.transform = `translate(${kView.x}px,${kView.y}px) scale(${kView.s})`;
+  const m = document.getElementById("kmapbox"), r = document.querySelector("#kmapbox .k-mini-rahmen");
+  if (m && r){
+    const b = m.getBoundingClientRect(), f = 180 / KW;
+    r.setAttribute("x", -kView.x / kView.s * f); r.setAttribute("y", -kView.y / kView.s * f);
+    r.setAttribute("width", b.width / kView.s * f); r.setAttribute("height", b.height / kView.s * f);
+  }
+}
+function kEinpassen(){
+  const b = document.getElementById("kmapbox").getBoundingClientRect();
+  const r = kRahmen || {x0: 0, y0: 0, x1: KW, y1: KH}, oben = 70, rand = 30;
+  const bw = r.x1 - r.x0, bh = r.y1 - r.y0;
+  kView.s = Math.min(1.1, Math.min((b.width - 2*rand) / bw, (b.height - oben - rand) / bh));
+  kView.x = (b.width - bw * kView.s) / 2 - r.x0 * kView.s;
+  kView.y = oben + (b.height - oben - rand - bh * kView.s) / 2 - r.y0 * kView.s;
+  kAnwenden();
+}
+
 function kartenZeichnen(){
   const alle = zustand.fenster;
   const wsListe = [...new Set(alle.map(kWs))].sort();
   if (kartenWs !== "Alle" && !wsListe.includes(kartenWs)) kartenWs = "Alle";
+  const wsFarbe = w => K_WS_FARBE[Math.max(0, wsListe.indexOf(w)) % K_WS_FARBE.length];
   const offenIn = w => alle.filter(f => (w==="Alle" || kWs(f)===w) && f.status==="braucht_dich").length;
   setzeHTML(document.getElementById("kfilter"), ["Alle", ...wsListe].map(w =>
-    `<button data-ws="${esc(w)}" class="${w===kartenWs?"an":""}">${esc(w)}${offenIn(w)?`<i>${offenIn(w)}</i>`:""}</button>`).join(""));
+    `<button data-ws="${esc(w)}" class="${w===kartenWs?"an":""}">${w!=="Alle"?`<span class="k-punkt" style="background:${wsFarbe(w)}"></span>`:""}${esc(w)}${offenIn(w)?`<i>${offenIn(w)}</i>`:""}</button>`).join("")
+    + `<button data-kfit class="k-fit">Einpassen</button>`);
+  const box = document.getElementById("kmapbox");
+  if (!box.querySelector(".k-welt")){
+    box.innerHTML = `<div class="k-welt"><svg class="k-svg" width="${KW}" height="${KH}" viewBox="0 0 ${KW} ${KH}"></svg><div class="k-karten"></div></div>
+      <svg class="k-mini" width="180" height="${180*KH/KW}" viewBox="0 0 180 ${180*KH/KW}"><g class="k-mini-inhalt"></g><rect class="k-mini-rahmen" fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.5)"/></svg>`;
+  }
   const F = alle.filter(f => kartenWs==="Alle" || kWs(f)===kartenWs);
-  // Baum: Workspace -> Abteilung -> Aufgaben
   const baum = [...new Set(F.map(kWs))].map(w => {
     const fw = F.filter(f => kWs(f)===w);
     return { w, abt: [...new Set(fw.map(kAbt))].map(a => ({ a, aufg: fw.filter(f => kAbt(f)===a) })) };
   });
-  const W = 1000, H = 760, cx = W/2, cy = H/2, R1 = baum.length > 1 ? 150 : 0, R2 = 265, R3 = 62;
+  const cx = KW/2, cy = KH/2, R1 = baum.length > 1 ? 270 : 0, R2 = 540, R3 = 120, SY = .72;
   const gesamt = Math.max(1, F.length);
-  const kanten = [], knoten = [];
+  const kanten = [], knoten = [], beschr = [], karten = [], mini = [];
+  const kurve = (x1,y1,x2,y2,farbe,breite,deckung) => {
+    const mx = (x1+x2)/2, my = (y1+y2)/2, dx = x2-x1, dy = y2-y1;
+    return `<path d="M${x1} ${y1} Q${mx - dy*.12} ${my + dx*.12} ${x2} ${y2}" fill="none" stroke="${farbe}" stroke-opacity="${deckung}" stroke-width="${breite}" stroke-linecap="round"/>`;
+  };
+  const etikett = (x, y, text, gr, farbe, gew = 600) => {
+    const w = text.length * gr * .57 + 26, h = gr + 14;
+    return `<g><rect x="${x - w/2}" y="${y - h/2}" width="${w}" height="${h}" rx="${h/2}" fill="rgba(7,12,26,.82)" stroke="rgba(255,255,255,.14)"/>
+      <text x="${x}" y="${y + gr*.36}" font-size="${gr}" font-weight="${gew}" fill="${farbe}" text-anchor="middle">${esc(text)}</text></g>`;
+  };
+  const belegt = [], rahmen = {x0: cx - 120, y0: cy - 120, x1: cx + 120, y1: cy + 150};
+  const merke = (x0, y0, x1, y1) => { rahmen.x0 = Math.min(rahmen.x0, x0); rahmen.y0 = Math.min(rahmen.y0, y0); rahmen.x1 = Math.max(rahmen.x1, x1); rahmen.y1 = Math.max(rahmen.y1, y1); };
+  const platz = (x, y, w, h) => {      // schiebt eine Karte nach unten, bis sie keine andere ueberdeckt
+    let yy = y;
+    for (let i = 0; i < 12 && belegt.some(r => x < r.x1 && x + w > r.x0 && yy < r.y1 && yy + h > r.y0); i++) yy += 24;
+    belegt.push({x0: x, y0: yy, x1: x + w + 8, y1: yy + h + 8}); merke(x, yy, x + w, yy + h);
+    return yy;
+  };
   let winkel = -Math.PI/2;
   for (const t of baum){
+    const farbe = wsFarbe(t.w);
     const n = t.abt.reduce((s,x)=>s+x.aufg.length,0);
-    const sektor = (n/gesamt) * Math.PI*2;
-    const wm = winkel + sektor/2;
-    const wx = cx + Math.cos(wm)*R1, wy = cy + Math.sin(wm)*R1*0.82;
-    if (R1) kanten.push(`<line x1="${cx}" y1="${cy}" x2="${wx}" y2="${wy}" stroke="rgba(255,255,255,.22)"/>`);
+    const sektor = (n/gesamt) * Math.PI*2, wm = winkel + sektor/2;
+    const wx = cx + Math.cos(wm)*R1, wy = cy + Math.sin(wm)*R1*SY;
+    if (R1) kanten.push(kurve(cx, cy, wx, wy, farbe, 3, .6));
     let aw = winkel;
     for (const ab of t.abt){
       const as = (ab.aufg.length/n) * sektor, am = aw + as/2;
-      const ax = cx + Math.cos(am)*R2, ay = cy + Math.sin(am)*R2*0.8;
-      kanten.push(`<line x1="${wx}" y1="${wy}" x2="${ax}" y2="${ay}" stroke="rgba(255,255,255,.16)"/>`);
-      const m = ab.aufg.length, fan = Math.min(2.2, 0.5*m);
+      const ax = cx + Math.cos(am)*R2, ay = cy + Math.sin(am)*R2*SY;
+      kanten.push(kurve(wx, wy, ax, ay, farbe, 2.2, .45));
+      const m = ab.aufg.length, fan = Math.min(2.3, .6*m);
       ab.aufg.forEach((f,i) => {
         const tw = am + (m===1 ? 0 : -fan/2 + i/(m-1)*fan);
-        const r = R3 + (i%2)*16;
-        const tx = ax + Math.cos(tw)*r, ty = ay + Math.sin(tw)*r;
-        kanten.push(`<line x1="${ax}" y1="${ay}" x2="${tx}" y2="${ty}" stroke="rgba(255,255,255,.1)"/>`);
-        const dich = f.status === "braucht_dich", gew = f.id === kartenWahl, rechts = Math.cos(tw) >= 0;
-        const label = dich ? `<text x="${tx + (rechts?12:-12)}" y="${ty+4}" font-size="12" fill="rgba(255,255,255,.85)" text-anchor="${rechts?"start":"end"}">${esc(kKurz(f.titel, 26))}</text>` : "";
-        knoten.push(`<g data-k="${esc(f.id)}"><circle cx="${tx}" cy="${ty}" r="${dich?8:6}" fill="${K_FARBE[f.status]||"#5c5c62"}" ${gew?'stroke="#fff" stroke-width="2.5"':''}><title>${esc(f.titel)} · ${esc(lage(f).kurz)}</title></circle>${label}</g>`);
+        const r = R3 + (i%2)*46;
+        const tx = ax + Math.cos(tw)*r, ty = ay + Math.sin(tw)*r*.85;
+        const dich = f.status === "braucht_dich", fb = K_FARBE[f.status] || "#6b7280", rad = dich ? 13 : 10;
+        kanten.push(`<line x1="${ax}" y1="${ay}" x2="${tx}" y2="${ty}" stroke="${fb}" stroke-opacity=".35" stroke-width="1.6"/>`);
+        knoten.push(`<g class="k-aufg" data-k="${esc(f.id)}">
+          <circle cx="${tx}" cy="${ty}" r="${rad + 16}" fill="url(#kglow)" style="color:${fb}" opacity="${dich?.95:.5}"/>
+          ${kOffen.has(f.id)||f.id===kartenWahl?`<circle cx="${tx}" cy="${ty}" r="${rad + 7}" fill="none" stroke="#fff" stroke-width="2.5"/>`:""}
+          <circle cx="${tx}" cy="${ty}" r="${rad}" fill="${fb}"/><circle cx="${tx - rad*.32}" cy="${ty - rad*.36}" r="${rad*.36}" fill="#fff" opacity=".55"/>
+          <title>${esc(kKurz(f.titel, 90))} · ${esc(lage(f).kurz)}</title></g>`);
+        merke(tx - 30, ty - 30, tx + 30, ty + 30);
+        mini.push(`<circle cx="${tx*180/KW}" cy="${ty*180/KW}" r="${dich?2.4:1.6}" fill="${fb}"/>`);
+        const rechts = Math.cos(tw) >= 0;
+        if (kOffen.has(f.id)){
+          const kx = rechts ? tx + 34 : tx - 34 - 460, ky = platz(kx, ty - 60, 460, 620);
+          karten.push(`<div class="k-voll" style="left:${kx}px;top:${ky}px" data-kid="${esc(f.id)}"><button class="k-zu" data-kzu="${esc(f.id)}" aria-label="Schließen">×</button>${fensterSection(f, alle.indexOf(f))}</div>`);
+        } else if (dich){
+          const kx = rechts ? tx + 30 : tx - 30 - 340, ky = platz(kx, ty - 56, 340, 175);
+          karten.push(`<div class="k-frage" style="left:${kx}px;top:${ky}px" data-k="${esc(f.id)}">
+            <div class="kf-wer"><span class="kf-av" style="--c:${farbe}">${esc(kIni(ab.a))}</span>${esc(kKurz(ab.a, 26))}</div>
+            <div class="kf-titel">${esc(kKurz(f.titel, 46))}</div>
+            <div class="kf-q">${esc(kKurz(f.von_dir || f.kernaussage || "Braucht dich", 120))}</div>
+            <div class="kf-mehr">Öffnen ›</div></div>`);
+        } else {
+          beschr.push(`<text x="${tx + (rechts?20:-20)}" y="${ty + 5}" font-size="14" fill="rgba(255,255,255,.7)" text-anchor="${rechts?"start":"end"}">${esc(kKurz(f.titel, 34))}</text>`);
+        }
       });
-      const offen = ab.aufg.filter(f=>f.status==="braucht_dich").length, kr = 11 + Math.min(9, m*1.6);
-      knoten.push(`<g filter="url(#ksch)"><circle cx="${ax}" cy="${ay}" r="${kr}" fill="url(#kschwarz)"><title>${esc(ab.a)}: ${m} Aufgaben</title></circle></g>`);
-      if (offen) knoten.push(`<circle cx="${ax+kr*.72}" cy="${ay-kr*.72}" r="8" fill="url(#kweiss)"/><text x="${ax+kr*.72}" y="${ay-kr*.72+4}" font-size="10" font-weight="700" fill="#0a0a0b" text-anchor="middle">${offen}</text>`);
-      knoten.push(`<text x="${ax}" y="${ay+kr+16}" font-size="12.5" font-weight="600" fill="#fff" text-anchor="middle">${esc(kKurz(ab.a, 24))} · ${m}</text>`);
+      const offen = ab.aufg.filter(f=>f.status==="braucht_dich").length, kr = 26 + Math.min(14, m*3);
+      knoten.push(`<g class="k-abt" data-abt="${esc(ab.a)}"><circle cx="${ax}" cy="${ay}" r="${kr + 26}" fill="url(#kglow)" style="color:${farbe}" opacity=".45"/>
+        <circle cx="${ax}" cy="${ay}" r="${kr}" fill="url(#kkugel)" stroke="${farbe}" stroke-opacity=".8" stroke-width="2"/>
+        <ellipse cx="${ax - kr*.22}" cy="${ay - kr*.45}" rx="${kr*.5}" ry="${kr*.26}" fill="#fff" opacity=".22"/>
+        <text x="${ax}" y="${ay + 6}" font-size="${kr*.55}" font-weight="700" fill="${farbe}" text-anchor="middle">${esc(kIni(ab.a))}</text>
+        <title>${esc(ab.a)}: ${m} Aufgaben, ${offen} brauchen dich</title></g>`);
+      if (offen) knoten.push(`<circle cx="${ax+kr*.78}" cy="${ay-kr*.78}" r="14" fill="#f0c96e"/><text x="${ax+kr*.78}" y="${ay-kr*.78+5}" font-size="15" font-weight="700" fill="#2a1f05" text-anchor="middle">${offen}</text>`);
+      beschr.push(etikett(ax, ay + kr + 28, `${kKurz(ab.a, 28)} · ${m}`, 17, "#fff"));
+      merke(ax - 160, ay - 60, ax + 160, ay + 90);
+      mini.push(`<circle cx="${ax*180/KW}" cy="${ay*180/KW}" r="3.5" fill="${farbe}"/>`);
       aw += as;
     }
     if (R1){
-      knoten.push(`<g filter="url(#ksch)"><circle cx="${wx}" cy="${wy}" r="24" fill="url(#kschwarz)"/></g><text x="${wx}" y="${wy+42}" font-size="14" font-weight="700" fill="#fff" text-anchor="middle">${esc(t.w)}</text>`);
+      knoten.push(`<g class="k-ws" data-ws="${esc(t.w)}"><circle cx="${wx}" cy="${wy}" r="80" fill="url(#kglow)" style="color:${farbe}" opacity=".6"/>
+        <circle cx="${wx}" cy="${wy}" r="40" fill="url(#kkugel)" stroke="${farbe}" stroke-width="2.5"/>
+        <ellipse cx="${wx-10}" cy="${wy-17}" rx="18" ry="9" fill="#fff" opacity=".25"/></g>`);
+      beschr.push(etikett(wx, wy + 68, t.w, 20, farbe, 700));
     }
     winkel += sektor;
   }
+  kRahmen = rahmen;
   const offenAlle = F.filter(f=>f.status==="braucht_dich").length;
-  const svg = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" font-family="Inter,system-ui,sans-serif">
-    <defs><radialGradient id="kschwarz" cx=".35" cy=".3" r=".75"><stop offset="0" stop-color="#77777e"/><stop offset=".35" stop-color="#1c1c20"/><stop offset="1" stop-color="#000"/></radialGradient>
-    <radialGradient id="kweiss" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#fff"/><stop offset=".5" stop-color="#ececee"/><stop offset="1" stop-color="#c4c4ca"/></radialGradient>
-    <filter id="ksch" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000" flood-opacity=".5"/></filter></defs>
-    ${kanten.join("")}${knoten.join("")}
-    <g filter="url(#ksch)"><circle cx="${cx}" cy="${cy}" r="40" fill="url(#kweiss)"/></g>
-    <text x="${cx}" y="${cy-2}" font-size="15" font-weight="700" fill="#0a0a0b" text-anchor="middle">Tony</text>
-    <text x="${cx}" y="${cy+14}" font-size="10" fill="#3a3a40" text-anchor="middle">Hauptmanager</text>
-    ${offenAlle?`<text x="${cx}" y="${cy+62}" font-size="12.5" fill="#d9b26a" text-anchor="middle">${offenAlle} brauchen dich</text>`:""}
-  </svg>`;
-  setzeHTML(document.getElementById("kmap"), F.length ? svg : `<div class="k-leer">Hier ist gerade nichts offen.</div>`);
-  // Rechts die gewaehlte Aufgabe; ohne Wahl die erste, die dich braucht
-  const f = finde(kartenWahl) || F.find(x=>x.status==="braucht_dich") || null;
-  if (f && !kartenWahl) kartenWahl = f.id;
-  setzeHTML(document.getElementById("kdetail"), f ? fensterSection(f, alle.indexOf(f))
-    : `<div class="k-leer"><b>Wähle eine Aufgabe auf der Karte.</b><br>Jeder Punkt ist eine Aufgabe, gelb heißt: braucht dich.</div>`);
+  const bahnen = [R1, R2].filter(Boolean).map(r => `<ellipse cx="${cx}" cy="${cy}" rx="${r}" ry="${r*SY}" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="1.5" stroke-dasharray="3 9"/>`).join("");
+  setzeHTML(document.querySelector("#kmapbox .k-svg"), `
+    <defs>
+      <radialGradient id="kkugel" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#5a6074"/><stop offset=".45" stop-color="#151a28"/><stop offset="1" stop-color="#05070d"/></radialGradient>
+      <radialGradient id="kweiss" cx=".38" cy=".32" r=".85"><stop offset="0" stop-color="#fff"/><stop offset=".55" stop-color="#eceef4"/><stop offset="1" stop-color="#b9bdca"/></radialGradient>
+      <radialGradient id="kglow"><stop offset="0" stop-color="currentColor" stop-opacity=".7"/><stop offset="1" stop-color="currentColor" stop-opacity="0"/></radialGradient>
+      <radialGradient id="khalo"><stop offset="0" stop-color="#9fc2ff" stop-opacity=".3"/><stop offset="1" stop-color="#9fc2ff" stop-opacity="0"/></radialGradient>
+      <pattern id="kraster" width="34" height="34" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1.2" fill="rgba(255,255,255,.06)"/></pattern>
+    </defs>
+    <rect width="${KW}" height="${KH}" fill="url(#kraster)"/>
+    ${bahnen}${kanten.join("")}${knoten.join("")}
+    <circle cx="${cx}" cy="${cy}" r="210" fill="url(#khalo)"/>
+    <circle cx="${cx}" cy="${cy}" r="70" fill="url(#kweiss)"/>
+    <ellipse cx="${cx-18}" cy="${cy-28}" rx="30" ry="14" fill="#fff" opacity=".75"/>
+    <text x="${cx}" y="${cy+4}" font-size="26" font-weight="700" fill="#0a0a0b" text-anchor="middle">Tony</text>
+    <text x="${cx}" y="${cy+27}" font-size="14" fill="#4a4d58" text-anchor="middle">Hauptmanager</text>
+    ${beschr.join("")}
+    ${offenAlle?etikett(cx, cy + 108, `${offenAlle} brauchen dich`, 19, "#f6dca0"):""}`);
+  setzeHTML(document.querySelector("#kmapbox .k-karten"), karten.join(""));
+  setzeHTML(document.querySelector("#kmapbox .k-mini-inhalt"), mini.join("") + `<circle cx="${cx*180/KW}" cy="${cy*180/KW}" r="5" fill="#fff"/>`);
+  if (!kView.init && box.getBoundingClientRect().width > 0){ kView.init = true; kEinpassen(); } else kAnwenden();
+}
+
+function kartenBedienung(){
+  const box = document.getElementById("kmapbox");
+  let zug = null;
+  box.addEventListener("pointerdown", e => {
+    if (e.target.closest(".k-voll, .k-frage, [data-k], .k-mini")) return;
+    zug = { x: e.clientX, y: e.clientY, vx: kView.x, vy: kView.y }; box.classList.add("zieht"); box.setPointerCapture(e.pointerId);
+  });
+  box.addEventListener("pointermove", e => { if (!zug) return; kView.x = zug.vx + e.clientX - zug.x; kView.y = zug.vy + e.clientY - zug.y; kAnwenden(); });
+  const ende = () => { zug = null; box.classList.remove("zieht"); };
+  box.addEventListener("pointerup", ende); box.addEventListener("pointercancel", ende);
+  box.addEventListener("wheel", e => {
+    if (e.target.closest(".k-voll .f-koerper")) return;      // in einer offenen Karte scrollt der Text
+    e.preventDefault();
+    const b = box.getBoundingClientRect(), mx = e.clientX - b.left, my = e.clientY - b.top;
+    const neu = Math.min(2.5, Math.max(.2, kView.s * (e.deltaY < 0 ? 1.12 : 1/1.12)));
+    kView.x = mx - (mx - kView.x) * neu / kView.s; kView.y = my - (my - kView.y) * neu / kView.s; kView.s = neu; kAnwenden();
+  }, { passive: false });
+  document.getElementById("karte").addEventListener("click", e => {
+    if (e.target.closest("[data-kfit]")) { kEinpassen(); return; }
+    const zu = e.target.closest("[data-kzu]");
+    if (zu){ kOffen.delete(zu.dataset.kzu); if (kartenWahl === zu.dataset.kzu) kartenWahl = null; kartenZeichnen(); zielSetzen(); return; }
+    const k = e.target.closest("[data-k]"), w = e.target.closest("[data-ws]");
+    if (k){ const id = k.dataset.k; kOffen.has(id) ? kOffen.delete(id) : kOffen.add(id); kartenWahl = id; kartenZeichnen(); zielSetzen(); return; }
+    if (w){ kartenWs = w.dataset.ws; kartenWahl = null; kOffen.clear(); kView.init = false; kartenZeichnen(); zielSetzen(); }
+  });
+  window.addEventListener("resize", () => { if (zustand.ansicht === "karte") kEinpassen(); });
 }
 
 const fensterSection = (f,i) => `<section class="${fensterKlassen(lage(f))}" data-i="${i}">${fensterHTML(f)}</section>`;
@@ -1112,11 +1240,7 @@ function start(){
     const f = e.target.closest("#rondell .fenster:not(.vorn)");
     if (f) { vornId = f.dataset.id; drehen(); }
   });
-  document.getElementById("karte").addEventListener("click", e => {
-    const k = e.target.closest("[data-k]"), w = e.target.closest("[data-ws]");
-    if (k){ kartenWahl = k.dataset.k; kartenZeichnen(); zielSetzen(); return; }
-    if (w){ kartenWs = w.dataset.ws; kartenWahl = null; kartenZeichnen(); zielSetzen(); }
-  });
+  kartenBedienung();
   document.getElementById("umschalter").addEventListener("click", e => {
     const b = e.target.closest("button"); if (!b) return;
     zustand.ansicht = lokaleAnsicht = b.dataset.a; zeichnen(); zielSetzen();
