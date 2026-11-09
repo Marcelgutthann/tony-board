@@ -501,6 +501,8 @@ let zustand = {fenster:[], fokus:null, ansicht:"rondell", blick:[], absprache:[]
 let vornId = null, letzterFokus = undefined, letzterStand = "", gesehenAb = 0;
 // Marcels eigene Hand hat Vorrang: wer gerade blaettert oder liest, wird nicht weggerissen
 let letzteHand = 0, fokusFolgen = false, lokaleAnsicht = null, letzteServerAnsicht = null;
+// Wer die Karte gewaehlt hat, startet beim naechsten Oeffnen wieder dort
+try { if (localStorage.getItem("tonyStartKarte") === "1") lokaleAnsicht = "karte"; } catch(e) {}
 try { gesehenAb = +localStorage.getItem("tonyAbGesehen") || 0; } catch(e) {}
 
 const BEREICHE = [["technik","Technische Entwicklung"],["vertrieb","Vertrieb/Sales"],["organisation","Organisation"]];
@@ -1185,7 +1187,7 @@ async function laden(){
     zustand = z;
     zustand.blick = z.blick || [];
     // Ansicht: Tonys Wechsel gilt, sonst bleibt Marcels eigene (Archiv, Absprache) stehen
-    if (z.ansicht !== letzteServerAnsicht){ letzteServerAnsicht = z.ansicht; lokaleAnsicht = null; }
+    if (z.ansicht !== letzteServerAnsicht){ const ersterStand = letzteServerAnsicht === null; letzteServerAnsicht = z.ansicht; if (!ersterStand) lokaleAnsicht = null; }
     if (lokaleAnsicht) zustand.ansicht = lokaleAnsicht;
     const ruhig = Date.now() - letzteHand > 15000;
     const nachVorn = f => { bereichWahl = bereichVon(f); vornId = f.id; };
@@ -1291,6 +1293,7 @@ function start(){
   document.getElementById("umschalter").addEventListener("click", e => {
     const b = e.target.closest("button"); if (!b) return;
     zustand.ansicht = lokaleAnsicht = b.dataset.a; zeichnen(); zielSetzen();
+    try { b.dataset.a === "karte" ? localStorage.setItem("tonyStartKarte", "1") : localStorage.removeItem("tonyStartKarte"); } catch(e) {}
     if (b.dataset.a === "rondell" || b.dataset.a === "mehrfenster") senden("ansicht", {ansicht: b.dataset.a});
   });
   document.getElementById("text").addEventListener("input", e => {
