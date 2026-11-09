@@ -880,7 +880,7 @@ function kartenZeichnen(){
   const merke = (x0, y0, x1, y1) => { rahmen.x0 = Math.min(rahmen.x0, x0); rahmen.y0 = Math.min(rahmen.y0, y0); rahmen.x1 = Math.max(rahmen.x1, x1); rahmen.y1 = Math.max(rahmen.y1, y1); };
   const platz = (x, y, w, h) => {      // schiebt eine Karte nach unten, bis sie keine andere ueberdeckt
     let yy = y;
-    for (let i = 0; i < 12 && belegt.some(r => x < r.x1 && x + w > r.x0 && yy < r.y1 && yy + h > r.y0); i++) yy += 24;
+    for (let i = 0; i < 40 && belegt.some(r => x < r.x1 && x + w > r.x0 && yy < r.y1 && yy + h > r.y0); i++) yy += 24;
     belegt.push({x0: x, y0: yy, x1: x + w + 8, y1: yy + h + 8}); merke(x, yy, x + w, yy + h);
     return yy;
   };
@@ -992,7 +992,21 @@ function kartenBedienung(){
     const zu = e.target.closest("[data-kzu]");
     if (zu){ kOffen.delete(zu.dataset.kzu); if (kartenWahl === zu.dataset.kzu) kartenWahl = null; kartenZeichnen(); zielSetzen(); return; }
     const k = e.target.closest("[data-k]"), w = e.target.closest("[data-ws]");
-    if (k){ const id = k.dataset.k; kOffen.has(id) ? kOffen.delete(id) : kOffen.add(id); kartenWahl = id; kartenZeichnen(); zielSetzen(); return; }
+    if (k){
+      const id = k.dataset.k, auf = !kOffen.has(id);
+      auf ? kOffen.add(id) : kOffen.delete(id); kartenWahl = id; kartenZeichnen(); zielSetzen();
+      // Die geoeffnete Karte in die Mitte holen und lesbar zoomen
+      const el = auf && document.querySelector(`#kmapbox .k-voll[data-kid="${CSS.escape(id)}"]`);
+      if (el){
+        const b = document.getElementById("kmapbox").getBoundingClientRect();
+        kView.s = Math.max(kView.s, Math.min(1, (b.height - 40) / 640));
+        const wx = parseFloat(el.style.left) + 230, wy = parseFloat(el.style.top) + 310;
+        kView.x = b.width / 2 - wx * kView.s; kView.y = b.height / 2 + 20 - wy * kView.s;
+        const w = document.querySelector("#kmapbox .k-welt"); w.style.transition = "transform .35s ease"; kAnwenden();
+        setTimeout(() => { w.style.transition = ""; }, 400);
+      }
+      return;
+    }
     if (w){ kartenWs = w.dataset.ws; kartenWahl = null; kOffen.clear(); kView.init = false; kartenZeichnen(); zielSetzen(); }
   });
   window.addEventListener("resize", () => { if (zustand.ansicht === "karte") kEinpassen(); });
