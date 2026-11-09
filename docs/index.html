@@ -961,6 +961,8 @@ function zielSetzen(){
   const el = document.getElementById("ziel");
   el.textContent = f ? `Zu: ${f.titel}` : "Ohne Karte · an Tony";
   el.classList.toggle("fest", !!angeheftet);
+  // Sitzungskarten (cc-…) holen die Nachricht selbst ab: sie geht direkt in die laufende Claude-Sitzung
+  if (feld) feld.placeholder = f && String(f.id).startsWith("cc-") ? "Nachricht direkt an diese Sitzung …" : "Nachricht an Tony …";
   el.title = f
     ? (angeheftet ? `Diese Nachricht geht zu „${f.titel}“ - der Karte, die beim Schreiben vorne stand.`
                   : `Deine Nachricht bezieht sich auf „${f.titel}“.`)
