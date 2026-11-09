@@ -31,10 +31,11 @@ Jede Stufe ist fuer sich nutzbar und wird geprueft, bevor die naechste beginnt.
    - Der Hook setzt `workspace` aus dem Ordner. Der Mod `team` schickt nach jeder Antwort mit offener Frage `mitarbeiter` und `einstieg` an die Karte `cc-…`.
    - Das Board zeichnet den Einstieg im Detail der Karte.
    - Fertig, wenn eine echte Sitzungskarte in der Datenbank einen Einstieg hat und das Board ihn zeigt (Bildschirmfoto).
-2. **Workspaces und Mitarbeiter in der Oberflaeche.**
-   - Oben ein Umschalter fuer die Workspaces.
-   - Die Rondelle sind die Mitarbeiter statt technik, vertrieb, organisation. Die alten Bereiche bleiben fuer Tony-Karten.
-   - Graph-Ansicht wie im Sitzungs-Graphen.
+2. **Karte mit Hauptmanager (Hybrid, Marcels Wunsch vom 09.11.).**
+   - Die Startansicht ist eine Karte wie der Sitzungs-Graph. In der Mitte steht der Hauptmanager, darum die Workspaces, darum die Mitarbeiter und an jedem Mitarbeiter seine Aufgaben als Punkte.
+   - Ein Klick auf eine Aufgabe oeffnet sie im bekannten Kartenstil, mit Einstieg, Stand und Chat.
+   - Der Hauptmanager ist Tony. Er fasst zusammen, was ansteht, ordnet nach Dringlichkeit und leitet Marcels Eingaben an den richtigen Mitarbeiter weiter.
+   - Oben ein Umschalter fuer die Workspaces. Die alten Bereiche technik, vertrieb und organisation bleiben fuer Tonys eigene Karten.
 3. **Chat in die laufende Sitzung.**
    - Eine Eingabe an einer `cc-`-Karte wird zum Auftrag fuer genau diese Sitzung.
    - Der Mod `team` holt ihn ab und schickt ihn mit `$.prompt.submit` in die Sitzung, die Antwort meldet der Hook zurueck.

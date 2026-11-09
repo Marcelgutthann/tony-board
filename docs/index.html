@@ -607,7 +607,8 @@ function verlaufHTML(v){
 /* Einstieg: bevor ein Mitarbeiter etwas fragt, zeigt er Thema, Ablauf, Zahlen, Stand und Empfehlung */
 function einstiegHTML(f){
   const e = f.einstieg;
-  if (!e || typeof e !== "object") return "";
+  // Der Einstieg gehoert zur offenen Frage; arbeitet die Sitzung wieder, ist er ueberholt
+  if (!e || typeof e !== "object" || f.status !== "braucht_dich") return "";
   const ini = String(e.bereich||"").split(/\s+/).filter(w=>w && w!=="und").map(w=>w[0]).join("").slice(0,2).toUpperCase();
   const kette = (e.kette||[]).map((k,i,a)=>`<div class="e-schritt ${i===a.length-1?"letzter":""}">${esc(k)}</div>${i<a.length-1?'<span class="e-pfeil">›</span>':""}`).join("");
   const zahlen = (e.zahlen||[]).map(z=>`<div class="e-zahl"><span>${esc(z.text)}</span><b>${esc(z.wert)}</b></div>`).join("");
