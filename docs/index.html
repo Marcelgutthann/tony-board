@@ -1168,7 +1168,7 @@ function kVerlaufHTML(f, meine, unterwegs, sitzung){
   if (!unterwegs && ab && f.status !== "arbeitet" && new Date(f.geaendert) > new Date(ab)){
     const txt = String(f.inhalt || "");
     const stand = (txt.match(/\*\*Stand:\*\*\s*([^\n]+)/)?.[1] || f.kernaussage || "").replace(/\*\*/g, "");
-    const frage = f.von_dir || (txt.match(/\*\*Von dir:\*\*\s*([^\n]+)/)?.[1] || "");
+    const frage = f.von_dir ? "" : (txt.match(/\*\*Von dir:\*\*\s*([^\n]+)/)?.[1] || "");
     blasen.push(`<div class="kc-er"><b>${wer} · ${zeit(f.geaendert)}</b><p>${esc(kKurz(stand, 260))}</p>${frage ? `<p class="kc-frage">${esc(kKurz(frage, 220))}</p>` : ""}</div>`);
   }
   return `<div class="kc-verlauf">${blasen.join("")}</div>`;
