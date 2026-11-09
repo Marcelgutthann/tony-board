@@ -152,6 +152,13 @@ const TOOLS = [
           },
         },
         fokus: { type: "boolean", description: "true = dieses Fenster nach vorne holen." },
+        workspace: { type: "string", description: "Nur fuer Sitzungskarten (cc-…): Workspace der Sitzung, z. B. 'NoraNotes', 'KIOS', 'Marketplace'." },
+        mitarbeiter: { type: "string", description: "Nur fuer Sitzungskarten: der zustaendige Mitarbeiter (Bereich im Workspace), z. B. 'UI und UX'." },
+        einstieg: {
+          type: "object",
+          description: "Nur fuer Sitzungskarten mit offener Frage: der Einstieg, den der Mitarbeiter vor der Frage zeigt. {bereich, thema, kette:[..], zahlen:[{wert,text}], stand:{code,staging,prod}, empfehlung, risiko, am}. null loescht ihn.",
+        },
+        desktop_id: { type: "string", description: "Nur fuer Sitzungskarten: local_… der Claude-Desktop-Sitzung, damit das Board sie oeffnen kann." },
       },
       required: ["id"],
       additionalProperties: false,
@@ -512,7 +519,8 @@ async function werkzeug(name: string, a: Record<string, any>): Promise<unknown> 
       const { data: alt } = await db.from("tony_board_fenster").select("id, von_dir, freigabe, warten_auf, wartegrund").eq("id", a.id).maybeSingle();
       const felder: Record<string, unknown> = { geaendert: new Date().toISOString(), geschlossen: false };
       for (const k of ["titel", "auftrag", "kernaussage", "von_dir", "bereich", "app", "art", "kopf", "inhalt", "status", "schritte", "hinweis", "verlauf", "widgets",
-                       "taetigkeit", "zustaendig", "warten_auf", "wartegrund", "naechste_aktion", "bestaetigt_am", "fehler"]) {
+                       "taetigkeit", "zustaendig", "warten_auf", "wartegrund", "naechste_aktion", "bestaetigt_am", "fehler",
+                       "workspace", "mitarbeiter", "einstieg", "desktop_id"]) {
         if (a[k] !== undefined) felder[k] = a[k];
       }
       if (felder.app && !APPS.includes(felder.app as string)) felder.app = "notiz";
@@ -705,7 +713,7 @@ async function mcp(msg: any, client = ""): Promise<any | null> {
       return ok({
         protocolVersion: params?.protocolVersion ?? "2025-06-18",
         capabilities: { tools: { listChanged: false } },
-        serverInfo: { name: "tony-board", title: "Tony Board", version: "1.9.0" },
+        serverInfo: { name: "tony-board", title: "Tony Board", version: "1.10.0" },
         instructions:
           "Tony Board ist Marcels Bildschirm fuer deine Arbeit. Oberste Regel: Marcel muss jedes Fenster in 5 Sekunden verstehen, ohne zu lesen. Darum beginnt jedes Fenster mit auftrag (ein Satz), kernaussage als Stand (hoechstens 12 Woerter, Schluesselwoerter fett) und von_dir (die eine Frage an Marcel, sonst leer), dazu mindestens ein Widget; Fliesstext ist nur Detail. Lege fuer jede Aufgabe, an der du arbeitest, ein Fenster an (fenster_zeigen, immer mit bereich: technik, vertrieb oder organisation - jeder Bereich ist ein eigenes Rondell) und halte Inhalt, Schritte und Status aktuell. 'fertig' heisst: dein Teil ist getan. Bleibt danach etwas offen (Antwort auf eine gesendete Mail, Terminzusage, Freigabe von aussen) oder bleibt eine Aufgabe liegen, legst du es sofort mit im_blick_behalten an. 'Bleibt im Blick' ist Marcels Wiedervorlage, kein Archiv: jeder Punkt nennt den offenen Grund, den naechsten Prueftermin (nachfassen_am), die zugehoerige Karte (fenster_id) und nach jeder Pruefung den Stand. Bei board_lesen steht unter wiedervorlage, was faellig ist: pruefe jeden faelligen Punkt an seiner Karte und melde das Ergebnis mit im_blick_geprueft (pruefstand und neuer nachfassen_am), oder hake ihn mit im_blick_erledigt ab, wenn die Sache durch ist. Ein Punkt ohne Prueftermin wird nie faellig - trage ihn nach. Bei technischen Punkten (bereich technik) pruefst du nie aus dem Gedaechtnis: die Arbeit laeuft parallel weiter, darum laesst du mit an_claude den Stand von Code, Merge und Deploy abgleichen und haeltst die vier Zustaende getrennt fest (Code, Merge, Live, Nutzerbestaetigung). Erst wenn danach eine echte Luecke bleibt, fragst du Marcel - und zwar nach genau dieser Luecke, nicht mit der alten Frage. Bereite Ergebnisse visuell auf: Kennzahlen, Tabellen, Vergleiche, Link-Karten oder kleine Mockups als widgets, Mailwechsel als verlauf. Bei einem fertigen Feature ist die erste Link-Karte immer der Direktlink auf die Stelle in der App, ein GitHub-PR nur danach als technische Quelle. Hole das Fenster nach vorne, ueber das ihr gerade sprecht. Jede Karte traegt eine Statusleiste, die Marcel sofort sagt, wer was tut: taetigkeit (was gerade tatsaechlich passiert, als Satz), zustaendig (Tony, Claude, Marcel, GitHub Actions, eine Firma), bei Warten warten_auf (marcel | extern | agent | zugang) und wartegrund (die konkrete Abhaengigkeit), naechste_aktion (was als Naechstes passiert und wer es macht) und bei einem Abbruch fehler. Die Statuszeile allein beweist nichts: ohne taetigkeit schreibt das Board 'Status nicht aktuell bestaetigt', und wartende Karten zeigen keine laufende Arbeit an. Melde darum bei jedem Zwischenschritt die echte Taetigkeit nach, erfinde nie Prozentzahlen oder Restzeiten, und setze statt eines stillen Weiterwartens den passenden Status. status braucht_dich nur, wenn Marcel wirklich entscheiden oder etwas liefern muss, und dann immer mit der konkreten Frage in von_dir; wartest du nur technisch (Deploy, Build, Claude), ist der status wartet mit warten_auf und wartegrund und von_dir leer. Vor dem Senden einer Mail: freigabe_anfragen, dann board_lesen bis freigegeben. Lies mit board_lesen regelmaessig, was Marcel eingegeben und Claude geantwortet hat. Jede Eingabe von Marcel gehoert zu der Karte, die beim Absenden vor ihm stand; welche das ist, steht im Feld bezug. Antworte an dieser Karte, auch wenn der Fokus inzwischen auf einer anderen steht. Steht dort 'ohne Karte', ist die Nachricht allgemein gemeint - ordne sie dann keiner Karte auf Verdacht zu, sondern frage nach, wenn der Bezug wichtig ist. Code-, App-, Daten- und Deploy-Themen gibst du mit an_claude an Claude weiter. In Marcels Team-Discord postest du mit discord_senden (immer mit neuem schluessel je Nachricht); bestaetigt ist der Versand erst, wenn discord_status 'gesendet' mit message_id meldet - sag Marcel nie vorher 'gesendet'. Auch im Sprachanruf rufst du discord_senden selbst auf (quelle sprache), statt den Auftrag nur an eine andere Sitzung weiterzureichen; ein Weiterreichen ohne Bestaetigung ist kein Versand.",
       });

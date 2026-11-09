@@ -30,6 +30,31 @@ body{
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 a{color:var(--blau);text-decoration:none}a:hover{text-decoration:underline}
 
+/* Einstieg eines Mitarbeiters */
+.einstieg{display:flex;flex-direction:column;gap:.7rem;padding:1rem 1.1rem;margin-bottom:.9rem;border-radius:1.1rem;background:var(--glas);border:1px solid var(--kante)}
+.e-kopf{display:flex;align-items:center;gap:.8rem}
+.e-kopf small{display:block;color:var(--text3);font-size:.75rem}
+.e-kopf b{font-size:1.05rem}
+.e-avatar{width:2.4rem;height:2.4rem;border-radius:50%;display:grid;place-items:center;flex:none;font-weight:700;font-size:.8rem;color:#0a0a0b;background:linear-gradient(180deg,#fff,#ececee 48%,#d4d4d8 52%,#e6e6e9)}
+.e-label{color:var(--text3);font-size:.7rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+.e-kette{display:flex;align-items:stretch;gap:.4rem}
+.e-schritt{flex:1;min-width:0;padding:.55rem .7rem;border-radius:.7rem;border:1px solid var(--kante);font-size:.82rem;background:rgba(255,255,255,.04)}
+.e-schritt.letzter{border-color:var(--rot)}
+.e-pfeil{align-self:center;color:var(--text3)}
+.e-zahlen{display:grid;grid-template-columns:repeat(auto-fit,minmax(7rem,1fr));gap:.5rem}
+.e-zahl{padding:.55rem .75rem;border-radius:.7rem;background:var(--glas-stark)}
+.e-zahl span{display:block;color:var(--text2);font-size:.72rem}
+.e-zahl b{font-size:1.3rem;font-weight:600}
+.e-stand{display:flex;gap:.4rem}
+.e-stufe{flex:1;text-align:center;padding:.3rem;border-radius:.6rem;font-size:.75rem;color:var(--text2);border:1px dashed var(--kante-hell)}
+.e-stufe.ok{border:1px solid var(--gruen);background:rgba(127,224,176,.16);color:var(--text)}
+.e-empf{padding:.75rem .9rem;border-radius:.8rem;border:1px solid #a8c7c2;background:rgba(168,199,194,.08)}
+.e-empf small{display:block;color:#a8c7c2;font-size:.72rem}
+.e-empf b{font-weight:600}
+.e-empf p{margin-top:.35rem;color:var(--text2);font-size:.82rem}
+.e-empf p i{display:inline-block;width:.45rem;height:.45rem;border-radius:50%;background:var(--gelb);margin-right:.45rem}
+.e-frage{font-weight:500}
+
 /* Kopf */
 .kopf{position:fixed;inset:0 0 auto 0;height:4.4rem;display:flex;align-items:center;justify-content:space-between;padding:0 1.6rem;z-index:20}
 .marke{display:flex;align-items:center;gap:.7rem;font-weight:600;font-size:1.15rem;letter-spacing:-.01em}
@@ -579,6 +604,25 @@ function verlaufHTML(v){
   return `<div class="verlauf">${v.map(n=>`<div class="blase ${n.eigen?"eigen":""}"><div class="wer"><b>${esc(n.wer)}</b>${n.zeit?`<span>${esc(n.zeit)}</span>`:""}</div>${markdown(n.text)}</div>`).join("")}</div>`;
 }
 
+/* Einstieg: bevor ein Mitarbeiter etwas fragt, zeigt er Thema, Ablauf, Zahlen, Stand und Empfehlung */
+function einstiegHTML(f){
+  const e = f.einstieg;
+  if (!e || typeof e !== "object") return "";
+  const ini = String(e.bereich||"").split(/\s+/).filter(w=>w && w!=="und").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+  const kette = (e.kette||[]).map((k,i,a)=>`<div class="e-schritt ${i===a.length-1?"letzter":""}">${esc(k)}</div>${i<a.length-1?'<span class="e-pfeil">›</span>':""}`).join("");
+  const zahlen = (e.zahlen||[]).map(z=>`<div class="e-zahl"><span>${esc(z.text)}</span><b>${esc(z.wert)}</b></div>`).join("");
+  const st = e.stand||{};
+  const stufe = (k,v) => `<span class="e-stufe ${v?"ok":""}">${esc(k)}${v===undefined||v===null?" –":""}</span>`;
+  return `<div class="einstieg">
+    <div class="e-kopf"><span class="e-avatar">${esc(ini)}</span><div><small>Mitarbeiter ${esc(e.bereich||f.mitarbeiter||"")}</small><b>${esc(e.thema||f.titel)}</b></div></div>
+    ${kette?`<small class="e-label">Was los war</small><div class="e-kette">${kette}</div>`:""}
+    ${zahlen?`<div class="e-zahlen">${zahlen}</div>`:""}
+    <div class="e-stand">${stufe("Code",st.code)}${stufe("staging",st.staging)}${stufe("prod",st.prod)}<span class="e-stufe">du bestätigst</span></div>
+    ${e.empfehlung?`<div class="e-empf"><small>So würde ich es machen</small><b>${esc(e.empfehlung)}</b>${e.risiko?`<p><i></i>${esc(e.risiko)}</p>`:""}</div>`:""}
+    ${f.von_dir?`<small class="e-label">Von dir</small><p class="e-frage">${esc(f.von_dir)}</p>`:""}
+  </div>`;
+}
+
 function fensterHTML(f){
   const L = lage(f);
   const kopf = f.kopf && Object.keys(f.kopf).length
@@ -601,6 +645,7 @@ function fensterHTML(f){
       <div class="f-titel"><small>${esc(f.app)}</small><b>${esc(f.titel)}</b></div>
       <div class="status ${L.art}"><i></i>${esc(L.kurz)}</div></div>
     <div class="f-koerper">
+    ${einstiegHTML(f)}
     ${statusleisteHTML(f, L)}
     ${(f.auftrag||f.kernaussage)?`<div class="lage">
       ${f.auftrag?`<div class="z"><span>Auftrag</span><p>${zeile(esc(f.auftrag))}</p></div>`:""}
