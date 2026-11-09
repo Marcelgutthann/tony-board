@@ -384,6 +384,22 @@ body.v-karte .todos{display:none}
 .kt-sammel{display:flex;flex-direction:column;gap:6px;padding:12px 16px 0;border-top:1px solid rgba(255,255,255,.08)}
 .kt-sammel>span{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3)}
 .kt-sammel .kv-fuss{padding:8px 0 12px;border:0}
+.kc-verlauf{display:flex;flex-direction:column;gap:8px;padding:12px 18px 0;border-top:1px solid rgba(255,255,255,.08)}
+.kt-detail .kc-verlauf{padding:10px 16px 0}
+.kc-ich{align-self:flex-end;max-width:88%;padding:9px 12px;border-radius:14px 14px 4px 14px;background:rgba(127,178,255,.14);border:1px solid rgba(127,178,255,.3)}
+.kc-ich p{font-size:15px;line-height:1.4}
+.kc-ich small{display:flex;align-items:center;gap:6px;margin-top:5px;font-size:12.5px;color:var(--text3)}
+.kc-ich small i{width:8px;height:8px;border-radius:50%;background:#a3abc0}
+.kc-ich small.warte i{background:#f0c96e}
+.kc-ich small.laeuft{color:#a7f3c4}
+.kc-ich small.laeuft i{background:#4ade80;animation:kpunkt 1.4s ease-in-out infinite}
+.kc-ich small.ok i{background:#4ade80}
+.kc-ich small.fehlt{color:#ffb4b4}
+.kc-ich small.fehlt i{background:#ff5d5d}
+.kc-er{align-self:flex-start;max-width:92%;padding:9px 12px;border-radius:14px 14px 14px 4px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14)}
+.kc-er b{display:block;font-size:12.5px;color:var(--text3);margin-bottom:3px}
+.kc-er p{font-size:15px;line-height:1.4}
+.kc-er .kc-frage{margin-top:6px;font-weight:600;color:#ffd0d0}
 .kt-mgr.an{background:#f2f2f2;color:#0a0a0b;border-color:#f2f2f2}
 .k-voll .fenster{position:relative;inset:auto;transform:none;width:100%;height:100%;max-height:none;opacity:1}
 .k-zu{position:absolute;top:-14px;right:-14px;z-index:2;width:30px;height:30px;border-radius:50%;background:#f2f2f2;color:#0a0a0b;font-size:18px;font-weight:700;line-height:30px}
@@ -904,7 +920,7 @@ const kOff = {};                          // wirksamer Versatz je Schluessel bei
 const kPos = (key, px, py, dx, dy) => { const o = kLage[key] || {dx, dy}; kOff[key] = {dx: o.dx, dy: o.dy}; return [px + o.dx, py + o.dy]; };
 const kMgr = new Set();                   // offene Abteilungs-Manager (Schluessel ws|abt)
 const kAbtInfo = {};                      // je Abteilung: Name, Aufgaben, Lage (fuer Hover und Manager)
-const kEntwurf = {}, kMeldung = {}, kTodoH = {}, kRahmenBox = {};   // kTodoH: gemessene Hoehe der To-do-Listen, damit der Rahmen passt       // Eingaben in Kartenfeldern ueberleben das Neuzeichnen
+const kEntwurf = {}, kMeldung = {}, kTodoH = {}, kRahmenBox = {}, kAusstehend = {};   // kTodoH: gemessene Hoehe der To-do-Listen, damit der Rahmen passt       // Eingaben in Kartenfeldern ueberleben das Neuzeichnen
 const KW = 2600, KH = 1700;               // Weltgroesse
 const K_FARBE = {braucht_dich:"#ff5d5d", arbeitet:"#4ade80", wartet:"#f0c96e", fertig:"#6b7280"};
 // Ampel der Karte: rot = braucht Marcel (oder Fehler), gruen pulsierend = arbeitet gerade, gelb = wartet, grau = fertig
@@ -1124,11 +1140,38 @@ function kVollHTML(f, abt, farbe){
 // Chatfeld direkt in der Karte: geht an genau diese Aufgabe (Sitzungen holen es selbst ab, sonst liest Tony es)
 function kChatHTML(f){
   const sitzung = String(f.id).startsWith("cc-");
-  const letzte = (zustand.eingang||[]).filter(e => e.fenster_id === f.id && e.art === "nachricht").sort((a,b) => a.erstellt < b.erstellt ? -1 : 1).slice(-1)[0];
-  const meld = kMeldung["k:" + f.id] || (letzte ? `Du, ${zeit(letzte.erstellt)}: ${kKurz(letzte.text, 70)}` : (sitzung ? "Geht direkt in die laufende Sitzung." : "Geht an Tony, zu dieser Aufgabe."));
-  return `<div class="kv-chat"><input data-kfeld="k:${esc(f.id)}" placeholder="${sitzung ? "Nachricht an diese Sitzung …" : "Nachricht zu dieser Aufgabe …"}" autocomplete="off">
+  const meine = (zustand.eingang||[]).filter(e => e.fenster_id === f.id && e.art === "nachricht").sort((a,b) => a.erstellt < b.erstellt ? -1 : 1).slice(-2);
+  const unterwegs = kAusstehend[f.id];
+  if (unterwegs && meine.some(e => e.text === unterwegs)) delete kAusstehend[f.id];
+  const meld = sitzung ? "Geht direkt in die laufende Sitzung." : "Geht an Tony, zu dieser Aufgabe.";
+  return `${kVerlaufHTML(f, meine, kAusstehend[f.id], sitzung)}<div class="kv-chat"><input data-kfeld="k:${esc(f.id)}" placeholder="${sitzung ? "Nachricht an diese Sitzung …" : "Nachricht zu dieser Aufgabe …"}" autocomplete="off">
       <button class="glasknopf" data-ksend="${esc(f.id)}">Senden</button></div>
     <div class="kv-fuss"><span>${esc(meld)}</span><button class="kv-ganz" data-kganz="${esc(f.id)}">Ganze Karte</button></div>`;
+}
+
+/* Verlauf in der Karte: Marcels Nachrichten mit ehrlichem Zustand (gesendet, angekommen, arbeitet, nicht abgeholt)
+   und darunter die Antwort der Sitzung, sobald sie fertig ist (Stand und Frage aus ihrem Antwortblock). */
+function kVerlaufHTML(f, meine, unterwegs, sitzung){
+  if (!meine.length && !unterwegs) return "";
+  const jetzt = Date.now(), wer = sitzung ? "Claude" : "Tony";
+  const blasen = meine.map((e, i) => {
+    const ab = sitzung ? e.an_sitzung : e.gelesen, alter = (jetzt - new Date(e.erstellt)) / 1000, letzte = i === meine.length - 1;
+    let zst, art;
+    if (!ab) [zst, art] = alter < 45 ? ["Gesendet, wird abgeholt …", "warte"] : [sitzung ? "Nicht abgeholt. Läuft die Sitzung noch?" : "Tony hat es noch nicht gelesen.", "fehlt"];
+    else if (letzte && f.status === "arbeitet") [zst, art] = [`Angekommen · ${wer} arbeitet daran`, "laeuft"];
+    else [zst, art] = [`Angekommen ${zeit(ab)}`, "ok"];
+    return `<div class="kc-ich"><p>${esc(kKurz(e.text, 220))}</p><small class="${art}"><i></i>${esc(zst)}</small></div>`;
+  });
+  if (unterwegs) blasen.push(`<div class="kc-ich"><p>${esc(kKurz(unterwegs, 220))}</p><small class="warte"><i></i>Wird gesendet …</small></div>`);
+  // Antwort: die Karte wurde nach dem Abholen der letzten Nachricht wieder beschrieben und arbeitet nicht mehr
+  const l = meine[meine.length - 1], ab = l && (sitzung ? l.an_sitzung : l.gelesen);
+  if (!unterwegs && ab && f.status !== "arbeitet" && new Date(f.geaendert) > new Date(ab)){
+    const txt = String(f.inhalt || "");
+    const stand = (txt.match(/\*\*Stand:\*\*\s*([^\n]+)/)?.[1] || f.kernaussage || "").replace(/\*\*/g, "");
+    const frage = f.von_dir || (txt.match(/\*\*Von dir:\*\*\s*([^\n]+)/)?.[1] || "");
+    blasen.push(`<div class="kc-er"><b>${wer} · ${zeit(f.geaendert)}</b><p>${esc(kKurz(stand, 260))}</p>${frage ? `<p class="kc-frage">${esc(kKurz(frage, 220))}</p>` : ""}</div>`);
+  }
+  return `<div class="kc-verlauf">${blasen.join("")}</div>`;
 }
 
 // Abteilungsleitung: alle Aufgaben der Abteilung verdichtet, offene Fragen direkt beantworten, dazu eine Sammelnachricht
@@ -1200,8 +1243,8 @@ function kLageZeigen(akey){
 }
 
 // Im Projekt: in den Rahmen der Abteilung hineinzoomen, der aufgeklappte Eintrag bleibt sicher im Bild
-function kInRahmenZoomen(id){
-  const el = document.querySelector(`#kmapbox .kt-eintrag[data-kid="${CSS.escape(id)}"]`); if (!el) return;
+function kInRahmenZoomen(id, el){
+  el = el || document.querySelector(`#kmapbox .kt-eintrag[data-kid="${CSS.escape(id)}"]`); if (!el) return;
   const r = kRahmenBox[el.closest(".k-todo").dataset.tkey];
   const b = document.getElementById("kmapbox").getBoundingClientRect(), e = el.getBoundingClientRect();
   const ew = e.width / kView.s, eh = e.height / kView.s;
@@ -1267,7 +1310,7 @@ function kartenBedienung(){
     const ks = e.target.closest("[data-ksend]");
     if (ks){
       const id = ks.dataset.ksend, text = String(kEntwurf["k:" + id] || "").trim(); if (!text) return;
-      delete kEntwurf["k:" + id]; kMeldung["k:" + id] = "Gesendet ✓ " + kKurz(text, 60);
+      delete kEntwurf["k:" + id]; kAusstehend[id] = text;
       kSenden([[id, text]]); kartenZeichnen(); return;
     }
     const ms = e.target.closest("[data-msend]");
@@ -1290,7 +1333,10 @@ function kartenBedienung(){
     const mz = e.target.closest("[data-mzu]");
     if (mz){ kMgr.delete(mz.dataset.mzu); kartenZeichnen(); return; }
     const ag = e.target.closest("[data-akey]");
-    if (ag){ const a = ag.dataset.akey; kMgr.has(a) ? kMgr.delete(a) : kMgr.add(a); document.querySelector("#kmapbox .k-lage").hidden = true; kartenZeichnen(); return; }
+    if (ag){ const a = ag.dataset.akey; kMgr.has(a) ? kMgr.delete(a) : kMgr.add(a); document.querySelector("#kmapbox .k-lage").hidden = true; kartenZeichnen();
+      // Im Projekt die ganze aufgeklappte Liste ins Bild holen
+      if (kartenWs !== "Alle" && kMgr.has(a)) kInRahmenZoomen(null, document.querySelector(`#kmapbox .k-todo[data-tkey="${CSS.escape(a)}"]`));
+      return; }
     const ganz = e.target.closest("[data-kganz]");
     if (ganz){ zustand.ansicht = lokaleAnsicht = "mehrfenster"; zeichnen(); waehlen(ganz.dataset.kganz); zielSetzen(); return; }
     const zu = e.target.closest("[data-kzu]");
