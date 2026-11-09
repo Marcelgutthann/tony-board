@@ -319,7 +319,7 @@ body.v-karte .todos{display:none}
 .kv-status.marcel{border-color:#ff5d5d;color:#ffb4b4}
 .kv-koerper{padding:14px 18px;overflow:auto;display:flex;flex-direction:column;gap:12px}
 .kv-koerper .einstieg{margin:0;font-size:15px}
-.kv-zeile span{display:block;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3)}
+.kv-zeile>span{display:block;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3)}
 .kv-zeile p{font-size:16px;line-height:1.45;margin-top:2px}
 .kv-frage{padding:12px 14px;border-radius:14px;border:1px solid rgba(255,93,93,.65);background:rgba(255,93,93,.08);font-weight:600;font-size:17px;line-height:1.4}
 .kv-fuss{display:flex;align-items:center;gap:12px;padding:12px 18px;border-top:1px solid rgba(255,255,255,.08);font-size:13px;color:var(--text3)}
@@ -400,6 +400,17 @@ body.v-karte .todos{display:none}
 .kc-er b{display:block;font-size:12.5px;color:var(--text3);margin-bottom:3px}
 .kc-er p{font-size:15px;line-height:1.4}
 .kc-er .kc-frage{margin-top:6px;font-weight:600;color:#ffd0d0}
+.kv-koerper{overflow-x:hidden;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent}
+.ke-kette{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;margin-top:4px}
+.ke-schritt{font-size:14px;line-height:1.35;padding:4px 9px;border-radius:9px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1)}
+.ke-schritt.letzter{border-color:rgba(255,93,93,.5)}
+.ke-pfeil{color:var(--text3);font-size:14px}
+.ke-zahlen{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:14px;color:var(--text2)}
+.ke-zahlen b{color:var(--text);font-size:16px}
+.ke-stand{display:flex;gap:6px}
+.ke-stufe{font-size:12.5px;padding:3px 9px;border-radius:99px;border:1px solid rgba(255,255,255,.14);color:var(--text3)}
+.ke-stufe.ok{border-color:rgba(74,222,128,.5);color:#a7f3c4}
+.ke-risiko{font-size:14px;color:var(--text3);margin-top:4px}
 .kt-mgr.an{background:#f2f2f2;color:#0a0a0b;border-color:#f2f2f2}
 .k-voll .fenster{position:relative;inset:auto;transform:none;width:100%;height:100%;max-height:none;opacity:1}
 .k-zu{position:absolute;top:-14px;right:-14px;z-index:2;width:30px;height:30px;border-radius:50%;background:#f2f2f2;color:#0a0a0b;font-size:18px;font-weight:700;line-height:30px}
@@ -1131,10 +1142,24 @@ function kVollHTML(f, abt, farbe){
   return `<div class="kv">
     <div class="kv-kopf" data-zieh="c:${esc(f.id)}" title="Ziehen zum Verschieben"><span class="kf-av" style="--c:${farbe}">${esc(kIni(abt))}</span><div><small>${esc(abt)}</small><b>${esc(kKurz(f.titel, 70))}</b></div>
       <span class="kv-status ${L.art}">${esc(L.kurz)}</span></div>
-    <div class="kv-koerper">${einstiegHTML(f) || (auftrag + stand + tun)}
-      ${f.von_dir && !(f.einstieg && f.status === "braucht_dich") ? `<div class="kv-frage">${esc(f.von_dir)}</div>` : ""}</div>
+    <div class="kv-koerper">${kEinstiegKurz(f) || (auftrag + stand + tun)}
+      ${f.von_dir ? `<div class="kv-frage">${esc(f.von_dir)}</div>` : ""}</div>
     ${kChatHTML(f)}
   </div>`;
+}
+
+// Einstieg fuer die kleine Karte: dieselben Inhalte wie auf dem Board, aber in Kartengroesse und ohne zweiten Kopf
+function kEinstiegKurz(f){
+  const e = f.einstieg;
+  if (!e || typeof e !== "object" || f.status !== "braucht_dich") return "";
+  const kette = (e.kette||[]).map((k,i,a) => `<span class="ke-schritt${i===a.length-1?" letzter":""}">${esc(k)}</span>`).join('<span class="ke-pfeil">›</span>');
+  const zahlen = (e.zahlen||[]).map(z => `<span class="ke-zahl"><b>${esc(z.wert)}</b> ${esc(z.text)}</span>`).join("");
+  const st = e.stand || {};
+  const stufe = (k,v) => `<span class="ke-stufe${v?" ok":""}">${esc(k)}</span>`;
+  return `${kette ? `<div class="kv-zeile"><span>Was los war</span><div class="ke-kette">${kette}</div></div>` : ""}
+    ${zahlen ? `<div class="ke-zahlen">${zahlen}</div>` : ""}
+    <div class="ke-stand">${stufe("Code",st.code)}${stufe("staging",st.staging)}${stufe("prod",st.prod)}</div>
+    ${e.empfehlung ? `<div class="kv-zeile"><span>So würde ich es machen</span><p>${esc(e.empfehlung)}</p>${e.risiko ? `<p class="ke-risiko">${esc(e.risiko)}</p>` : ""}</div>` : ""}`;
 }
 
 // Chatfeld direkt in der Karte: geht an genau diese Aufgabe (Sitzungen holen es selbst ab, sonst liest Tony es)
@@ -1219,8 +1244,8 @@ function kTodoHTML(akey){
 function kDetailHTML(f){
   const stand = f.kernaussage ? `<div class="kv-zeile"><span>Stand</span><p>${zeile(esc(f.kernaussage))}</p></div>` : "";
   const tun = f.taetigkeit ? `<div class="kv-zeile"><span>Zuletzt</span><p>${esc(f.taetigkeit)}</p></div>` : "";
-  return `<div class="kv-koerper">${einstiegHTML(f) || (stand + tun)}
-      ${f.von_dir && !(f.einstieg && f.status === "braucht_dich") ? `<div class="kv-frage">${esc(f.von_dir)}</div>` : ""}</div>${kChatHTML(f)}`;
+  return `<div class="kv-koerper">${kEinstiegKurz(f) || (stand + tun)}
+      ${f.von_dir ? `<div class="kv-frage">${esc(f.von_dir)}</div>` : ""}</div>${kChatHTML(f)}`;
 }
 
 async function kSenden(liste){
